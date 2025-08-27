@@ -22,8 +22,20 @@ const modalPanel = document.getElementById("modalPanel");
 // TTS controls
 const btnSpeak = document.getElementById("btnSpeak");
 const btnStopSpeak = document.getElementById("btnStopSpeak");
+const rateRange = document.getElementById("rateRange");
+const rateLabel = document.getElementById("rateLabel");
+const ttsRateBox = document.getElementById("ttsRateBox");
+
 let ttsState = "idle"; // idle | playing | paused
 let ttsVoice = null;
+const RATE_KEY = "tts_rate_v1";
+let ttsRate = parseFloat(localStorage.getItem(RATE_KEY) || "1.0") || 1.0;
+
+function setRateUI(val) {
+  if (rateRange) rateRange.value = String(val);
+  if (rateLabel) rateLabel.textContent = `${Number(val).toFixed(1)}x`;
+}
+setRateUI(ttsRate);
 
 let allItems = [];
 let activeSource = "all";
@@ -78,7 +90,7 @@ function buildPreviewBullets(text, maxBullets = 3) {
   return bullets.filter(Boolean).length >= 2 ? bullets : [];
 }
 
-/* ===== Popup summary: smarter for short articles ===== */
+/* ===== Popup summary helpers ===== */
 function normalizeBullets(arr, { minLen = 20, limit = 5 } = {}) {
   const seen = new Set();
   const out = [];
@@ -223,39 +235,33 @@ function ttsSupported() {
 }
 function pickViVoice() {
   const vs = window.speechSynthesis.getVoices() || [];
-  // Ưu tiên giọng vi-VN
   let vi = vs.find(v => v.lang && v.lang.toLowerCase().startsWith("vi"));
-  if (!vi) {
-    // fallback: các giọng phổ biến khác
-    vi = vs.find(v => /(en-|en_)/i.test(v.lang)) || vs[0] || null;
-  }
+  if (!vi) vi = vs.find(v => /(en-|en_)/i.test(v.lang)) || vs[0] || null;
   return vi;
 }
+function showTTSControls() {
+  btnSpeak.classList.remove("hidden");
+  btnStopSpeak.classList.remove("hidden");
+  if (ttsRateBox) ttsRateBox.classList.remove("hidden");
+}
+
 if (ttsSupported()) {
-  const applyButtons = () => {
-    btnSpeak.classList.remove("hidden");
-    btnStopSpeak.classList.remove("hidden");
-  };
-  // một số trình duyệt cần đợi voices
+  // voices có thể load chậm
   window.speechSynthesis.onvoiceschanged = () => {
     ttsVoice = pickViVoice();
-    applyButtons();
+    showTTSControls();
   };
-  // nếu đã có sẵn
   ttsVoice = pickViVoice();
-  if (ttsVoice) {
-    btnSpeak.classList.remove("hidden");
-    btnStopSpeak.classList.remove("hidden");
-  }
+  if (ttsVoice) showTTSControls();
 }
 
-// Lấy text thuần từ khu vực tóm tắt
 function getSummaryText() {
-  const text = (summaryList.innerText || "").replace(/\s+\n/g, "\n").replace(/\n{2,}/g, "\n\n").trim();
+  const text = (summaryList.innerText || "")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n{2,}/g, "\n\n")
+    .trim();
   return text;
 }
-
-// Chia văn bản thành mảng chunk <= ~220 ký tự, ưu tiên tách theo câu
 function chunkTextForTTS(text, maxLen = 220) {
   const sents = splitSentencesNoLookbehind(text);
   const out = [];
@@ -268,7 +274,6 @@ function chunkTextForTTS(text, maxLen = 220) {
       if (s.length <= maxLen) {
         buff = s;
       } else {
-        // câu quá dài -> cắt cứng theo từ
         let cur = s;
         while (cur.length > maxLen) {
           const cut = cur.lastIndexOf(" ", maxLen);
@@ -283,7 +288,6 @@ function chunkTextForTTS(text, maxLen = 220) {
   if (buff) out.push(buff);
   return out;
 }
-
 function startSpeak(text) {
   if (!ttsSupported() || !text) return;
   window.speechSynthesis.cancel();
@@ -295,8 +299,8 @@ function startSpeak(text) {
     const u = new SpeechSynthesisUtterance(chunk);
     if (ttsVoice) u.voice = ttsVoice;
     u.lang = (ttsVoice && ttsVoice.lang) || "vi-VN";
-    u.rate = 1.0;  // tốc độ
-    u.pitch = 1.0; // cao độ
+    u.rate = Math.min(1.6, Math.max(0.6, ttsRate));
+    u.pitch = 1.0;
     if (i === chunks.length - 1) {
       u.onend = () => { ttsState = "idle"; btnSpeak.textContent = "🔊 Đọc to"; };
     }
@@ -320,12 +324,27 @@ btnSpeak?.addEventListener("click", () => {
     btnSpeak.textContent = "⏸ Tạm dừng";
   }
 });
-
 btnStopSpeak?.addEventListener("click", () => {
   if (!ttsSupported()) return;
   window.speechSynthesis.cancel();
   ttsState = "idle";
   btnSpeak.textContent = "🔊 Đọc to";
+});
+// chỉnh tốc độ: lưu & (nếu đang đọc) khởi động lại
+rateRange?.addEventListener("input", (e) => {
+  ttsRate = parseFloat(e.target.value || "1.0") || 1.0;
+  localStorage.setItem(RATE_KEY, String(ttsRate));
+  setRateUI(ttsRate);
+});
+rateRange?.addEventListener("change", () => {
+  if (!ttsSupported()) return;
+  if (ttsState === "playing" || ttsState === "paused") {
+    const text = getSummaryText();
+    window.speechSynthesis.cancel();
+    ttsState = "idle";
+    btnSpeak.textContent = "🔊 Đọc to";
+    if (text.length > 4) startSpeak(text); // đọc lại từ đầu với tốc độ mới
+  }
 });
 
 /* ===== Events ===== */
@@ -366,11 +385,12 @@ function openSummaryModal(item, link) {
   summaryLoading.textContent = "Đang tóm tắt…";
   summaryLoading.classList.remove("hidden");
 
-  // reset TTS state & button text
+  // reset TTS state & sync speed UI
   if (ttsSupported()) {
     window.speechSynthesis.cancel();
     ttsState = "idle";
     btnSpeak.textContent = "🔊 Đọc to";
+    setRateUI(ttsRate);
   }
 
   markRead(link);
@@ -406,7 +426,6 @@ function openSummaryModal(item, link) {
 }
 
 function closeModal() {
-  // dừng TTS khi đóng
   if (ttsSupported()) {
     window.speechSynthesis.cancel();
     ttsState = "idle";

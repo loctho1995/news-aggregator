@@ -51,7 +51,13 @@
         <div class="flex items-start gap-2 sticky -top-5 sm:-top-6 bg-white pt-0 pb-2">
           <div class="text-lg font-semibold flex-1" id="modalTitle">Tóm tắt</div>
           <div class="flex items-center gap-2">
-            <!-- Nút TTS -->
+            <!-- TTS controls -->
+            <div id="ttsRateBox" class="hidden items-center gap-2">
+              <label for="rateRange" class="text-xs text-slate-500">Tốc độ</label>
+              <input id="rateRange" type="range" min="0.6" max="1.6" step="0.1" value="1.0"
+                     class="w-24 accent-slate-900" aria-label="Tốc độ đọc">
+              <span id="rateLabel" class="text-xs text-slate-600">1.0x</span>
+            </div>
             <button id="btnSpeak" class="px-3 py-1.5 rounded-lg border text-sm hidden">🔊 Đọc to</button>
             <button id="btnStopSpeak" class="px-3 py-1.5 rounded-lg border text-sm hidden">Dừng</button>
 
