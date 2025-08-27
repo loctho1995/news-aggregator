@@ -1,4 +1,3 @@
-
 import express from "express";
 import cors from "cors";
 import pino from "pino";
@@ -39,15 +38,120 @@ const cacheGet = k => { const v = SUM_CACHE.get(k); if (!v) return null; if (Dat
 const cacheSet = (k,d) => SUM_CACHE.set(k,{ts:Date.now(), data:d});
 
 function extractMainContent($) {
-  $("script,style,noscript,header,footer,nav,aside").remove();
-  const candidates = ["article","[class*='content']","[id*='content']","[class*='detail']","[class*='body']",".article-body",".entry-content",".post-content",".news-content"];
-  let best = null;
-  for (const sel of candidates) {
-    const el = $(sel).first();
-    if (el && el.length) { best = el; break; }
+  // Xóa các thành phần không cần thiết (mở rộng danh sách)
+  $("script,style,noscript,iframe,.advertisement,.ads,.banner,.sidebar,.widget,.social-share,.related-news,.comment").remove();
+  
+  // PHƯƠNG PHÁP 1: Tìm theo meta tags và structured data
+  const ogDescription = $("meta[property='og:description']").attr("content") || "";
+  const metaDescription = $("meta[name='description']").attr("content") || "";
+  const articleLead = $(".sapo, .lead, .description, .chapeau, .article-summary").text().trim();
+  
+  // PHƯƠNG PHÁP 2: Selector cụ thể cho các trang báo VN
+  const selectors = {
+    // VnExpress
+    vnexpress: [".fck_detail", ".article-content", ".content-detail"],
+    // Tuổi Trẻ
+    tuoitre: [".content-detail", ".detail-content", ".detail__content"],
+    // Dân Trí
+    dantri: [".singular-content", ".detail-content", ".e-magazine__body"],
+    // Thanh Niên
+    thanhnien: [".detail-content", ".content", ".article-body"],
+    // CafeF/CafeBiz
+    cafe: [".newscontent", ".detail-content", ".content-detail"],
+    // VietnamNet
+    vietnamnet: [".ArticleContent", ".article-content", ".content__body"],
+    // Generic
+    generic: [
+      "article", "[itemprop='articleBody']", ".article-body",
+      ".entry-content", ".post-content", ".news-content",
+      ".main-content", ".story-body", ".text-content",
+      "[class*='article'][class*='content']",
+      "[class*='detail'][class*='content']",
+      "[class*='content'][class*='detail']",
+      "[id*='content'][class*='detail']"
+    ]
+  };
+  
+  let bestContent = "";
+  let maxScore = 0;
+  
+  // Thử tất cả selectors và chọn cái tốt nhất
+  Object.values(selectors).flat().forEach(sel => {
+    try {
+      $(sel).each((_, el) => {
+        const $el = $(el);
+        const text = $el.text().trim();
+        const paragraphs = $el.find("p").length;
+        const links = $el.find("a").length;
+        const images = $el.find("img").length;
+        
+        // Tính điểm dựa trên các yếu tố
+        const score = text.length + (paragraphs * 50) - (links * 10) + (images * 20);
+        
+        if (score > maxScore && text.length > 200) {
+          maxScore = score;
+          bestContent = text;
+        }
+      });
+    } catch (e) {}
+  });
+  
+  // PHƯƠNG PHÁP 3: Thu thập từ nhiều nguồn
+  if (!bestContent || bestContent.length < 300) {
+    const contentParts = [];
+    
+    // Lấy lead/sapo
+    if (articleLead && articleLead.length > 50) {
+      contentParts.push(articleLead);
+    }
+    
+    // Lấy tất cả paragraphs có nội dung
+    $("p").each((_, p) => {
+      const text = $(p).text().trim();
+      // Lọc paragraph có ý nghĩa
+      if (text.length > 80 && 
+          !text.includes("Xem thêm") && 
+          !text.includes("Đọc thêm") &&
+          !text.includes("TIN LIÊN QUAN") &&
+          !text.includes("Chia sẻ") &&
+          !text.includes("Bình luận")) {
+        contentParts.push(text);
+      }
+    });
+    
+    // Nếu ít paragraph, thử lấy từ div/span
+    if (contentParts.length < 3) {
+      $("div.text, div.txt, span.text").each((_, el) => {
+        const text = $(el).text().trim();
+        if (text.length > 100) contentParts.push(text);
+      });
+    }
+    
+    bestContent = contentParts.join(" ");
   }
-  if (!best) best = $("main").first().length ? $("main").first() : $("body");
-  return best.text().replace(/\s+/g, " ").trim();
+  
+  // PHƯƠNG PHÁP 4: Fallback với meta description
+  if (!bestContent || bestContent.length < 100) {
+    bestContent = [ogDescription, metaDescription, articleLead].filter(Boolean).join(" ");
+  }
+  
+  // Làm sạch content
+  bestContent = bestContent
+    .replace(/\s+/g, " ")
+    .replace(/(\r\n|\n|\r)/gm, " ")
+    .replace(/Chia sẻ bài viết.*/gi, "")
+    .replace(/Xem thêm:.*/gi, "")
+    .replace(/Đọc thêm:.*/gi, "")
+    .replace(/TIN LIÊN QUAN.*/gi, "")
+    .replace(/Bài viết liên quan.*/gi, "")
+    .replace(/Tags?:.*/gi, "")
+    .replace(/\[.*?\]/g, "") // Xóa [Photo], [Video]...
+    .replace(/\(Ảnh:.*?\)/gi, "")
+    .replace(/Theo\s+[A-Z][^.]{0,30}$/gi, "") // Theo VnExpress, Theo Dân Trí...
+    .trim();
+  
+  console.log(`Extracted content: ${bestContent.length} chars from ${maxScore} score`);
+  return bestContent;
 }
 
 function splitSentencesNoLookbehind(text) {
@@ -55,21 +159,80 @@ function splitSentencesNoLookbehind(text) {
   return parts.map(s => s.trim()).filter(Boolean);
 }
 
+// BỎ GIỚI HẠN + CẢI THIỆN: Tóm tắt thông minh hơn
 function summarizeToBullets(fullText) {
-  if (!fullText || fullText.length < 60) return ["(Bài quá ngắn để tóm tắt)"];
-  const target = Math.max(400, Math.min(1800, Math.floor(fullText.length / 3)));
-  const sentences = splitSentencesNoLookbehind(fullText);
-  const bullets = []; let buf = "";
-  for (const s of sentences) {
-    const next = (buf ? buf + " " : "") + s;
-    if (next.length < 160) { buf = next; }
-    else { bullets.push((buf || s).trim()); buf = ""; if (bullets.length >= 10) break; }
+  // Nếu text quá ngắn, cố gắng trả về ít nhất phần có được
+  if (!fullText || fullText.length < 30) {
+    console.log(`Text too short: ${fullText?.length || 0} chars`);
+    return [`(Không thể trích xuất nội dung từ trang này - vui lòng xem bài gốc)`];
   }
-  if (buf && bullets.length < 10) bullets.push(buf.trim());
-  const trimmed = bullets.map(b => (b.length > 220 ? b.slice(0,219) + "…" : b));
-  const out = []; let total = 0;
-  for (const b of trimmed) { if (total + b.length > target && out.length >= 3) break; out.push(b); total += b.length; if (out.length >= 10) break; }
-  return out.length ? out : trimmed.slice(0, Math.min(5, trimmed.length));
+  
+  // Nếu text ngắn (30-200 ký tự), trả về nguyên văn
+  if (fullText.length < 200) {
+    return [fullText];
+  }
+  
+  const sentences = splitSentencesNoLookbehind(fullText);
+  
+  // Nếu ít câu, trả về từng câu
+  if (sentences.length <= 3) {
+    return sentences.filter(s => s.length > 20);
+  }
+  
+  const bullets = [];
+  let buf = "";
+  
+  // Gộp câu thành bullets tự nhiên
+  for (const s of sentences) {
+    // Bỏ qua câu quá ngắn (có thể là tiêu đề phụ)
+    if (s.length < 30 && !buf) continue;
+    
+    const next = (buf ? buf + " " : "") + s;
+    
+    // Logic gộp câu thông minh
+    if (next.length < 150) {
+      // Câu ngắn, tiếp tục gộp
+      buf = next;
+    } else if (next.length < 350 && (
+      // Gộp nếu câu có liên kết logic
+      s.startsWith("Tuy nhiên") ||
+      s.startsWith("Ngoài ra") ||
+      s.startsWith("Theo đó") ||
+      s.startsWith("Cụ thể") ||
+      s.startsWith("Đồng thời") ||
+      s.startsWith("Bên cạnh") ||
+      s.match(/^(Ông|Bà|Anh|Chị|PGS|TS|BS|Luật sư)/i)
+    )) {
+      buf = next;
+    } else {
+      // Tạo bullet point
+      if (buf.length > 40) bullets.push(buf.trim());
+      buf = s;
+    }
+  }
+  
+  // Thêm bullet cuối
+  if (buf && buf.length > 40) bullets.push(buf.trim());
+  
+  // Nếu không có bullets, cố gắng tạo từ sentences
+  if (bullets.length === 0) {
+    return sentences.slice(0, Math.min(10, sentences.length))
+      .filter(s => s.length > 30)
+      .map(s => s.length > 400 ? s.slice(0, 397) + "..." : s);
+  }
+  
+  // Loại bỏ bullets trùng lặp
+  const uniqueBullets = [];
+  const seen = new Set();
+  for (const b of bullets) {
+    const key = b.toLowerCase().slice(0, 50);
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueBullets.push(b);
+    }
+  }
+  
+  return uniqueBullets.length ? uniqueBullets : [`(Nội dung: ${sentences.length} câu, ${fullText.length} ký tự)`];
 }
 
 app.get("/api/summary", async (req,res) => {
@@ -88,7 +251,13 @@ app.get("/api/summary", async (req,res) => {
     const site = $("meta[property='og:site_name']").attr("content") || (new URL(raw)).hostname;
     const mainText = extractMainContent($);
     const bullets = summarizeToBullets(mainText);
-    const data = { url: raw, title, site, bullets };
+    
+    // Tính phần trăm tóm tắt
+    const originalLength = mainText.length;
+    const summaryLength = bullets.join(" ").length;
+    const percentage = originalLength > 0 ? Math.round((summaryLength / originalLength) * 100) : 0;
+    
+    const data = { url: raw, title, site, bullets, percentage, originalLength, summaryLength };
     cacheSet(raw, data);
     res.json(data);
   } catch (e) {

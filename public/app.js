@@ -80,6 +80,8 @@ function splitSentencesNoLookbehind(text) {
   const parts = text.match(/[^.!?…]+(?:[.!?…]+|$)/g) || [];
   return parts.map((s) => s.trim()).filter(Boolean);
 }
+
+// VẪN GIỮ PREVIEW ngắn cho cards (3 bullets)
 function buildPreviewBullets(text, maxBullets = 3) {
   if (!text) return [];
   const sentences = splitSentencesNoLookbehind(text);
@@ -90,8 +92,9 @@ function buildPreviewBullets(text, maxBullets = 3) {
   return bullets.filter(Boolean).length >= 2 ? bullets : [];
 }
 
-/* ===== Popup summary: smarter for short articles (dark text colors) ===== */
-function normalizeBullets(arr, { minLen = 20, limit = 5 } = {}) {
+/* ===== Popup summary: BỎ GIỚI HẠN ===== */
+function normalizeBullets(arr, { minLen = 20 } = {}) {
+  // BỎ LIMIT - hiển thị TẤT CẢ bullets
   const seen = new Set();
   const out = [];
   for (const raw of arr || []) {
@@ -102,34 +105,43 @@ function normalizeBullets(arr, { minLen = 20, limit = 5 } = {}) {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(s);
-    if (out.length >= limit) break;
   }
   return out;
 }
-function smartFallbackParagraph(text, { maxChars = 360 } = {}) {
+
+function smartFallbackParagraph(text, { maxChars = 500 } = {}) {
+  // Tăng maxChars lên để hiển thị nhiều nội dung hơn khi fallback
   const sents = splitSentencesNoLookbehind(text || "");
-  let paragraph = sents.slice(0, 2).join(". ");
+  let paragraph = sents.slice(0, 4).join(". "); // Tăng từ 2 lên 4 câu
   paragraph = paragraph.replace(/\s+/g, " ").trim();
   if (!paragraph) return "";
   if (paragraph.length > maxChars) paragraph = paragraph.slice(0, maxChars - 1) + "…";
   return paragraph;
 }
+
 function renderSummaryContent({ bullets, fallbackText }) {
-  const good = normalizeBullets(bullets, { minLen: 20, limit: 5 });
+  // BỎ GIỚI HẠN - hiển thị TẤT CẢ bullets
+  const good = normalizeBullets(bullets, { minLen: 20 });
+  
   if (good.length >= 2) {
+    // Hiển thị TẤT CẢ bullets, không giới hạn
     return `
       <ul class="list-disc pl-5 space-y-2 mt-2 text-lg text-slate-100">
         ${good.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}
       </ul>`;
   }
+  
   if (good.length === 1) {
     return `<p class="text-lg text-slate-100 mt-2">${escapeHtml(good[0])}</p>`;
   }
-  const para = smartFallbackParagraph(fallbackText || "");
-  if (para) {
-    return `<p class="text-lg text-slate-100 mt-2">${escapeHtml(para)}</p>`;
+  
+  // Nếu không có bullets nhưng có fallbackText (RSS content)
+  if (fallbackText && fallbackText.length > 0) {
+    // Hiển thị RSS content trực tiếp
+    return `<p class="text-lg text-slate-100 mt-2">${escapeHtml(fallbackText)}</p>`;
   }
-  return `<p class="text-lg text-slate-300 mt-2">Bài rất ngắn — hãy chọn “Đọc bài gốc ↗” để xem chi tiết.</p>`;
+  
+  return `<p class="text-lg text-slate-300 mt-2">Không thể tải nội dung - hãy chọn "Đọc bài gốc ↗" để xem chi tiết.</p>`;
 }
 
 /* ===== Read style in cards ===== */
@@ -261,7 +273,9 @@ function getSummaryText() {
     .trim();
   return text;
 }
-function chunkTextForTTS(text, maxLen = 220) {
+
+// TTS: Tăng maxLen cho chunks khi đọc dài
+function chunkTextForTTS(text, maxLen = 300) {  // Tăng từ 220 lên 300
   const sents = splitSentencesNoLookbehind(text);
   const out = [];
   let buff = "";
@@ -287,6 +301,7 @@ function chunkTextForTTS(text, maxLen = 220) {
   if (buff) out.push(buff);
   return out;
 }
+
 function startSpeak(text) {
   if (!ttsSupported() || !text) return;
   window.speechSynthesis.cancel();
@@ -402,6 +417,19 @@ function openSummaryModal(item, link) {
       const r = await fetch(`/api/summary?url=${encodeURIComponent(link)}`);
       const j = await r.json();
       if (j.error) throw new Error(j.error);
+      
+      // Hiển thị phần trăm tóm tắt
+      if (j.percentage !== undefined) {
+        const percentColor = j.percentage > 70 ? "text-orange-400" : 
+                           j.percentage > 40 ? "text-yellow-400" : "text-emerald-400";
+        const sizeInfo = j.originalLength ? ` (${j.summaryLength}/${j.originalLength} ký tự)` : "";
+        modalSource.innerHTML = `
+          <span>Nguồn: ${item.sourceName || ""}</span>
+          <span class="mx-2">•</span>
+          <span class="${percentColor}">Đã tóm tắt ${j.percentage}%${sizeInfo}</span>
+        `;
+      }
+      
       const html = renderSummaryContent({
         bullets: j.bullets || [],
         fallbackText: item.summary || "",

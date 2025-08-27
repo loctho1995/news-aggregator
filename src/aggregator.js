@@ -31,117 +31,325 @@ function deriveCategoriesFromURL(href) {
   try {
     const u = new URL(href);
     const segs = u.pathname.split("/").filter(Boolean);
-    // lấy 1–2 segment chữ làm thể loại
     const cat = segs.filter(s => !/^\d/.test(s)).slice(0, 2).map(s => s.replace(/[-_]/g, " "));
     return cat;
   } catch { return []; }
 }
 
-async function fetchRSS(source) {
-  const feed = await parser.parseURL(source.url);
-  const items = (feed.items || []).map((it) => {
-    const cats = toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean);
-    const derived = cats.length ? cats : deriveCategoriesFromURL(it.link || "");
-    return {
-      sourceId: source.id,
-      sourceName: source.name,
-      title: cleanText(it.title, 280),
-      link: it.link,
-      summary: cleanText(it.contentSnippet || it.content || it.summary, 280),
-      publishedAt: toISO(it.isoDate || it.pubDate),
-      image: it.enclosure?.url || null,
-      categories: derived
-    };
+// Hàm extract content giống như trong server.js
+function extractFullContent($) {
+  // Xóa các thành phần không cần thiết
+  $("script,style,noscript,iframe,.advertisement,.ads,.banner,.sidebar,.widget,.social-share,.related-news,.comment").remove();
+  
+  // Meta tags và structured data
+  const ogDescription = $("meta[property='og:description']").attr("content") || "";
+  const metaDescription = $("meta[name='description']").attr("content") || "";
+  const articleLead = $(".sapo, .lead, .description, .chapeau, .article-summary").text().trim();
+  
+  // Selectors theo từng báo
+  const selectors = {
+    vnexpress: [".fck_detail", ".article-content", ".content-detail"],
+    tuoitre: [".content-detail", ".detail-content", ".detail__content"],
+    dantri: [".singular-content", ".detail-content", ".e-magazine__body"],
+    thanhnien: [".detail-content", ".content", ".article-body"],
+    cafe: [".newscontent", ".detail-content", ".content-detail"],
+    vietnamnet: [".ArticleContent", ".article-content", ".content__body"],
+    generic: [
+      "article", "[itemprop='articleBody']", ".article-body",
+      ".entry-content", ".post-content", ".news-content",
+      ".main-content", ".story-body", ".text-content"
+    ]
+  };
+  
+  let bestContent = "";
+  let maxScore = 0;
+  
+  // Tìm content tốt nhất
+  Object.values(selectors).flat().forEach(sel => {
+    try {
+      $(sel).each((_, el) => {
+        const $el = $(el);
+        const text = $el.text().trim();
+        const paragraphs = $el.find("p").length;
+        const links = $el.find("a").length;
+        const images = $el.find("img").length;
+        
+        const score = text.length + (paragraphs * 50) - (links * 10) + (images * 20);
+        
+        if (score > maxScore && text.length > 200) {
+          maxScore = score;
+          bestContent = text;
+        }
+      });
+    } catch (e) {}
   });
+  
+  // Fallback: thu thập từ paragraphs
+  if (!bestContent || bestContent.length < 300) {
+    const contentParts = [];
+    
+    if (articleLead && articleLead.length > 50) {
+      contentParts.push(articleLead);
+    }
+    
+    $("p").each((_, p) => {
+      const text = $(p).text().trim();
+      if (text.length > 80 && 
+          !text.includes("Xem thêm") && 
+          !text.includes("Đọc thêm") &&
+          !text.includes("TIN LIÊN QUAN")) {
+        contentParts.push(text);
+      }
+    });
+    
+    bestContent = contentParts.join(" ");
+  }
+  
+  // Fallback với meta
+  if (!bestContent || bestContent.length < 100) {
+    bestContent = [ogDescription, metaDescription, articleLead].filter(Boolean).join(" ");
+  }
+  
+  // Làm sạch
+  bestContent = bestContent
+    .replace(/\s+/g, " ")
+    .replace(/Chia sẻ bài viết.*/gi, "")
+    .replace(/Xem thêm:.*/gi, "")
+    .replace(/TIN LIÊN QUAN.*/gi, "")
+    .trim();
+  
+  return bestContent;
+}
+
+// Tóm tắt nội dung
+function summarizeContent(text, maxBullets = 3) {
+  if (!text || text.length < 100) return text || "";
+  
+  const sentences = text.match(/[^.!?…]+(?:[.!?…]+|$)/g) || [];
+  const bullets = [];
+  let buf = "";
+  
+  for (const s of sentences.slice(0, maxBullets * 3)) { // Giới hạn để tóm tắt ngắn
+    const cleaned = s.trim();
+    if (cleaned.length < 30) continue;
+    
+    const next = (buf ? buf + " " : "") + cleaned;
+    if (next.length < 200) {
+      buf = next;
+    } else {
+      if (buf) bullets.push(buf);
+      buf = cleaned;
+      if (bullets.length >= maxBullets) break;
+    }
+  }
+  
+  if (buf && bullets.length < maxBullets) bullets.push(buf);
+  
+  return bullets.join(". ").slice(0, 280);
+}
+
+// FETCH RSS VÀ LẤY FULL CONTENT
+async function fetchRSSWithFullContent(source) {
+  console.log(`Fetching RSS from ${source.name}...`);
+  const feed = await parser.parseURL(source.url);
+  const items = [];
+  
+  // Giới hạn số bài để tránh quá tải
+  const maxItems = 10; 
+  const promises = feed.items.slice(0, maxItems).map(async (it) => {
+    // Lưu RSS content trước
+    const rssContent = it.contentSnippet || it.content || it.summary || it.description || "";
+    
+    try {
+      // Fetch full content từ link
+      const response = await fetch(it.link, {
+        headers: { "User-Agent": "VN News Aggregator/1.0" },
+        timeout: 5000
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      
+      // Extract full content
+      const fullContent = extractFullContent($);
+      
+      // Nếu không extract được hoặc quá ngắn, dùng RSS content
+      let summary;
+      if (fullContent && fullContent.length > 100) {
+        summary = summarizeContent(fullContent);
+      } else {
+        // Fallback về RSS content
+        summary = cleanText(rssContent, 280);
+        console.log(`Using RSS content for ${it.link} (extracted: ${fullContent?.length || 0} chars)`);
+      }
+      
+      const cats = toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean);
+      const derived = cats.length ? cats : deriveCategoriesFromURL(it.link || "");
+      
+      return {
+        sourceId: source.id,
+        sourceName: source.name,
+        title: cleanText(it.title, 280),
+        link: it.link,
+        summary: summary || cleanText(rssContent, 280),
+        fullContent: fullContent || rssContent, // Lưu cả 2 để có thể dùng sau
+        publishedAt: toISO(it.isoDate || it.pubDate),
+        image: it.enclosure?.url || $("meta[property='og:image']").attr("content") || null,
+        categories: derived
+      };
+    } catch (e) {
+      console.error(`Error fetching ${it.link}: ${e.message}`);
+      // Fallback về RSS content nếu không fetch được
+      return {
+        sourceId: source.id,
+        sourceName: source.name,
+        title: cleanText(it.title, 280),
+        link: it.link,
+        summary: cleanText(rssContent, 280),
+        fullContent: rssContent,
+        publishedAt: toISO(it.isoDate || it.pubDate),
+        image: it.enclosure?.url || null,
+        categories: toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean)
+      };
+    }
+  });
+  
+  const results = await Promise.allSettled(promises);
+  results.forEach(r => {
+    if (r.status === 'fulfilled' && r.value) {
+      items.push(r.value);
+    }
+  });
+  
   return items;
 }
 
-// Adapter HTML tổng quát cho các trang không RSS chuẩn
-async function fetchGenericHTML(source) {
+// FETCH HTML VÀ LẤY FULL CONTENT
+async function fetchHTMLWithFullContent(source) {
+  console.log(`Fetching HTML from ${source.name}...`);
   const res = await fetch(source.url, { headers: { "User-Agent": "VN News Aggregator/1.0" } });
   const html = await res.text();
   const $ = cheerio.load(html);
   const items = [];
   const host = (new URL(source.url)).hostname;
-
-  const containers = $("article, .article, .post, .post-item, .news-item, .story, .story__item, .box-category, .list-news li, li.news, .list-item");
+  
+  // Tìm các link bài viết
+  const containers = $("article a, .article a, .post a, .news-item a, .story a, h3 a, h2 a");
+  const links = new Set();
+  
   containers.each((_, el) => {
-    const a = $(el).find("a").filter((i, x) => {
-      const href = $(x).attr("href") || "";
-      return /^https?:\/\//.test(href) && href.includes(host);
-    }).first();
-
-    const titleRaw = a.text() || $(el).find("h3, h2, .title, .story__title, .post-title").first().text();
-    const title = cleanText(titleRaw, 200);
-    const link = a.attr("href");
-
-    if (title && link) {
-      let img = $(el).find("img").attr("src") || null;
-      if (img && img.startsWith("//")) img = "https:" + img;
-      const summary = cleanText($(el).find("p, .summary, .desc, .sapo, .lead").first().text(), 240);
-      const categories = deriveCategoriesFromURL(link);
-
-      items.push({
-        sourceId: source.id,
-        sourceName: source.name,
-        title, link, summary,
-        publishedAt: null, image: img || null,
-        categories
-      });
+    const href = $(el).attr("href");
+    if (href && /^https?:\/\//.test(href) && href.includes(host)) {
+      links.add(href);
     }
   });
-
-  // fallback: nếu trang layout lạ
-  if (items.length < 5) {
-    $("a").each((_, x) => {
-      const href = $(x).attr("href") || "";
-      const txt  = cleanText($(x).text(), 180);
-      if (!/^https?:\/\//.test(href) || !href.includes(host)) return;
-      if (txt.length < 25) return;
-      const categories = deriveCategoriesFromURL(href);
-      items.push({ sourceId: source.id, sourceName: source.name, title: txt, link: href, summary: "", publishedAt: null, image: null, categories });
-    });
-  }
-
-  // dedupe theo link
-  const seen = new Set();
-  const out = [];
-  for (const it of items) {
-    if (seen.has(it.link)) continue;
-    seen.add(it.link);
-    out.push(it);
-    if (out.length >= 25) break;
-  }
-  return out;
+  
+  // Giới hạn số link
+  const maxLinks = 10;
+  const promises = Array.from(links).slice(0, maxLinks).map(async (link) => {
+    try {
+      const response = await fetch(link, {
+        headers: { "User-Agent": "VN News Aggregator/1.0" },
+        timeout: 5000
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const articleHtml = await response.text();
+      const $article = cheerio.load(articleHtml);
+      
+      // Extract metadata và content
+      const title = $article("meta[property='og:title']").attr("content") || 
+                   $article("title").text() || 
+                   $article("h1").first().text();
+      
+      const fullContent = extractFullContent($article);
+      const summary = summarizeContent(fullContent);
+      
+      const image = $article("meta[property='og:image']").attr("content") || 
+                   $article("img").first().attr("src");
+      
+      const publishedTime = $article("meta[property='article:published_time']").attr("content") ||
+                           $article("time").attr("datetime");
+      
+      return {
+        sourceId: source.id,
+        sourceName: source.name,
+        title: cleanText(title, 280),
+        link: link,
+        summary: summary,
+        fullContent: fullContent,
+        publishedAt: toISO(publishedTime),
+        image: image,
+        categories: deriveCategoriesFromURL(link)
+      };
+    } catch (e) {
+      console.error(`Error fetching ${link}: ${e.message}`);
+      return null;
+    }
+  });
+  
+  const results = await Promise.allSettled(promises);
+  results.forEach(r => {
+    if (r.status === 'fulfilled' && r.value) {
+      items.push(r.value);
+    }
+  });
+  
+  return items;
 }
 
+// Main fetch function
 async function fetchFromSource(sourceId) {
   const source = SOURCES[sourceId];
   if (!source) throw new Error("Unknown source: " + sourceId);
-  if (source.type === "rss") return await fetchRSS(source);
-  if (source.type === "html") return await fetchGenericHTML(source);
-  throw new Error("No adapter for type: " + source.type);
+  
+  try {
+    if (source.type === "rss") {
+      return await fetchRSSWithFullContent(source);
+    } else if (source.type === "html") {
+      return await fetchHTMLWithFullContent(source);
+    }
+  } catch (e) {
+    console.error(`Error with source ${sourceId}: ${e.message}`);
+    return [];
+  }
 }
 
 export async function fetchAll({ include = [], hours = 24, limitPerSource = 30 } = {}) {
   const ids = include.length ? include : Object.keys(SOURCES);
   const since = dayjs().tz(DEFAULT_TZ).subtract(hours, "hour");
-  const tasks = ids.map(async (id) => {
-    try {
-      const items = await fetchFromSource(id);
-      const filtered = items
-        .filter((it) => {
-          if (!it.publishedAt) return true;
-          const t = dayjs(it.publishedAt);
-          return t.isValid() ? t.isAfter(since) : true;
-        })
-        .slice(0, limitPerSource);
-      return filtered;
-    } catch (e) {
-      return [{ error: true, sourceId: id, message: e.message }];
-    }
-  });
-  const results = (await Promise.allSettled(tasks)).flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+  
+  // Fetch song song nhưng giới hạn concurrent
+  const batchSize = 3; // Xử lý 3 nguồn cùng lúc
+  const results = [];
+  
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    const batchPromises = batch.map(async (id) => {
+      try {
+        const items = await fetchFromSource(id);
+        const filtered = items
+          .filter((it) => {
+            if (!it.publishedAt) return true;
+            const t = dayjs(it.publishedAt);
+            return t.isValid() ? t.isAfter(since) : true;
+          })
+          .slice(0, limitPerSource);
+        return filtered;
+      } catch (e) {
+        console.error(`Source ${id} failed: ${e.message}`);
+        return [];
+      }
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults.flat());
+  }
+  
+  // Deduplicate
   const seen = new Set();
   const deduped = [];
   for (const it of results) {
@@ -150,11 +358,14 @@ export async function fetchAll({ include = [], hours = 24, limitPerSource = 30 }
     it.categories = (it.categories || []).map(x => String(x).trim()).filter(Boolean);
     deduped.push(it);
   }
+  
+  // Sort by date
   deduped.sort((a, b) => {
     const ta = a.publishedAt ? +new Date(a.publishedAt) : 0;
     const tb = b.publishedAt ? +new Date(b.publishedAt) : 0;
     return tb - ta;
   });
+  
   return deduped;
 }
 
