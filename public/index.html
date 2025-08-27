@@ -44,47 +44,52 @@
       <div id="empty" class="hidden text-center text-slate-400 py-16">Không có bài phù hợp.</div>
     </main>
 
-    <!-- Modal: TÓM TẮT (FIX: chỉ 1 scrollbar) -->
+    <!-- Modal: TÓM TẮT (nền #ecf0f1, to hơn 20%) -->
     <div id="modal" class="fixed inset-0 z-50 hidden overflow-y-auto p-4 sm:p-6 flex items-center justify-center">
       <div id="modalOverlay" class="absolute inset-0 bg-black/60"></div>
 
-      <!-- BỎ overflow-y-auto và max-h ở modalPanel -->
       <div id="modalPanel"
-           class="relative w-full max-w-2xl mx-auto bg-[#40414f] text-slate-100 rounded-2xl shadow-xl p-5 pointer-events-auto
-                  border border-[#565869] max-h-[90vh] flex flex-col">
+           class="relative w-full max-w-3xl lg:max-w-4xl mx-auto bg-[#ecf0f1] text-gray-900 rounded-2xl shadow-xl p-5 pointer-events-auto
+                  border border-gray-300 h-[90vh] lg:h-[85vh] flex flex-col">
         
-        <!-- Header cố định -->
-        <div class="flex items-start gap-2 mb-3">
-          <div class="text-lg font-semibold flex-1" id="modalTitle">Tóm tắt</div>
+        <!-- Header với tiêu đề và nút đóng -->
+        <div class="flex items-start gap-2 mb-3 pb-3 border-b border-gray-300">
+          <div class="flex-1">
+            <h2 class="text-xl font-semibold text-gray-900" id="modalTitle">Tóm tắt</h2>
+            <p class="text-sm text-gray-600 mt-1" id="modalSource"></p>
+          </div>
+          <button id="modalClose" class="px-2 py-1 text-gray-600 hover:text-gray-900">✕</button>
+        </div>
 
-          <!-- Cụm nút bên phải -->
-          <div class="flex items-center gap-2">
-            <!-- Cột TTS: hàng nút trên (Đọc to/tiếp tục + Dừng), slider tốc độ dưới -->
-            <div class="flex flex-col items-end gap-1">
+        <!-- Nội dung tóm tắt (phần giữa, chiếm hết không gian) -->
+        <div id="summaryArea" class="flex-1 overflow-y-auto pr-2 mb-3">
+          <div id="summaryLoading" class="text-lg text-gray-600">Đang tóm tắt…</div>
+          <div id="summaryList" class="text-lg leading-relaxed text-gray-800"></div>
+        </div>
+
+        <!-- Footer với các nút điều khiển -->
+        <div class="border-t border-gray-300 pt-3">
+          <div class="flex items-end justify-between gap-2">
+            <!-- Cột TTS bên trái -->
+            <div class="flex flex-col gap-2">
               <div class="flex items-center gap-2">
-                <button id="btnSpeak" class="px-3 py-1.5 rounded-lg border border-[#565869] bg-[#2f3037] text-sm hidden">🔊 Đọc to</button>
-                <button id="btnStopSpeak" class="px-3 py-1.5 rounded-lg border border-[#565869] bg-[#2f3037] text-sm hidden">Dừng</button>
+                <button id="btnSpeak" class="px-3 py-1.5 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-sm text-gray-700 hidden">🔊 Đọc to</button>
+                <button id="btnStopSpeak" class="px-3 py-1.5 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-sm text-gray-700 hidden">Dừng</button>
               </div>
-              <div id="ttsRateBox" class="hidden flex items-center gap-1 justify-end">
-                <label for="rateRange" class="text-[11px] text-slate-300">Tốc độ</label>
+              <div id="ttsRateBox" class="hidden flex items-center gap-1">
+                <label for="rateRange" class="text-xs text-gray-600">Tốc độ</label>
                 <input id="rateRange" type="range" min="0.6" max="3.0" step="0.1" value="1.0"
                        class="w-28 accent-emerald-500" aria-label="Tốc độ đọc">
-                <span id="rateLabel" class="text-[11px] text-slate-300">1.0x</span>
+                <span id="rateLabel" class="text-xs text-gray-600">1.0x</span>
               </div>
             </div>
 
+            <!-- Nút đọc bài gốc bên phải -->
             <a id="modalOpenLink" href="#" target="_blank" rel="noopener"
-               class="px-3 py-1.5 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white">Đọc bài gốc ↗</a>
-            <button id="modalClose" class="px-2 py-1 text-slate-300 hover:text-slate-100">✕</button>
+               class="px-4 py-2 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">
+               Đọc bài gốc ↗
+            </a>
           </div>
-        </div>
-
-        <p class="text-sm text-slate-300 mb-3" id="modalSource"></p>
-
-        <!-- Nội dung tóm tắt: CHỈ 1 SCROLLBAR Ở ĐÂY -->
-        <div id="summaryArea" class="flex-1 overflow-y-auto pr-2">
-          <div id="summaryLoading" class="text-lg text-slate-300">Đang tóm tắt…</div>
-          <div id="summaryList" class="text-lg leading-relaxed"></div>
         </div>
       </div>
     </div>

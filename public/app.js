@@ -126,22 +126,21 @@ function renderSummaryContent({ bullets, fallbackText }) {
   if (good.length >= 2) {
     // Hiển thị TẤT CẢ bullets, không giới hạn
     return `
-      <ul class="list-disc pl-5 space-y-2 mt-2 text-lg text-slate-100">
+      <ul class="list-disc pl-5 space-y-2 mt-2 text-lg text-gray-800">
         ${good.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}
       </ul>`;
   }
   
   if (good.length === 1) {
-    return `<p class="text-lg text-slate-100 mt-2">${escapeHtml(good[0])}</p>`;
+    return `<p class="text-lg text-gray-800 mt-2">${escapeHtml(good[0])}</p>`;
   }
   
-  // Nếu không có bullets nhưng có fallbackText (RSS content)
-  if (fallbackText && fallbackText.length > 0) {
-    // Hiển thị RSS content trực tiếp
-    return `<p class="text-lg text-slate-100 mt-2">${escapeHtml(fallbackText)}</p>`;
+  const para = smartFallbackParagraph(fallbackText || "");
+  if (para) {
+    return `<p class="text-lg text-gray-800 mt-2">${escapeHtml(para)}</p>`;
   }
   
-  return `<p class="text-lg text-slate-300 mt-2">Không thể tải nội dung - hãy chọn "Đọc bài gốc ↗" để xem chi tiết.</p>`;
+  return `<p class="text-lg text-gray-600 mt-2">Bài rất ngắn – hãy chọn "Đọc bài gốc ↗" để xem chi tiết.</p>`;
 }
 
 /* ===== Read style in cards ===== */
@@ -154,7 +153,7 @@ function ensureReadStyles() {
 }
 ensureReadStyles();
 
-/* ===== Card (dark) ===== */
+/* ===== Card (nền #ecf0f1) ===== */
 function card(item, idx, read) {
   const when = item.publishedAt ? new Date(item.publishedAt) : null;
   const timeStr = when
@@ -162,26 +161,26 @@ function card(item, idx, read) {
     : "Không rõ thời gian";
 
   const statusAttrs = read
-    ? `class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-200"`
-    : `class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-700 text-emerald-100 js-status cursor-pointer" data-link="${item.link}" title="Nhấp để đánh dấu đã đọc"`;
+    ? `class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-gray-400 text-white"`
+    : `class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white js-status cursor-pointer" data-link="${item.link}" title="Nhấp để đánh dấu đã đọc"`;
 
   const badgeHtml = `<span ${statusAttrs}>${read ? "ĐÃ ĐỌC" : "CHƯA ĐỌC"}</span>`;
 
   const bullets = buildPreviewBullets(item.summary || "");
   const bodyHtml = bullets.length
-    ? `<ul class="list-disc pl-5 space-y-1 text-sm text-slate-100">${bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>`
-    : `<p class="text-sm text-slate-200 mt-2">${escapeHtml(item.summary || "Chưa có mô tả.")}</p>`;
+    ? `<ul class="list-disc pl-5 space-y-1 text-sm text-gray-700">${bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>`
+    : `<p class="text-sm text-gray-600 mt-2">${escapeHtml(item.summary || "Chưa có mô tả.")}</p>`;
 
   return `
-    <article class="bg-[#40414f] border border-[#565869] rounded-2xl shadow-sm overflow-hidden flex flex-col ${read ? "opacity-70 is-read" : ""}">
+    <article class="bg-[#ecf0f1] border border-gray-300 rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col ${read ? "opacity-80 is-read" : ""}">
       <div class="p-4 flex-1 flex flex-col">
         <div class="flex items-center gap-2 mb-1">
-          <div class="text-xs text-slate-300">${item.sourceName}</div>
+          <div class="text-xs text-gray-600 font-medium">${item.sourceName}</div>
           ${badgeHtml}
         </div>
-        <a data-index="${idx}" data-link="${item.link}" class="js-open font-semibold hover:underline cursor-pointer text-slate-100">${item.title}</a>
+        <a data-index="${idx}" data-link="${item.link}" class="js-open font-semibold hover:underline cursor-pointer text-gray-900">${item.title}</a>
         <div class="mt-2 js-text">${bodyHtml}</div>
-        <div class="mt-auto pt-3 text-xs text-slate-300">${timeStr}</div>
+        <div class="mt-auto pt-3 text-xs text-gray-600">${timeStr}</div>
       </div>
     </article>
   `;
@@ -418,10 +417,10 @@ function openSummaryModal(item, link) {
       const j = await r.json();
       if (j.error) throw new Error(j.error);
       
-      // Hiển thị phần trăm tóm tắt
+      // Hiển thị phần trăm tóm tắt với màu phù hợp theme sáng
       if (j.percentage !== undefined) {
-        const percentColor = j.percentage > 70 ? "text-orange-400" : 
-                           j.percentage > 40 ? "text-yellow-400" : "text-emerald-400";
+        const percentColor = j.percentage > 70 ? "text-orange-600" : 
+                           j.percentage > 40 ? "text-yellow-600" : "text-emerald-600";
         const sizeInfo = j.originalLength ? ` (${j.summaryLength}/${j.originalLength} ký tự)` : "";
         modalSource.innerHTML = `
           <span>Nguồn: ${item.sourceName || ""}</span>
