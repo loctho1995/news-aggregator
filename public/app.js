@@ -39,7 +39,7 @@ setRateUI(ttsRate);
 
 let allItems = [];
 let activeSource = "all";
-let activeStatus = "all";
+let activeStatus = "all"; // all | unread | read
 let currentItem = null;
 let renderedItems = [];
 
@@ -90,7 +90,7 @@ function buildPreviewBullets(text, maxBullets = 3) {
   return bullets.filter(Boolean).length >= 2 ? bullets : [];
 }
 
-/* ===== Popup summary helpers ===== */
+/* ===== Popup summary: smarter for short articles ===== */
 function normalizeBullets(arr, { minLen = 20, limit = 5 } = {}) {
   const seen = new Set();
   const out = [];
@@ -192,13 +192,13 @@ function render() {
     items.sort((a, b) => {
       const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
       const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-      return tb - ta;
+      return tb - ta; // mới hơn lên trên
     });
   } else if (activeStatus === "read") {
     items.sort((a, b) => {
       const ra = getReadAt(a.link);
       const rb = getReadAt(b.link);
-      if (ra !== rb) return rb - ra;
+      if (ra !== rb) return rb - ra; // cái vừa đọc gần nhất lên trên
       const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
       const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
       return tb - ta;
@@ -207,7 +207,7 @@ function render() {
     items.sort((a, b) => {
       const aRead = isReadLink(a.link);
       const bRead = isReadLink(b.link);
-      if (aRead !== bRead) return aRead - bRead;
+      if (aRead !== bRead) return aRead - bRead; // chưa đọc (false) trước đã đọc (true)
       if (!aRead && !bRead) {
         const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
         const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
@@ -215,7 +215,7 @@ function render() {
       } else {
         const ra = getReadAt(a.link);
         const rb = getReadAt(b.link);
-        if (ra !== rb) return ra - rb;
+        if (ra !== rb) return ra - rb; // đã đọc: cũ hơn xuống dưới
         const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
         const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
         return tb - ta;
@@ -255,6 +255,7 @@ if (ttsSupported()) {
   if (ttsVoice) showTTSControls();
 }
 
+// Lấy text thuần từ khu vực tóm tắt
 function getSummaryText() {
   const text = (summaryList.innerText || "")
     .replace(/\s+\n/g, "\n")
@@ -262,6 +263,8 @@ function getSummaryText() {
     .trim();
   return text;
 }
+
+// Chia văn bản thành chunk ~≤220 ký tự, ưu tiên theo câu
 function chunkTextForTTS(text, maxLen = 220) {
   const sents = splitSentencesNoLookbehind(text);
   const out = [];
@@ -288,6 +291,7 @@ function chunkTextForTTS(text, maxLen = 220) {
   if (buff) out.push(buff);
   return out;
 }
+
 function startSpeak(text) {
   if (!ttsSupported() || !text) return;
   window.speechSynthesis.cancel();
@@ -299,7 +303,8 @@ function startSpeak(text) {
     const u = new SpeechSynthesisUtterance(chunk);
     if (ttsVoice) u.voice = ttsVoice;
     u.lang = (ttsVoice && ttsVoice.lang) || "vi-VN";
-    u.rate = Math.min(1.6, Math.max(0.6, ttsRate));
+    // tốc độ 0.6x -> 3.0x
+    u.rate = Math.min(3.0, Math.max(0.6, ttsRate));
     u.pitch = 1.0;
     if (i === chunks.length - 1) {
       u.onend = () => { ttsState = "idle"; btnSpeak.textContent = "🔊 Đọc to"; };
@@ -324,12 +329,14 @@ btnSpeak?.addEventListener("click", () => {
     btnSpeak.textContent = "⏸ Tạm dừng";
   }
 });
+
 btnStopSpeak?.addEventListener("click", () => {
   if (!ttsSupported()) return;
   window.speechSynthesis.cancel();
   ttsState = "idle";
   btnSpeak.textContent = "🔊 Đọc to";
 });
+
 // chỉnh tốc độ: lưu & (nếu đang đọc) khởi động lại
 rateRange?.addEventListener("input", (e) => {
   ttsRate = parseFloat(e.target.value || "1.0") || 1.0;
@@ -343,7 +350,7 @@ rateRange?.addEventListener("change", () => {
     window.speechSynthesis.cancel();
     ttsState = "idle";
     btnSpeak.textContent = "🔊 Đọc to";
-    if (text.length > 4) startSpeak(text); // đọc lại từ đầu với tốc độ mới
+    if (text.length > 4) startSpeak(text); // đọc lại với tốc độ mới
   }
 });
 
@@ -355,6 +362,7 @@ grid.addEventListener("click", (e) => {
   const link = badgeEl.getAttribute("data-link");
   if (link && !isReadLink(link)) markRead(link);
 });
+
 // click tiêu đề -> mở popup tóm tắt & mark read
 grid.addEventListener("click", (e) => {
   const el = e.target.closest(".js-open");
@@ -371,7 +379,7 @@ async function loadNews() {
   const hours = hoursSelect.value;
   const res = await fetch(`/api/news?hours=${hours}`);
   const data = await res.json();
-  allItems = (data.items || []);
+  allItems = data.items || [];
   render();
 }
 
@@ -395,6 +403,7 @@ function openSummaryModal(item, link) {
 
   markRead(link);
 
+  // mở modal & đưa con trỏ cuộn về đầu
   modal.classList.remove("hidden");
   modal.classList.add("flex");
   modal.scrollTop = 0;
@@ -440,7 +449,9 @@ modalOverlay.addEventListener("click", closeModal);
 
 /* ===== Utils ===== */
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[c]));
 }
 
 /* ===== Init ===== */

@@ -6,7 +6,9 @@
     <title>Tổng hợp tin tức Việt Nam</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="data:;base64,=" />
-    <style>.line-clamp-4{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}</style>
+    <style>
+      .line-clamp-4{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+    </style>
   </head>
   <body class="bg-slate-50 text-slate-900">
     <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
@@ -50,22 +52,30 @@
                   max-h-[85vh] overflow-y-auto overscroll-contain">
         <div class="flex items-start gap-2 sticky -top-5 sm:-top-6 bg-white pt-0 pb-2">
           <div class="text-lg font-semibold flex-1" id="modalTitle">Tóm tắt</div>
+
+          <!-- Cụm nút bên phải -->
           <div class="flex items-center gap-2">
-            <!-- TTS controls -->
-            <div id="ttsRateBox" class="hidden items-center gap-2">
-              <label for="rateRange" class="text-xs text-slate-500">Tốc độ</label>
-              <input id="rateRange" type="range" min="0.6" max="1.6" step="0.1" value="1.0"
-                     class="w-24 accent-slate-900" aria-label="Tốc độ đọc">
-              <span id="rateLabel" class="text-xs text-slate-600">1.0x</span>
+            <!-- Cột TTS: hàng nút trên (Đọc to/tiếp tục + Dừng), slider tốc độ dưới -->
+            <div class="flex flex-col items-end gap-1">
+              <div class="flex items-center gap-2">
+                <button id="btnSpeak" class="px-3 py-1.5 rounded-lg border text-sm hidden">🔊 Đọc to</button>
+                <button id="btnStopSpeak" class="px-3 py-1.5 rounded-lg border text-sm hidden">Dừng</button>
+              </div>
+              <div id="ttsRateBox" class="hidden flex items-center gap-1 justify-end">
+                <label for="rateRange" class="text-[11px] text-slate-500">Tốc độ</label>
+                <!-- max 3.0 -->
+                <input id="rateRange" type="range" min="0.6" max="3.0" step="0.1" value="1.0"
+                       class="w-28 accent-slate-900" aria-label="Tốc độ đọc">
+                <span id="rateLabel" class="text-[11px] text-slate-600">1.0x</span>
+              </div>
             </div>
-            <button id="btnSpeak" class="px-3 py-1.5 rounded-lg border text-sm hidden">🔊 Đọc to</button>
-            <button id="btnStopSpeak" class="px-3 py-1.5 rounded-lg border text-sm hidden">Dừng</button>
 
             <a id="modalOpenLink" href="#" target="_blank" rel="noopener"
                class="px-3 py-1.5 rounded-lg border bg-slate-900 text-white text-sm">Đọc bài gốc ↗</a>
             <button id="modalClose" class="px-2 py-1 text-slate-500 hover:text-slate-700">✕</button>
           </div>
         </div>
+
         <p class="text-sm text-slate-600" id="modalSource"></p>
 
         <!-- Nội dung tóm tắt: giới hạn chiều cao riêng & scroll bên trong -->
