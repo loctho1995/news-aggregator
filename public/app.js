@@ -19,6 +19,19 @@ const summaryLoading = document.getElementById("summaryLoading");
 const summaryList = document.getElementById("summaryList");
 const modalPanel = document.getElementById("modalPanel");
 
+// Webview modal elements
+const webviewModal = document.getElementById("webviewModal");
+const webviewOverlay = document.getElementById("webviewOverlay");
+const webviewTitle = document.getElementById("webviewTitle");
+const webviewUrl = document.getElementById("webviewUrl");
+const webviewClose = document.getElementById("webviewClose");
+const webviewReload = document.getElementById("webviewReload");
+const webviewFrame = document.getElementById("webviewFrame");
+const webviewLoading = document.getElementById("webviewLoading");
+const webviewError = document.getElementById("webviewError");
+const webviewErrorLink = document.getElementById("webviewErrorLink");
+const webviewOpenExternal = document.getElementById("webviewOpenExternal");
+
 // TTS controls
 const btnSpeak = document.getElementById("btnSpeak");
 const btnStopSpeak = document.getElementById("btnStopSpeak");
@@ -188,6 +201,10 @@ function card(item, idx, read) {
         <div class="flex items-center gap-2 mb-1">
           <div class="text-xs text-gray-600 font-medium">${item.sourceName}</div>
           ${badgeHtml}
+          <button class="js-webview text-[10px] px-2 py-0.5 rounded-full bg-blue-500 text-white hover:bg-blue-600 cursor-pointer" 
+                  data-link="${item.link}" data-title="${escapeHtml(item.title)}">
+            Xem chi tiết
+          </button>
         </div>
         <a data-index="${idx}" data-link="${item.link}" class="js-open font-semibold hover:underline cursor-pointer text-gray-900">${item.title}</a>
         <div class="mt-2 js-text">${bodyHtml}</div>
@@ -353,6 +370,7 @@ grid.addEventListener("click", (e) => {
   const link = badgeEl.getAttribute("data-link");
   if (link && !isReadLink(link)) markRead(link);
 });
+
 grid.addEventListener("click", (e) => {
   const el = e.target.closest(".js-open");
   if (!el) return;
@@ -361,6 +379,16 @@ grid.addEventListener("click", (e) => {
   const link = el.getAttribute("data-link");
   currentItem = renderedItems[idx];
   openSummaryModal(currentItem, link);
+});
+
+// Webview button click handler
+grid.addEventListener("click", (e) => {
+  const webviewBtn = e.target.closest(".js-webview");
+  if (!webviewBtn) return;
+  e.preventDefault();
+  const link = webviewBtn.getAttribute("data-link");
+  const title = webviewBtn.getAttribute("data-title");
+  openWebviewModal(link, title);
 });
 
 async function loadNews() {
@@ -585,6 +613,91 @@ function closeModal() {
 modalClose.addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 modalOverlay.addEventListener("click", closeModal);
+
+/* ===== Webview Modal ===== */
+function openWebviewModal(url, title) {
+  webviewTitle.textContent = title || "Chi tiết bài báo";
+  webviewUrl.textContent = url;
+  webviewOpenExternal.href = url;
+  webviewErrorLink.href = url;
+  
+  // Mark as read
+  markRead(url);
+  
+  // Show modal
+  webviewModal.classList.remove("hidden");
+  webviewModal.classList.add("flex");
+  
+  // Show loading
+  webviewLoading.classList.remove("hidden");
+  webviewError.classList.add("hidden");
+  
+  // Load iframe
+  webviewFrame.src = url;
+  
+  // Handle iframe load events
+  let loadTimeout;
+  
+  const handleLoad = () => {
+    clearTimeout(loadTimeout);
+    webviewLoading.classList.add("hidden");
+  };
+  
+  const handleError = () => {
+    clearTimeout(loadTimeout);
+    webviewLoading.classList.add("hidden");
+    webviewError.classList.remove("hidden");
+  };
+  
+  // Remove old listeners
+  webviewFrame.removeEventListener("load", handleLoad);
+  webviewFrame.removeEventListener("error", handleError);
+  
+  // Add new listeners
+  webviewFrame.addEventListener("load", handleLoad, { once: true });
+  webviewFrame.addEventListener("error", handleError, { once: true });
+  
+  // Timeout after 10 seconds - assume blocked by X-Frame-Options
+  loadTimeout = setTimeout(() => {
+    webviewLoading.classList.add("hidden");
+    webviewError.classList.remove("hidden");
+  }, 10000);
+}
+
+function closeWebviewModal() {
+  webviewModal.classList.add("hidden");
+  webviewModal.classList.remove("flex");
+  webviewFrame.src = "about:blank";
+}
+
+// Webview modal events
+webviewClose.addEventListener("click", closeWebviewModal);
+webviewModal.addEventListener("click", (e) => {
+  if (e.target === webviewModal || e.target === webviewOverlay) {
+    closeWebviewModal();
+  }
+});
+
+webviewReload.addEventListener("click", () => {
+  webviewLoading.classList.remove("hidden");
+  webviewError.classList.add("hidden");
+  const currentSrc = webviewFrame.src;
+  webviewFrame.src = "about:blank";
+  setTimeout(() => {
+    webviewFrame.src = currentSrc;
+  }, 100);
+});
+
+// Handle ESC key
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (!webviewModal.classList.contains("hidden")) {
+      closeWebviewModal();
+    } else if (!modal.classList.contains("hidden")) {
+      closeModal();
+    }
+  }
+});
 
 /* ===== Utils ===== */
 function escapeHtml(s) {

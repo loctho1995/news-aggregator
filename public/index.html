@@ -22,7 +22,7 @@
                placeholder="Tìm theo tiêu đề/tóm tắt… (VD: bão, vàng miền)" />
         <select id="sourceSelect" class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100"></select>
         <select id="groupSelect" class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100">
-          <option value="all" selected>Tất cả nhóm tin</option>
+          <option value="all">Tất cả nhóm tin</option>
           <option value="vietnam" selected>🇻🇳 Tin tức Việt Nam</option>
           <option value="internationaleconomics">🌍 Kinh tế quốc tế</option>
         </select>
@@ -89,6 +89,69 @@
                class="px-4 py-2 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">
                Đọc bài gốc ↗
             </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: WEBVIEW (xem chi tiết trong iframe) -->
+    <div id="webviewModal" class="fixed inset-0 z-50 hidden overflow-hidden p-4 sm:p-6 flex items-center justify-center">
+      <div id="webviewOverlay" class="absolute inset-0 bg-black/60"></div>
+
+      <div id="webviewPanel"
+           class="relative w-full max-w-5xl lg:max-w-6xl mx-auto bg-white rounded-2xl shadow-xl pointer-events-auto
+                  border border-gray-300 h-[90vh] lg:h-[90vh] flex flex-col">
+        
+        <!-- Header với tiêu đề và nút đóng -->
+        <div class="flex items-center gap-2 p-4 border-b border-gray-300 bg-gray-50 rounded-t-2xl">
+          <div class="flex-1">
+            <h2 class="text-lg font-semibold text-gray-900 truncate" id="webviewTitle">Chi tiết bài báo</h2>
+            <div class="flex items-center gap-2 mt-1">
+              <p class="text-xs text-gray-600" id="webviewUrl"></p>
+              <a id="webviewOpenExternal" href="#" target="_blank" rel="noopener"
+                 class="text-xs text-blue-600 hover:text-blue-700 underline">
+                Mở trong tab mới ↗
+              </a>
+            </div>
+          </div>
+          <button id="webviewReload" class="px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg" title="Tải lại">
+            🔄 Tải lại
+          </button>
+          <button id="webviewClose" class="px-3 py-1.5 text-gray-600 hover:text-gray-900">✕</button>
+        </div>
+
+        <!-- Iframe content -->
+        <div class="flex-1 relative bg-white rounded-b-2xl overflow-hidden">
+          <iframe id="webviewFrame" 
+                  src="about:blank" 
+                  class="w-full h-full border-0"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  title="Webview">
+          </iframe>
+          
+          <!-- Loading overlay -->
+          <div id="webviewLoading" class="absolute inset-0 bg-white/90 flex items-center justify-center">
+            <div class="text-center">
+              <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-blue-600"></div>
+              <p class="mt-3 text-gray-600">Đang tải trang...</p>
+              <p class="mt-2 text-xs text-gray-500">Nếu trang không hiển thị, hãy nhấn "Mở trong tab mới"</p>
+            </div>
+          </div>
+          
+          <!-- Error message -->
+          <div id="webviewError" class="hidden absolute inset-0 bg-white flex items-center justify-center p-8">
+            <div class="text-center max-w-md">
+              <p class="text-xl mb-4">⚠️</p>
+              <p class="text-gray-900 font-semibold mb-2">Không thể hiển thị trang này</p>
+              <p class="text-gray-600 text-sm mb-4">
+                Trang web có thể chặn nhúng trong iframe vì lý do bảo mật.
+                Vui lòng nhấn nút bên dưới để xem trong tab mới.
+              </p>
+              <a id="webviewErrorLink" href="#" target="_blank" rel="noopener"
+                 class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                Mở trong tab mới ↗
+              </a>
+            </div>
           </div>
         </div>
       </div>
