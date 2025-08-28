@@ -1,4 +1,4 @@
-// public/app.js (dark theme)
+// public/app.js (dark theme) - FIXED WEBVIEW
 const grid = document.getElementById("grid");
 const search = document.getElementById("search");
 const sourceSelect = document.getElementById("sourceSelect");
@@ -139,7 +139,7 @@ function buildPreviewBullets(text, maxBullets = 3) {
   return bullets.filter(Boolean).length >= 2 ? bullets : [];
 }
 
-/* ===== Popup summary: Bỏ GIỚI HẠN ===== */
+/* ===== Popup summary: BỎ GIỚI HẠN ===== */
 function normalizeBullets(arr, { minLen = 20 } = {}) {
   const seen = new Set();
   const out = [];
@@ -564,14 +564,19 @@ grid.addEventListener("click", (e) => {
   openAISummaryModal(item, link);
 });
 
-// Webview button click handler
+// FIXED: Webview button click handler - Mở trực tiếp tab mới thay vì iframe
 grid.addEventListener("click", (e) => {
   const webviewBtn = e.target.closest(".js-webview");
   if (!webviewBtn) return;
   e.preventDefault();
+  
   const link = webviewBtn.getAttribute("data-link");
-  const title = webviewBtn.getAttribute("data-title");
-  openWebviewModal(link, title);
+  
+  // Đánh dấu đã đọc
+  markRead(link);
+  
+  // Mở link trong tab mới
+  window.open(link, '_blank', 'noopener,noreferrer');
 });
 
 async function loadNews() {
@@ -779,53 +784,8 @@ function closeModal() {
   modal.classList.remove("flex");
 }
 
-/* ===== Webview Modal ===== */
-function openWebviewModal(url, title) {
-  webviewTitle.textContent = title || "Chi tiết bài báo";
-  webviewUrl.textContent = url;
-  webviewOpenExternal.href = url;
-  webviewErrorLink.href = url;
-  
-  markRead(url);
-  
-  webviewModal.classList.remove("hidden");
-  webviewModal.classList.add("flex");
-  
-  webviewLoading.classList.remove("hidden");
-  webviewError.classList.add("hidden");
-  
-  webviewFrame.src = url;
-  
-  let loadTimeout;
-  
-  const handleLoad = () => {
-    clearTimeout(loadTimeout);
-    webviewLoading.classList.add("hidden");
-  };
-  
-  const handleError = () => {
-    clearTimeout(loadTimeout);
-    webviewLoading.classList.add("hidden");
-    webviewError.classList.remove("hidden");
-  };
-  
-  webviewFrame.removeEventListener("load", handleLoad);
-  webviewFrame.removeEventListener("error", handleError);
-  
-  webviewFrame.addEventListener("load", handleLoad, { once: true });
-  webviewFrame.addEventListener("error", handleError, { once: true });
-  
-  loadTimeout = setTimeout(() => {
-    webviewLoading.classList.add("hidden");
-    webviewError.classList.remove("hidden");
-  }, 10000);
-}
-
-function closeWebviewModal() {
-  webviewModal.classList.add("hidden");
-  webviewModal.classList.remove("flex");
-  webviewFrame.src = "about:blank";
-}
+/* ===== REMOVED: Webview Modal (không cần nữa) ===== */
+// Webview modal đã bị xóa - mở trực tiếp trong tab mới
 
 // Event handlers for AI Summary modal
 aiSummaryClose.addEventListener("click", closeAISummaryModal);
@@ -903,29 +863,12 @@ modalClose.addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 modalOverlay.addEventListener("click", closeModal);
 
-webviewClose.addEventListener("click", closeWebviewModal);
-webviewModal.addEventListener("click", (e) => {
-  if (e.target === webviewModal || e.target === webviewOverlay) {
-    closeWebviewModal();
-  }
-});
-
-webviewReload.addEventListener("click", () => {
-  webviewLoading.classList.remove("hidden");
-  webviewError.classList.add("hidden");
-  const currentSrc = webviewFrame.src;
-  webviewFrame.src = "about:blank";
-  setTimeout(() => {
-    webviewFrame.src = currentSrc;
-  }, 100);
-});
+// REMOVED: Webview modal event handlers (không cần nữa)
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     if (!aiSummaryModal.classList.contains("hidden")) {
       closeAISummaryModal();
-    } else if (!webviewModal.classList.contains("hidden")) {
-      closeWebviewModal();
     } else if (!modal.classList.contains("hidden")) {
       closeModal();
     }
