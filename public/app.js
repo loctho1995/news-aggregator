@@ -570,15 +570,19 @@ function openSummaryModal(item, link) {
       const j = await r.json();
       if (j.error) throw new Error(j.error);
       
-      // Hiển thị phần trăm tóm tắt với màu phù hợp theme sáng
+      // Hiển thị phần trăm tóm tắt và trạng thái dịch
       if (j.percentage !== undefined) {
         const percentColor = j.percentage > 70 ? "text-orange-600" : 
                            j.percentage > 40 ? "text-yellow-600" : "text-emerald-600";
         const sizeInfo = j.originalLength ? ` (${j.summaryLength}/${j.originalLength} ký tự)` : "";
+        const translatedBadge = j.translated ? 
+          `<span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">🌐 Đã dịch</span>` : "";
+        
         modalSource.innerHTML = `
           <span>Nguồn: ${item.sourceName || ""}</span>
           <span class="mx-2">•</span>
           <span class="${percentColor}">Đã tóm tắt ${j.percentage}%${sizeInfo}</span>
+          ${translatedBadge}
         `;
       }
       

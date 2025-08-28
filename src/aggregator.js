@@ -148,11 +148,14 @@ function summarizeContent(text, maxBullets = 3) {
   return bullets.join(". ").slice(0, 280);
 }
 
-// FETCH RSS VÀ LẤY FULL CONTENT
+// FETCH RSS VÀ LẤY FULL CONTENT (với translation)
 async function fetchRSSWithFullContent(source) {
   console.log(`Fetching RSS from ${source.name}...`);
   const feed = await parser.parseURL(source.url);
   const items = [];
+  
+  // Check if this is international source
+  const isInternational = source.group === 'internationaleconomics';
   
   // Giới hạn số bài để tránh quá tải
   const maxItems = 10; 
@@ -172,8 +175,17 @@ async function fetchRSSWithFullContent(source) {
       // Extract full content
       const fullContent = extractFullContent($);
       
-      // Tóm tắt
-      const summary = summarizeContent(fullContent);
+      // Translate title if international
+      let title = cleanText(it.title, 280);
+      if (isInternational && title && !isVietnamese(title)) {
+        title = await translateToVietnamese(title) || title;
+      }
+      
+      // Tóm tắt và translate nếu cần
+      let summary = summarizeContent(fullContent);
+      if (isInternational && summary && !isVietnamese(summary)) {
+        summary = await translateToVietnamese(summary) || summary;
+      }
       
       const cats = toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean);
       const derived = cats.length ? cats : deriveCategoriesFromURL(it.link || "");
@@ -181,26 +193,41 @@ async function fetchRSSWithFullContent(source) {
       return {
         sourceId: source.id,
         sourceName: source.name,
-        title: cleanText(it.title, 280),
+        title: title,
         link: it.link,
         summary: summary || cleanText(it.contentSnippet || it.content, 280),
-        fullContent: fullContent, // Lưu full content để có thể tóm tắt lại sau
+        fullContent: fullContent,
         publishedAt: toISO(it.isoDate || it.pubDate),
         image: it.enclosure?.url || $("meta[property='og:image']").attr("content") || null,
-        categories: derived
+        categories: derived,
+        translated: isInternational
       };
     } catch (e) {
       console.error(`Error fetching ${it.link}: ${e.message}`);
-      // Fallback về RSS content nếu không fetch được
+      
+      // Fallback với translation cho RSS content
+      let title = cleanText(it.title, 280);
+      let summary = cleanText(it.contentSnippet || it.content || it.summary, 280);
+      
+      if (isInternational) {
+        if (title && !isVietnamese(title)) {
+          title = await translateToVietnamese(title) || title;
+        }
+        if (summary && !isVietnamese(summary)) {
+          summary = await translateToVietnamese(summary) || summary;
+        }
+      }
+      
       return {
         sourceId: source.id,
         sourceName: source.name,
-        title: cleanText(it.title, 280),
+        title: title,
         link: it.link,
-        summary: cleanText(it.contentSnippet || it.content || it.summary, 280),
+        summary: summary,
         publishedAt: toISO(it.isoDate || it.pubDate),
         image: it.enclosure?.url || null,
-        categories: toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean)
+        categories: toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean),
+        translated: isInternational
       };
     }
   });
@@ -213,6 +240,54 @@ async function fetchRSSWithFullContent(source) {
   });
   
   return items;
+}
+
+// Helper functions cho translation
+function isVietnamese(text) {
+  const vietnamesePattern = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+  return vietnamesePattern.test(text);
+}
+
+async function translateToVietnamese(text) {
+  try {
+    // Option 1: LibreTranslate
+    const response = await fetch('https://translate.terraprint.co/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        q: text,
+        source: 'auto',
+        target: 'vi',
+        format: 'text'
+      }),
+      timeout: 5000
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.translatedText || text;
+    }
+  } catch (e) {
+    console.log('Translation failed, using fallback');
+  }
+  
+  // Option 2: MyMemory API (free, no key needed)
+  try {
+    const encoded = encodeURIComponent(text);
+    const response = await fetch(`https://api.mymemory.translated.net/get?q=${encoded}&langpair=en|vi`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.responseData && data.responseData.translatedText) {
+        return data.responseData.translatedText;
+      }
+    }
+  } catch (e) {
+    console.log('MyMemory translation failed');
+  }
+  
+  // Fallback: return with [EN] marker
+  return `[EN] ${text}`;
 }
 
 // FETCH HTML VÀ LẤY FULL CONTENT

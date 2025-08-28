@@ -254,9 +254,71 @@ function extractMainContent($) {
   return bestContent;
 }
 
-function splitSentencesNoLookbehind(text) {
-  const parts = text.match(/[^.!?…]+(?:[.!?…]+|$)/g) || [];
-  return parts.map(s => s.trim()).filter(Boolean);
+// Thêm translation helper
+async function translateText(text, targetLang = 'vi') {
+  try {
+    // Option 1: LibreTranslate (self-hosted hoặc public instance)
+    const response = await fetch('https://translate.terraprint.co/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        q: text,
+        source: 'auto',
+        target: targetLang,
+        format: 'text'
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.translatedText || text;
+    }
+  } catch (e) {
+    console.error('Translation failed:', e);
+  }
+  
+  // Fallback: return original text with [EN] marker
+  return `[EN] ${text}`;
+}
+
+// Helper để detect language
+function detectLanguage(text) {
+  // Simple detection based on characters
+  const vietnamesePattern = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+  const chinesePattern = /[\u4e00-\u9fa5]/;
+  const koreanPattern = /[\uac00-\ud7af]/;
+  const japanesePattern = /[\u3040-\u309f\u30a0-\u30ff]/;
+  
+  if (vietnamesePattern.test(text)) return 'vi';
+  if (chinesePattern.test(text)) return 'zh';
+  if (koreanPattern.test(text)) return 'ko';
+  if (japanesePattern.test(text)) return 'ja';
+  
+  // Default to English for Latin characters
+  return 'en';
+}
+
+// Modified summarizeToBullets to translate if needed
+async function summarizeToBulletsWithTranslation(fullText, sourceGroup) {
+  const bullets = summarizeToBullets(fullText);
+  
+  // Only translate for international sources
+  if (sourceGroup === 'internationaleconomics') {
+    const lang = detectLanguage(fullText);
+    if (lang !== 'vi') {
+      // Translate each bullet
+      const translatedBullets = await Promise.all(
+        bullets.map(async (bullet) => {
+          if (bullet.startsWith('(')) return bullet; // Skip error messages
+          const translated = await translateText(bullet);
+          return translated;
+        })
+      );
+      return translatedBullets;
+    }
+  }
+  
+  return bullets;
 }
 
 // TÓM TẮT THÔNG MINH: Lấy những ý chính quan trọng
@@ -454,10 +516,24 @@ app.get("/api/summary", async (req,res) => {
         
         $("#google-cache-hdr").remove();
         
-        const title = ($("meta[property='og:title']").attr("content") || $("title").text() || "").trim();
+        let title = ($("meta[property='og:title']").attr("content") || $("title").text() || "").trim();
         const site = (new URL(raw)).hostname;
         const mainText = extractMainContent($);
-        const bullets = mainText.length > 100 ? summarizeToBullets(mainText) : [fallbackSummary || "(Không có nội dung)"];
+        
+        // Detect if international source
+        const isInternational = site.includes('wsj.com') || site.includes('ft.com') || 
+                               site.includes('bloomberg.com') || site.includes('economist.com') || 
+                               site.includes('reuters.com') || site.includes('cnbc.com') || 
+                               site.includes('marketwatch.com');
+        
+        // Translate title if international
+        if (isInternational && detectLanguage(title) !== 'vi') {
+          title = await translateText(title);
+        }
+        
+        const bullets = mainText.length > 100 ? 
+          await summarizeToBulletsWithTranslation(mainText, isInternational ? 'internationaleconomics' : 'vietnam') : 
+          [fallbackSummary || "(Không có nội dung)"];
         
         const originalLength = mainText.length || 0;
         const summaryLength = bullets.join(" ").length;
@@ -471,7 +547,8 @@ app.get("/api/summary", async (req,res) => {
           percentage, 
           originalLength, 
           summaryLength,
-          source: "Google Cache"
+          source: "Google Cache",
+          translated: isInternational
         };
         cacheSet(raw, data);
         return res.json(data);
@@ -515,9 +592,20 @@ app.get("/api/summary", async (req,res) => {
       });
     }
     
-    const title = ($("meta[property='og:title']").attr("content") || $("title").text() || "").trim();
+    let title = ($("meta[property='og:title']").attr("content") || $("title").text() || "").trim();
     const site = $("meta[property='og:site_name']").attr("content") || (new URL(raw)).hostname;
     const mainText = extractMainContent($);
+    
+    // Detect if international source
+    const isInternational = site.includes('wsj.com') || site.includes('ft.com') || 
+                           site.includes('bloomberg.com') || site.includes('economist.com') || 
+                           site.includes('reuters.com') || site.includes('cnbc.com') || 
+                           site.includes('marketwatch.com');
+    
+    // Translate title if international
+    if (isInternational && detectLanguage(title) !== 'vi') {
+      title = await translateText(title);
+    }
     
     let bullets;
     if (!mainText || mainText.length < 100) {
@@ -526,19 +614,33 @@ app.get("/api/summary", async (req,res) => {
       const contentToUse = metaDesc || fallbackSummary || "";
       
       if (contentToUse) {
-        bullets = [contentToUse];
+        // Translate if international
+        if (isInternational && detectLanguage(contentToUse) !== 'vi') {
+          bullets = [await translateText(contentToUse)];
+        } else {
+          bullets = [contentToUse];
+        }
       } else {
         bullets = ["(Trang có thể yêu cầu đăng nhập hoặc có paywall. Vui lòng xem bài gốc)"];
       }
     } else {
-      bullets = summarizeToBullets(mainText);
+      bullets = await summarizeToBulletsWithTranslation(mainText, isInternational ? 'internationaleconomics' : 'vietnam');
     }
     
     const originalLength = mainText.length || (fallbackSummary ? fallbackSummary.length : 0);
     const summaryLength = bullets.join(" ").length;
     const percentage = originalLength > 0 ? Math.round((summaryLength / originalLength) * 100) : 100;
     
-    const data = { url: raw, title, site, bullets, percentage, originalLength, summaryLength };
+    const data = { 
+      url: raw, 
+      title, 
+      site, 
+      bullets, 
+      percentage, 
+      originalLength, 
+      summaryLength,
+      translated: isInternational
+    };
     cacheSet(raw, data);
     res.json(data);
   } catch (e) {
