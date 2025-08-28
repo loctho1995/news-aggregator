@@ -2,7 +2,7 @@
 const grid = document.getElementById("grid");
 const search = document.getElementById("search");
 const sourceSelect = document.getElementById("sourceSelect");
-const statusSelect = document.getElementById("statusSelect");
+const groupSelect = document.getElementById("groupSelect");
 const hoursSelect = document.getElementById("hours");
 const refreshBtn = document.getElementById("refreshBtn");
 const badge = document.getElementById("badge");
@@ -39,7 +39,7 @@ setRateUI(ttsRate);
 
 let allItems = [];
 let activeSource = "all";
-let activeStatus = "all"; // all | unread | read
+let activeGroup = "vietnam"; // Mặc định là tin Việt Nam
 let currentItem = null;
 let renderedItems = [];
 
@@ -70,9 +70,20 @@ const markUnread = (link) => { if (!link) return; readMap.delete(link); persistR
 async function loadSources() {
   const res = await fetch("/api/sources");
   const data = await res.json();
+  
+  // Update source select based on active group
+  updateSourceSelect(data.sources);
+}
+
+function updateSourceSelect(sources) {
+  // Filter sources by active group if not "all"
+  const filteredSources = activeGroup === "all" 
+    ? sources 
+    : sources.filter(s => s.group === activeGroup);
+  
   sourceSelect.innerHTML =
     `<option value="all" selected>Tất cả nguồn</option>` +
-    data.sources.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
+    filteredSources.map((s) => `<option value="${s.id}">${s.name}</option>`).join("");
 }
 
 /* ===== Helpers: sentences & preview bullets for cards ===== */
@@ -194,45 +205,20 @@ function render() {
     const okSource = activeSource === "all" || it.sourceId === activeSource;
     const okQuery =
       !q || it.title?.toLowerCase().includes(q) || it.summary?.toLowerCase().includes(q);
-    const read = isReadLink(it.link);
-    const okStatus = activeStatus === "all" || (activeStatus === "unread" ? !read : read);
-    return okSource && okQuery && okStatus;
+    const okGroup = activeGroup === "all" || it.group === activeGroup;
+    return okSource && okQuery && okGroup;
   });
 
-  if (activeStatus === "unread") {
-    items.sort((a, b) => {
-      const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-      const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-      return tb - ta;
-    });
-  } else if (activeStatus === "read") {
-    items.sort((a, b) => {
-      const ra = getReadAt(a.link);
-      const rb = getReadAt(b.link);
-      if (ra !== rb) return rb - ra;
-      const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-      const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-      return tb - ta;
-    });
-  } else {
-    items.sort((a, b) => {
-      const aRead = isReadLink(a.link);
-      const bRead = isReadLink(b.link);
-      if (aRead !== bRead) return aRead - bRead; // chưa đọc trước
-      if (!aRead && !bRead) {
-        const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-        const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-        return tb - ta;
-      } else {
-        const ra = getReadAt(a.link);
-        const rb = getReadAt(b.link);
-        if (ra !== rb) return ra - rb; // đã đọc: cũ hơn xuống dưới
-        const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
-        const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
-        return tb - ta;
-      }
-    });
-  }
+  // Sort by publish date (newest first) và status đã đọc/chưa đọc
+  items.sort((a, b) => {
+    const aRead = isReadLink(a.link);
+    const bRead = isReadLink(b.link);
+    if (aRead !== bRead) return aRead - bRead; // chưa đọc lên trước
+    
+    const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    return tb - ta;
+  });
 
   renderedItems = items;
   grid.innerHTML = items.map((it, i) => card(it, i, isReadLink(it.link))).join("");
@@ -380,10 +366,37 @@ grid.addEventListener("click", (e) => {
 async function loadNews() {
   badge.textContent = "Đang tải…";
   const hours = hoursSelect.value;
-  const res = await fetch(`/api/news?hours=${hours}`);
+  const group = activeGroup === "all" ? "" : activeGroup;
+  const res = await fetch(`/api/news?hours=${hours}&group=${group}`);
   const data = await res.json();
   allItems = data.items || [];
+  
+  // Add group info to each item if not present
+  allItems.forEach(item => {
+    if (!item.group) {
+      // Determine group from sourceId if needed
+      item.group = determineGroupFromSource(item.sourceId);
+    }
+  });
+  
   render();
+}
+
+// Helper function to determine group from source
+function determineGroupFromSource(sourceId) {
+  // This will be provided by backend, but as fallback
+  const internationalEconomicsSources = ['wsj', 'ft', 'bloomberg', 'economist', 'reuters', 'cnbc', 'marketwatch'];
+  return internationalEconomicsSources.includes(sourceId) ? 'internationaleconomics' : 'vietnam';
+}
+
+// Khởi tạo với filter sources cho nhóm vietnam mặc định
+async function initializeWithVietnamNews() {
+  const res = await fetch("/api/sources");
+  const data = await res.json();
+  
+  // Filter sources cho nhóm vietnam
+  const vietnamSources = data.sources.filter(s => s.group === 'vietnam' || !s.group);
+  updateSourceSelect(vietnamSources);
 }
 
 /* ===== Modal Summary ===== */
@@ -470,10 +483,22 @@ function escapeHtml(s) {
 
 /* ===== Init ===== */
 sourceSelect.addEventListener("change", (e) => { activeSource = e.target.value; render(); });
-statusSelect.addEventListener("change", (e) => { activeStatus = e.target.value; render(); });
+groupSelect.addEventListener("change", async (e) => { 
+  activeGroup = e.target.value; 
+  activeSource = "all"; // Reset source when changing group
+  
+  // Reload sources for the selected group
+  const res = await fetch("/api/sources");
+  const data = await res.json();
+  updateSourceSelect(data.sources);
+  
+  // Reload news if group changed
+  await loadNews();
+});
 search.addEventListener("input", render);
 hoursSelect.addEventListener("change", loadNews);
 refreshBtn.addEventListener("click", loadNews);
 
-await loadSources();
+// Khởi tạo với tin tức Việt Nam mặc định
+await initializeWithVietnamNews();
 await loadNews();

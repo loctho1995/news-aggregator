@@ -157,9 +157,6 @@ async function fetchRSSWithFullContent(source) {
   // Giới hạn số bài để tránh quá tải
   const maxItems = 10; 
   const promises = feed.items.slice(0, maxItems).map(async (it) => {
-    // Lưu RSS content trước
-    const rssContent = it.contentSnippet || it.content || it.summary || it.description || "";
-    
     try {
       // Fetch full content từ link
       const response = await fetch(it.link, {
@@ -175,15 +172,8 @@ async function fetchRSSWithFullContent(source) {
       // Extract full content
       const fullContent = extractFullContent($);
       
-      // Nếu không extract được hoặc quá ngắn, dùng RSS content
-      let summary;
-      if (fullContent && fullContent.length > 100) {
-        summary = summarizeContent(fullContent);
-      } else {
-        // Fallback về RSS content
-        summary = cleanText(rssContent, 280);
-        console.log(`Using RSS content for ${it.link} (extracted: ${fullContent?.length || 0} chars)`);
-      }
+      // Tóm tắt
+      const summary = summarizeContent(fullContent);
       
       const cats = toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean);
       const derived = cats.length ? cats : deriveCategoriesFromURL(it.link || "");
@@ -193,8 +183,8 @@ async function fetchRSSWithFullContent(source) {
         sourceName: source.name,
         title: cleanText(it.title, 280),
         link: it.link,
-        summary: summary || cleanText(rssContent, 280),
-        fullContent: fullContent || rssContent, // Lưu cả 2 để có thể dùng sau
+        summary: summary || cleanText(it.contentSnippet || it.content, 280),
+        fullContent: fullContent, // Lưu full content để có thể tóm tắt lại sau
         publishedAt: toISO(it.isoDate || it.pubDate),
         image: it.enclosure?.url || $("meta[property='og:image']").attr("content") || null,
         categories: derived
@@ -207,8 +197,7 @@ async function fetchRSSWithFullContent(source) {
         sourceName: source.name,
         title: cleanText(it.title, 280),
         link: it.link,
-        summary: cleanText(rssContent, 280),
-        fullContent: rssContent,
+        summary: cleanText(it.contentSnippet || it.content || it.summary, 280),
         publishedAt: toISO(it.isoDate || it.pubDate),
         image: it.enclosure?.url || null,
         categories: toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean)
@@ -318,8 +307,18 @@ async function fetchFromSource(sourceId) {
   }
 }
 
-export async function fetchAll({ include = [], hours = 24, limitPerSource = 30 } = {}) {
-  const ids = include.length ? include : Object.keys(SOURCES);
+export async function fetchAll({ include = [], hours = 24, limitPerSource = 30, group = null } = {}) {
+  // Filter sources by group if specified
+  let ids;
+  if (include.length) {
+    ids = include;
+  } else if (group) {
+    // Get only sources from specified group
+    ids = Object.keys(SOURCES).filter(id => SOURCES[id].group === group);
+  } else {
+    ids = Object.keys(SOURCES);
+  }
+  
   const since = dayjs().tz(DEFAULT_TZ).subtract(hours, "hour");
   
   // Fetch song song nhưng giới hạn concurrent
@@ -338,6 +337,12 @@ export async function fetchAll({ include = [], hours = 24, limitPerSource = 30 }
             return t.isValid() ? t.isAfter(since) : true;
           })
           .slice(0, limitPerSource);
+        
+        // Add group info to each item
+        filtered.forEach(item => {
+          item.group = SOURCES[id].group || 'vietnam';
+        });
+        
         return filtered;
       } catch (e) {
         console.error(`Source ${id} failed: ${e.message}`);
@@ -370,5 +375,7 @@ export async function fetchAll({ include = [], hours = 24, limitPerSource = 30 }
 }
 
 export function listSources() {
-  return Object.values(SOURCES).map(({ id, name, homepage, url, type }) => ({ id, name, homepage, url, type }));
+  return Object.values(SOURCES).map(({ id, name, homepage, url, type, group }) => ({ 
+    id, name, homepage, url, type, group: group || 'vietnam'
+  }));
 }

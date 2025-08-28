@@ -22,9 +22,10 @@ app.get("/api/sources", (req, res) => res.json({ sources: listSources() }));
 app.get("/api/news", async (req, res) => {
   const hours = Math.max(1, Math.min(parseInt(req.query.hours || "24", 10), 168));
   const include = String(req.query.sources || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const group = req.query.group || null; // Get group parameter
   const limitPerSource = Math.max(1, Math.min(parseInt(req.query.limit || "30", 10), 100));
   try {
-    const items = await fetchAll({ include, hours, limitPerSource });
+    const items = await fetchAll({ include, hours, limitPerSource, group });
     res.json({ generatedAt: new Date().toISOString(), count: items.length, items });
   } catch (e) {
     logger.error(e);
