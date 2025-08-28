@@ -4,7 +4,7 @@ import pino from "pino";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as cheerio from "cheerio";
-import { fetchAll, listSources } from "./src/aggregator.js";
+import { fetchAll, fetchAllStreaming, listSources } from "./src/aggregator.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,14 +22,40 @@ app.get("/api/sources", (req, res) => res.json({ sources: listSources() }));
 app.get("/api/news", async (req, res) => {
   const hours = Math.max(1, Math.min(parseInt(req.query.hours || "24", 10), 168));
   const include = String(req.query.sources || "").split(",").map((s) => s.trim()).filter(Boolean);
-  const group = req.query.group || null; // Get group parameter
+  const group = req.query.group || null;
   const limitPerSource = Math.max(1, Math.min(parseInt(req.query.limit || "30", 10), 100));
+  const streaming = req.query.stream === 'true';
+  
   try {
-    const items = await fetchAll({ include, hours, limitPerSource, group });
-    res.json({ generatedAt: new Date().toISOString(), count: items.length, items });
+    if (streaming) {
+      // Streaming mode: gửi từng item khi có
+      res.setHeader('Content-Type', 'application/x-ndjson');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      // Stream từng item khi có
+      await fetchAllStreaming({ 
+        include, 
+        hours, 
+        limitPerSource, 
+        group,
+        onItem: (item) => {
+          // Gửi từng item dạng NDJSON
+          res.write(JSON.stringify(item) + '\n');
+        }
+      });
+      
+      res.end();
+    } else {
+      // Normal mode: đợi tất cả xong mới gửi
+      const items = await fetchAll({ include, hours, limitPerSource, group });
+      res.json({ generatedAt: new Date().toISOString(), count: items.length, items });
+    }
   } catch (e) {
     logger.error(e);
-    res.status(500).json({ error: e.message || "Unknown error" });
+    if (!res.headersSent) {
+      res.status(500).json({ error: e.message || "Unknown error" });
+    }
   }
 });
 
@@ -104,7 +130,7 @@ function extractMainContent($) {
     ".share-button, .reaction, .like-button, " +
     ".video-list, .photo-list, .most-viewed, " +
     ".box-tinlienquan, .box-category, .box-news-other, " +
-    ".register-form, .login-form, .subscription-form" // Thêm xóa form
+    ".register-form, .login-form, .subscription-form"
   ).remove();
   
   // XÓA các element chứa text "Từ khóa", "Tags", etc.
@@ -127,19 +153,12 @@ function extractMainContent($) {
   
   // PHƯƠNG PHÁP 2: Selector cụ thể cho các trang báo VN
   const selectors = {
-    // VnExpress
     vnexpress: [".fck_detail", ".article-content", ".content-detail"],
-    // Tuổi Trẻ  
     tuoitre: [".content-detail", ".detail-content", ".detail__content"],
-    // Dân Trí
     dantri: [".singular-content", ".detail-content", ".e-magazine__body"],
-    // Thanh Niên
     thanhnien: [".detail-content", ".content", ".article-body"],
-    // CafeF/CafeBiz
     cafe: [".newscontent", ".detail-content", ".content-detail"],
-    // VietnamNet
     vietnamnet: [".ArticleContent", ".article-content", ".content__body"],
-    // Generic
     generic: [
       "article > div:not(.tags):not(.keywords)",
       "[itemprop='articleBody']",
@@ -156,19 +175,13 @@ function extractMainContent($) {
     try {
       $(sel).each((_, el) => {
         const $el = $(el);
-        
-        // Loại bỏ các phần không mong muốn TRONG element
         $el.find(".tags, .keywords, .topic-keywords, .author-bio, .source").remove();
         
         const text = $el.text().trim();
         const paragraphs = $el.find("p").length;
         const links = $el.find("a").length;
         const images = $el.find("img").length;
-        
-        // Tính điểm: ưu tiên nội dung có nhiều đoạn văn, ít link
         const score = text.length + (paragraphs * 100) - (links * 20) + (images * 30);
-        
-        // Kiểm tra không phải menu/sidebar (tỷ lệ link/text thấp)
         const linkRatio = links / Math.max(1, text.length / 100);
         
         if (score > maxScore && text.length > 200 && linkRatio < 3) {
@@ -183,22 +196,17 @@ function extractMainContent($) {
   if (!bestContent || bestContent.length < 300) {
     const contentParts = [];
     
-    // Thêm lead/sapo nếu có
     if (articleLead && articleLead.length > 50 && !articleLead.includes("Từ khóa")) {
       contentParts.push(articleLead);
     }
     
-    // Thu thập paragraphs chính
     $("p").each((_, p) => {
       const $p = $(p);
       const parent = $p.parent();
-      
-      // Bỏ qua nếu parent là tags/keywords
       if (parent.hasClass("tags") || parent.hasClass("keywords")) return;
       
       const text = $p.text().trim();
       
-      // Chỉ lấy paragraph có nội dung thực sự
       if (text.length > 60 && 
           !text.toLowerCase().includes("từ khóa") &&
           !text.toLowerCase().includes("tags:") &&
@@ -225,12 +233,10 @@ function extractMainContent($) {
   bestContent = bestContent
     .replace(/\s+/g, " ")
     .replace(/(\r\n|\n|\r)/gm, " ")
-    // Xóa phần từ khóa và các pattern liên quan
     .replace(/Từ khóa[:\s].*/gi, "")
     .replace(/Tags?[:\s].*/gi, "")
     .replace(/Chủ đề[:\s].*/gi, "")
     .replace(/Hashtag[:\s].*/gi, "")
-    // Xóa các phần không mong muốn khác
     .replace(/Chia sẻ bài viết.*/gi, "")
     .replace(/Xem thêm[:\s].*/gi, "")
     .replace(/Đọc thêm[:\s].*/gi, "")
@@ -238,7 +244,7 @@ function extractMainContent($) {
     .replace(/Tin cùng chuyên mục.*/gi, "")
     .replace(/Bài viết liên quan.*/gi, "")
     .replace(/Bình luận.*/gi, "")
-    .replace(/\[.*?\]/g, "") // [Photo], [Video]
+    .replace(/\[.*?\]/g, "")
     .replace(/\(Ảnh:.*?\)/gi, "")
     .replace(/Nguồn:.*$/gi, "")
     .replace(/Theo\s+[A-Z][^.]{0,30}$/gi, "")
@@ -255,22 +261,18 @@ function splitSentencesNoLookbehind(text) {
 
 // TÓM TẮT THÔNG MINH: Lấy những ý chính quan trọng
 function summarizeToBullets(fullText) {
-  // Nếu text quá ngắn
   if (!fullText || fullText.length < 30) {
     console.log(`Text too short: ${fullText?.length || 0} chars`);
     return [`(Không thể trích xuất nội dung từ trang này)`];
   }
   
-  // Nếu text ngắn (30-200 ký tự), trả về nguyên văn
   if (fullText.length < 200) {
     return [fullText];
   }
   
-  // Tách câu và lọc sạch
   const sentences = splitSentencesNoLookbehind(fullText)
     .filter(s => {
       const clean = s.trim();
-      // Loại câu quá ngắn hoặc chứa từ khóa không mong muốn
       return clean.length > 30 && 
              !clean.toLowerCase().includes("từ khóa") &&
              !clean.toLowerCase().includes("xem thêm") &&
@@ -281,7 +283,6 @@ function summarizeToBullets(fullText) {
     return [fullText.slice(0, 300) + (fullText.length > 300 ? "..." : "")];
   }
   
-  // Nếu ít câu, trả về từng câu
   if (sentences.length <= 3) {
     return sentences;
   }
@@ -290,20 +291,20 @@ function summarizeToBullets(fullText) {
   const mainPoints = [];
   const processedIndexes = new Set();
   
-  // 1. Tìm câu mở đầu quan trọng (thường là 1-2 câu đầu)
+  // 1. Tìm câu mở đầu quan trọng
   for (let i = 0; i < Math.min(2, sentences.length); i++) {
     if (sentences[i].length > 50) {
       mainPoints.push({
         text: sentences[i],
         index: i,
         type: 'intro',
-        score: 100 - i * 10 // Câu đầu quan trọng hơn
+        score: 100 - i * 10
       });
       processedIndexes.add(i);
     }
   }
   
-  // 2. Tìm các câu chứa số liệu, phần trăm (thường là ý chính)
+  // 2. Tìm các câu chứa số liệu, phần trăm
   sentences.forEach((s, i) => {
     if (!processedIndexes.has(i)) {
       const hasNumbers = /\d+[\s]*(tỷ|triệu|nghìn|%|phần trăm|USD|VND|đồng)/i.test(s);
@@ -321,7 +322,7 @@ function summarizeToBullets(fullText) {
     }
   });
   
-  // 3. Tìm câu có từ khóa quan trọng (kết luận, quan trọng, chính)
+  // 3. Tìm câu có từ khóa quan trọng
   const importantKeywords = [
     /^(Theo|Ông|Bà|PGS|TS|BS|Luật sư|Chuyên gia)/i,
     /quan trọng|chủ yếu|chính là|điểm nổi bật|đáng chú ý/i,
@@ -347,7 +348,7 @@ function summarizeToBullets(fullText) {
     }
   });
   
-  // 4. Tìm câu kết (thường ở cuối)
+  // 4. Tìm câu kết
   for (let i = sentences.length - 2; i < sentences.length; i++) {
     if (i >= 0 && !processedIndexes.has(i) && sentences[i].length > 50) {
       mainPoints.push({
@@ -374,7 +375,7 @@ function summarizeToBullets(fullText) {
     });
   }
   
-  // Sắp xếp theo thứ tự xuất hiện trong bài (giữ logic)
+  // Sắp xếp theo thứ tự xuất hiện trong bài
   mainPoints.sort((a, b) => a.index - b.index);
   
   // Gộp các câu liên quan thành bullets
@@ -383,12 +384,10 @@ function summarizeToBullets(fullText) {
   let lastIndex = -1;
   
   for (const point of mainPoints) {
-    // Nếu câu liền kề và có liên kết logic, gộp lại
     if (lastIndex >= 0 && point.index === lastIndex + 1 && 
         currentBullet.length + point.text.length < 400) {
       currentBullet += " " + point.text;
     } else {
-      // Lưu bullet hiện tại nếu có
       if (currentBullet) {
         finalBullets.push(currentBullet.trim());
       }
@@ -397,7 +396,6 @@ function summarizeToBullets(fullText) {
     lastIndex = point.index;
   }
   
-  // Đừng quên bullet cuối cùng
   if (currentBullet) {
     finalBullets.push(currentBullet.trim());
   }
@@ -435,20 +433,17 @@ app.get("/api/summary", async (req,res) => {
       "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
       "Cache-Control": "no-cache",
       "Referer": "https://www.google.com/",
-      // Bypass một số paywall đơn giản
-      "X-Forwarded-For": "66.249.66.1", // Googlebot IP
-      "Cookie": "" // Xóa cookie để tránh tracking
+      "X-Forwarded-For": "66.249.66.1",
+      "Cookie": ""
     };
 
     const resp = await fetch(raw, { 
       headers,
       redirect: "follow",
-      // Timeout để tránh treo
       signal: AbortSignal.timeout(10000)
     });
     
     if (!resp.ok) {
-      // Nếu fail, thử dùng Google Cache
       console.log(`Direct fetch failed, trying Google Cache...`);
       const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(raw)}`;
       const cacheResp = await fetch(cacheUrl, { headers });
@@ -457,7 +452,6 @@ app.get("/api/summary", async (req,res) => {
         const html = await cacheResp.text();
         const $ = cheerio.load(html);
         
-        // Xóa Google Cache header
         $("#google-cache-hdr").remove();
         
         const title = ($("meta[property='og:title']").attr("content") || $("title").text() || "").trim();
@@ -495,7 +489,6 @@ app.get("/api/summary", async (req,res) => {
     if (hasJsContent) {
       console.log("Detected JS-rendered content, extracting from script tags...");
       
-      // Thử extract từ Next.js data
       $("script[id='__NEXT_DATA__']").each((_, script) => {
         try {
           const data = JSON.parse($(script).html());
@@ -504,13 +497,11 @@ app.get("/api/summary", async (req,res) => {
                          data?.props?.pageProps?.data;
           
           if (article?.content) {
-            // Inject content vào DOM để xử lý
             $("body").append(`<div class="extracted-content">${article.content}</div>`);
           }
         } catch (e) {}
       });
       
-      // Thử extract từ các script khác
       $("script").each((_, script) => {
         const text = $(script).html() || "";
         const matches = text.match(/"content"\s*:\s*"([^"]+)"/g) || 
@@ -528,7 +519,6 @@ app.get("/api/summary", async (req,res) => {
     const site = $("meta[property='og:site_name']").attr("content") || (new URL(raw)).hostname;
     const mainText = extractMainContent($);
     
-    // Nếu không extract được, dùng fallback
     let bullets;
     if (!mainText || mainText.length < 100) {
       const metaDesc = $("meta[property='og:description']").attr("content") || 
@@ -554,7 +544,6 @@ app.get("/api/summary", async (req,res) => {
   } catch (e) {
     console.error(`Error summarizing ${raw}:`, e.message);
     
-    // Fallback cuối cùng
     if (fallbackSummary) {
       return res.json({
         url: raw,

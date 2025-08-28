@@ -365,21 +365,133 @@ grid.addEventListener("click", (e) => {
 
 async function loadNews() {
   badge.textContent = "Đang tải…";
+  allItems = []; // Clear current items
+  renderedItems = [];
+  grid.innerHTML = ""; // Clear grid
+  empty.classList.add("hidden");
+  
   const hours = hoursSelect.value;
   const group = activeGroup === "all" ? "" : activeGroup;
-  const res = await fetch(`/api/news?hours=${hours}&group=${group}`);
-  const data = await res.json();
-  allItems = data.items || [];
   
-  // Add group info to each item if not present
-  allItems.forEach(item => {
-    if (!item.group) {
-      // Determine group from sourceId if needed
-      item.group = determineGroupFromSource(item.sourceId);
+  // Fetch với streaming support
+  const response = await fetch(`/api/news?hours=${hours}&group=${group}&stream=true`);
+  
+  if (response.headers.get('content-type')?.includes('application/x-ndjson')) {
+    // Server hỗ trợ streaming
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Giữ lại phần chưa hoàn thành
+      
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            const item = JSON.parse(line);
+            if (item.error) continue;
+            
+            // Add group info if not present
+            if (!item.group) {
+              item.group = determineGroupFromSource(item.sourceId);
+            }
+            
+            allItems.push(item);
+            
+            // Render ngay lập tức nếu match filter
+            if (shouldDisplayItem(item)) {
+              renderNewItem(item);
+            }
+          } catch (e) {
+            console.error('Parse error:', e);
+          }
+        }
+      }
+      
+      // Update badge
+      badge.textContent = `${allItems.length} bài`;
     }
-  });
+  } else {
+    // Fallback: server không hỗ trợ streaming
+    const data = await response.json();
+    allItems = data.items || [];
+    
+    // Add group info to each item if not present
+    allItems.forEach(item => {
+      if (!item.group) {
+        item.group = determineGroupFromSource(item.sourceId);
+      }
+    });
+    
+    render();
+  }
   
-  render();
+  badge.textContent = `${allItems.length} bài`;
+}
+
+// Helper: check if item should be displayed with current filters
+function shouldDisplayItem(item) {
+  const q = search.value.trim().toLowerCase();
+  const okSource = activeSource === "all" || item.sourceId === activeSource;
+  const okQuery = !q || item.title?.toLowerCase().includes(q) || item.summary?.toLowerCase().includes(q);
+  const okGroup = activeGroup === "all" || item.group === activeGroup;
+  return okSource && okQuery && okGroup;
+}
+
+// Helper: render single new item
+function renderNewItem(item) {
+  const isRead = isReadLink(item.link);
+  const idx = renderedItems.length;
+  renderedItems.push(item);
+  
+  // Create card HTML
+  const cardHtml = card(item, idx, isRead);
+  
+  // Insert vào vị trí phù hợp (theo thời gian và status)
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = cardHtml;
+  const newCard = tempDiv.firstElementChild;
+  
+  // Find insertion point
+  const cards = Array.from(grid.children);
+  let insertBefore = null;
+  
+  for (const existingCard of cards) {
+    const existingIdx = parseInt(existingCard.querySelector('[data-index]').dataset.index);
+    const existingItem = renderedItems[existingIdx];
+    
+    // Sort logic: unread first, then by date
+    const existingRead = isReadLink(existingItem.link);
+    const newRead = isRead;
+    
+    if (newRead && !existingRead) continue; // New is read, existing unread -> continue
+    if (!newRead && existingRead) {
+      insertBefore = existingCard;
+      break; // New is unread, existing read -> insert here
+    }
+    
+    // Same read status -> sort by date
+    const newTime = item.publishedAt ? new Date(item.publishedAt).getTime() : 0;
+    const existingTime = existingItem.publishedAt ? new Date(existingItem.publishedAt).getTime() : 0;
+    
+    if (newTime > existingTime) {
+      insertBefore = existingCard;
+      break;
+    }
+  }
+  
+  if (insertBefore) {
+    grid.insertBefore(newCard, insertBefore);
+  } else {
+    grid.appendChild(newCard);
+  }
+  
+  empty.classList.add("hidden");
 }
 
 // Helper function to determine group from source

@@ -307,6 +307,67 @@ async function fetchFromSource(sourceId) {
   }
 }
 
+// Streaming version: gửi từng item khi có
+export async function fetchAllStreaming({ include = [], hours = 24, limitPerSource = 30, group = null, onItem } = {}) {
+  // Filter sources by group if specified
+  let ids;
+  if (include.length) {
+    ids = include;
+  } else if (group) {
+    ids = Object.keys(SOURCES).filter(id => SOURCES[id].group === group);
+  } else {
+    ids = Object.keys(SOURCES);
+  }
+  
+  const since = dayjs().tz(DEFAULT_TZ).subtract(hours, "hour");
+  const seen = new Set();
+  
+  // Process sources in parallel but emit items as soon as available
+  const promises = ids.map(async (id) => {
+    try {
+      console.log(`Fetching from ${id}...`);
+      const items = await fetchFromSource(id);
+      
+      // Process and emit each item immediately
+      for (const item of items) {
+        // Check time filter
+        if (item.publishedAt) {
+          const t = dayjs(item.publishedAt);
+          if (t.isValid() && !t.isAfter(since)) continue;
+        }
+        
+        // Check duplicate
+        if (seen.has(item.link)) continue;
+        seen.add(item.link);
+        
+        // Add group info
+        item.group = SOURCES[id].group || 'vietnam';
+        item.categories = (item.categories || []).map(x => String(x).trim()).filter(Boolean);
+        
+        // Emit item immediately
+        if (onItem) {
+          onItem(item);
+        }
+      }
+    } catch (e) {
+      console.error(`Source ${id} failed: ${e.message}`);
+      // Send error item but don't stop
+      if (onItem) {
+        onItem({ 
+          error: true, 
+          sourceId: id, 
+          message: e.message,
+          group: SOURCES[id]?.group || 'vietnam'
+        });
+      }
+    }
+  });
+  
+  // Wait for all to complete
+  await Promise.allSettled(promises);
+}
+
+// Original batch version
 export async function fetchAll({ include = [], hours = 24, limitPerSource = 30, group = null } = {}) {
   // Filter sources by group if specified
   let ids;
