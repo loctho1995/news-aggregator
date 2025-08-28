@@ -24,7 +24,7 @@
         <select id="groupSelect" class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100">
           <option value="all">Tất cả nhóm tin</option>
           <option value="vietnam" selected>🇻🇳 Tin tức Việt Nam</option>
-          <option value="internationaleconomics">🌍 Kinh tế quốc tế</option>
+          <option value="internationaleconomics">🌐 Kinh tế quốc tế</option>
         </select>
         <div class="flex gap-2">
           <select id="hours" class="flex-1 px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100">
@@ -89,6 +89,109 @@
                class="px-4 py-2 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">
                Đọc bài gốc ↗
             </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: AI TÓM TẮT -->
+    <div id="aiSummaryModal" class="fixed inset-0 z-50 hidden overflow-y-auto p-4 sm:p-6 flex items-center justify-center">
+      <div id="aiSummaryOverlay" class="absolute inset-0 bg-black/60"></div>
+
+      <div id="aiSummaryPanel"
+           class="relative w-full max-w-3xl lg:max-w-4xl mx-auto bg-gradient-to-br from-purple-50 to-blue-50 text-gray-900 rounded-2xl shadow-xl p-5 pointer-events-auto
+                  border border-purple-200 h-[90vh] lg:h-[85vh] flex flex-col">
+        
+        <!-- Header với AI icon -->
+        <div class="flex items-start gap-3 mb-4 pb-4 border-b border-purple-200">
+          <div class="flex-shrink-0">
+            <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+              <span class="text-white text-lg">🤖</span>
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h2 class="text-xl font-semibold text-gray-900 flex items-center gap-2" id="aiSummaryTitle">
+              AI Tóm tắt thông minh
+            </h2>
+            <p class="text-sm text-gray-600 mt-1" id="aiSummarySource"></p>
+          </div>
+          <button id="aiSummaryClose" class="flex-shrink-0 px-3 py-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-white/50">
+            ✕
+          </button>
+        </div>
+
+        <!-- Nội dung AI summary -->
+        <div id="aiSummaryArea" class="flex-1 overflow-y-auto pr-2 mb-4">
+          <!-- Loading state -->
+          <div id="aiSummaryLoading" class="flex flex-col items-center justify-center h-full">
+            <div class="relative">
+              <div class="w-16 h-16 border-4 border-purple-200 rounded-full"></div>
+              <div class="w-16 h-16 border-4 border-purple-500 rounded-full border-t-transparent absolute top-0 animate-spin"></div>
+            </div>
+            <p class="mt-4 text-lg text-gray-700 text-center">AI đang phân tích nội dung...</p>
+            <p class="text-sm text-gray-500 text-center max-w-md mt-2">
+              Vui lòng đợi trong giây lát. AI đang đọc, hiểu và tóm tắt nội dung một cách thông minh.
+            </p>
+          </div>
+
+          <!-- Content area -->
+          <div id="aiSummaryContent" class="hidden">
+            <div class="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-purple-100">
+              <div id="aiSummaryText" class="text-lg leading-relaxed text-gray-800"></div>
+            </div>
+            
+            <!-- Stats -->
+            <div id="aiSummaryStats" class="mt-4 flex flex-wrap gap-4 text-sm text-gray-600">
+              <div class="flex items-center gap-1">
+                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                <span>Độ chính xác: <span id="aiAccuracy">95%</span></span>
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                <span>Độ nén: <span id="aiCompression">-</span></span>
+              </div>
+              <div class="flex items-center gap-1" id="aiTranslatedBadge" style="display: none;">
+                <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                <span>Đã dịch từ tiếng Anh</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error state -->
+          <div id="aiSummaryError" class="hidden text-center py-8">
+            <div class="text-6xl mb-4">😅</div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Oops! AI gặp khó khăn</h3>
+            <p class="text-gray-600 mb-4" id="aiSummaryErrorMsg">Không thể tạo AI summary cho bài viết này.</p>
+            <button id="aiSummaryRetry" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">
+              Thử lại
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer controls -->
+        <div class="border-t border-purple-200 pt-4">
+          <div class="flex items-center justify-between gap-4">
+            <!-- TTS controls -->
+            <div class="flex items-center gap-3">
+              <button id="aiSpeakBtn" class="px-3 py-2 rounded-lg border border-purple-300 bg-white hover:bg-purple-50 text-sm text-gray-700 hidden flex items-center gap-1">
+                <span>🔊</span>
+                <span>Đọc AI summary</span>
+              </button>
+              <button id="aiStopSpeakBtn" class="px-3 py-2 rounded-lg border border-purple-300 bg-white hover:bg-purple-50 text-sm text-gray-700 hidden">
+                Dừng
+              </button>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex items-center gap-3">
+              <button id="aiSummaryCompare" class="px-4 py-2 rounded-lg border border-purple-300 bg-white hover:bg-purple-50 text-sm text-gray-700 hidden">
+                So sánh với tóm tắt thường
+              </button>
+              <a id="aiSummaryOpenLink" href="#" target="_blank" rel="noopener"
+                 class="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-sm text-white font-medium">
+                 Đọc bài gốc ↗
+              </a>
+            </div>
           </div>
         </div>
       </div>

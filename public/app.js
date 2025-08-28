@@ -8,6 +8,7 @@ const refreshBtn = document.getElementById("refreshBtn");
 const badge = document.getElementById("badge");
 const empty = document.getElementById("empty");
 
+// Regular summary modal elements
 const modal = document.getElementById("modal");
 const modalOverlay = document.getElementById("modalOverlay");
 const modalTitle = document.getElementById("modalTitle");
@@ -18,6 +19,26 @@ const summaryArea = document.getElementById("summaryArea");
 const summaryLoading = document.getElementById("summaryLoading");
 const summaryList = document.getElementById("summaryList");
 const modalPanel = document.getElementById("modalPanel");
+
+// AI Summary modal elements
+const aiSummaryModal = document.getElementById("aiSummaryModal");
+const aiSummaryOverlay = document.getElementById("aiSummaryOverlay");
+const aiSummaryTitle = document.getElementById("aiSummaryTitle");
+const aiSummarySource = document.getElementById("aiSummarySource");
+const aiSummaryClose = document.getElementById("aiSummaryClose");
+const aiSummaryArea = document.getElementById("aiSummaryArea");
+const aiSummaryLoading = document.getElementById("aiSummaryLoading");
+const aiSummaryContent = document.getElementById("aiSummaryContent");
+const aiSummaryError = document.getElementById("aiSummaryError");
+const aiSummaryText = document.getElementById("aiSummaryText");
+const aiSummaryStats = document.getElementById("aiSummaryStats");
+const aiSummaryOpenLink = document.getElementById("aiSummaryOpenLink");
+const aiSummaryRetry = document.getElementById("aiSummaryRetry");
+const aiSummaryCompare = document.getElementById("aiSummaryCompare");
+const aiSummaryErrorMsg = document.getElementById("aiSummaryErrorMsg");
+const aiAccuracy = document.getElementById("aiAccuracy");
+const aiCompression = document.getElementById("aiCompression");
+const aiTranslatedBadge = document.getElementById("aiTranslatedBadge");
 
 // Webview modal elements
 const webviewModal = document.getElementById("webviewModal");
@@ -39,7 +60,12 @@ const rateRange = document.getElementById("rateRange");
 const rateLabel = document.getElementById("rateLabel");
 const ttsRateBox = document.getElementById("ttsRateBox");
 
+// AI TTS controls
+const aiSpeakBtn = document.getElementById("aiSpeakBtn");
+const aiStopSpeakBtn = document.getElementById("aiStopSpeakBtn");
+
 let ttsState = "idle"; // idle | playing | paused
+let aiTTSState = "idle";
 let ttsVoice = null;
 const RATE_KEY = "tts_rate_v1";
 let ttsRate = parseFloat(localStorage.getItem(RATE_KEY) || "1.0") || 1.0;
@@ -52,8 +78,9 @@ setRateUI(ttsRate);
 
 let allItems = [];
 let activeSource = "all";
-let activeGroup = "vietnam"; // Mặc định là tin Việt Nam
+let activeGroup = "vietnam";
 let currentItem = null;
+let currentAIItem = null;
 let renderedItems = [];
 
 /* ===== Read/Unread tracking ===== */
@@ -83,13 +110,10 @@ const markUnread = (link) => { if (!link) return; readMap.delete(link); persistR
 async function loadSources() {
   const res = await fetch("/api/sources");
   const data = await res.json();
-  
-  // Update source select based on active group
   updateSourceSelect(data.sources);
 }
 
 function updateSourceSelect(sources) {
-  // Filter sources by active group if not "all"
   const filteredSources = activeGroup === "all" 
     ? sources 
     : sources.filter(s => s.group === activeGroup);
@@ -105,7 +129,6 @@ function splitSentencesNoLookbehind(text) {
   return parts.map((s) => s.trim()).filter(Boolean);
 }
 
-// VẪN GIỮ PREVIEW ngắn cho cards (3 bullets)
 function buildPreviewBullets(text, maxBullets = 3) {
   if (!text) return [];
   const sentences = splitSentencesNoLookbehind(text);
@@ -116,9 +139,8 @@ function buildPreviewBullets(text, maxBullets = 3) {
   return bullets.filter(Boolean).length >= 2 ? bullets : [];
 }
 
-/* ===== Popup summary: BỎ GIỚI HẠN ===== */
+/* ===== Popup summary: Bỏ GIỚI HẠN ===== */
 function normalizeBullets(arr, { minLen = 20 } = {}) {
-  // BỎ LIMIT - hiển thị TẤT CẢ bullets
   const seen = new Set();
   const out = [];
   for (const raw of arr || []) {
@@ -134,9 +156,8 @@ function normalizeBullets(arr, { minLen = 20 } = {}) {
 }
 
 function smartFallbackParagraph(text, { maxChars = 500 } = {}) {
-  // Tăng maxChars lên để hiển thị nhiều nội dung hơn khi fallback
   const sents = splitSentencesNoLookbehind(text || "");
-  let paragraph = sents.slice(0, 4).join(". "); // Tăng từ 2 lên 4 câu
+  let paragraph = sents.slice(0, 4).join(". ");
   paragraph = paragraph.replace(/\s+/g, " ").trim();
   if (!paragraph) return "";
   if (paragraph.length > maxChars) paragraph = paragraph.slice(0, maxChars - 1) + "…";
@@ -144,11 +165,9 @@ function smartFallbackParagraph(text, { maxChars = 500 } = {}) {
 }
 
 function renderSummaryContent({ bullets, fallbackText }) {
-  // BỎ GIỚI HẠN - hiển thị TẤT CẢ bullets
   const good = normalizeBullets(bullets, { minLen: 20 });
   
   if (good.length >= 2) {
-    // Hiển thị TẤT CẢ bullets, không giới hạn
     return `
       <ul class="list-disc pl-5 space-y-2 mt-2 text-lg text-gray-800">
         ${good.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}
@@ -164,7 +183,7 @@ function renderSummaryContent({ bullets, fallbackText }) {
     return `<p class="text-lg text-gray-800 mt-2">${escapeHtml(para)}</p>`;
   }
   
-  return `<p class="text-lg text-gray-600 mt-2">Bài rất ngắn – hãy chọn "Đọc bài gốc ↗" để xem chi tiết.</p>`;
+  return `<p class="text-lg text-gray-600 mt-2">Bài rất ngắn — hãy chọn "Đọc bài gốc ↗" để xem chi tiết.</p>`;
 }
 
 /* ===== Read style in cards ===== */
@@ -198,9 +217,16 @@ function card(item, idx, read) {
   return `
     <article class="bg-[#ecf0f1] border border-gray-300 rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col ${read ? "opacity-80 is-read" : ""}">
       <div class="p-4 flex-1 flex flex-col">
-        <div class="flex items-center gap-2 mb-1">
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
           <div class="text-xs text-gray-600 font-medium">${item.sourceName}</div>
           ${badgeHtml}
+        </div>
+        <div class="flex items-center gap-2 mb-2">
+          <button class="js-ai-summary text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600 cursor-pointer flex items-center gap-1" 
+                  data-link="${item.link}" data-title="${escapeHtml(item.title)}" data-index="${idx}">
+            <span>🤖</span>
+            <span>AI Tóm tắt</span>
+          </button>
           <button class="js-webview text-[10px] px-2 py-0.5 rounded-full bg-blue-500 text-white hover:bg-blue-600 cursor-pointer" 
                   data-link="${item.link}" data-title="${escapeHtml(item.title)}">
             Xem chi tiết
@@ -226,11 +252,10 @@ function render() {
     return okSource && okQuery && okGroup;
   });
 
-  // Sort by publish date (newest first) và status đã đọc/chưa đọc
   items.sort((a, b) => {
     const aRead = isReadLink(a.link);
     const bRead = isReadLink(b.link);
-    if (aRead !== bRead) return aRead - bRead; // chưa đọc lên trước
+    if (aRead !== bRead) return aRead - bRead;
     
     const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
     const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
@@ -276,8 +301,7 @@ function getSummaryText() {
   return text;
 }
 
-// TTS: Tăng maxLen cho chunks khi đọc dài
-function chunkTextForTTS(text, maxLen = 300) {  // Tăng từ 220 lên 300
+function chunkTextForTTS(text, maxLen = 300) {
   const sents = splitSentencesNoLookbehind(text);
   const out = [];
   let buff = "";
@@ -315,7 +339,7 @@ function startSpeak(text) {
     const u = new SpeechSynthesisUtterance(chunk);
     if (ttsVoice) u.voice = ttsVoice;
     u.lang = (ttsVoice && ttsVoice.lang) || "vi-VN";
-    u.rate = Math.min(3.0, Math.max(0.6, ttsRate)); // 0.6x → 3.0x
+    u.rate = Math.min(3.0, Math.max(0.6, ttsRate));
     u.pitch = 1.0;
     if (i === chunks.length - 1) {
       u.onend = () => { ttsState = "idle"; btnSpeak.textContent = "🔊 Đọc to"; };
@@ -346,7 +370,7 @@ btnStopSpeak?.addEventListener("click", () => {
   ttsState = "idle";
   btnSpeak.textContent = "🔊 Đọc to";
 });
-// chỉnh tốc độ: lưu & (nếu đang đọc) khởi động lại
+
 rateRange?.addEventListener("input", (e) => {
   ttsRate = parseFloat(e.target.value || "1.0") || 1.0;
   localStorage.setItem(RATE_KEY, String(ttsRate));
@@ -362,6 +386,152 @@ rateRange?.addEventListener("change", () => {
     if (text.length > 4) startSpeak(text);
   }
 });
+
+/* ===== AI Summary Functions ===== */
+function openAISummaryModal(item, link) {
+  currentAIItem = item;
+  
+  aiSummaryTitle.textContent = "AI Tóm tắt thông minh";
+  aiSummarySource.textContent = item?.sourceName ? `Nguồn: ${item.sourceName}` : "";
+  aiSummaryOpenLink.href = link;
+
+  // Reset modal state
+  aiSummaryLoading.classList.remove("hidden");
+  aiSummaryContent.classList.add("hidden");
+  aiSummaryError.classList.add("hidden");
+  aiSummaryText.innerHTML = "";
+  
+  // Hide TTS controls initially
+  aiSpeakBtn.classList.add("hidden");
+  aiStopSpeakBtn.classList.add("hidden");
+  aiSummaryCompare.classList.add("hidden");
+
+  // Stop any ongoing TTS
+  if (aiTTSState !== "idle") {
+    window.speechSynthesis.cancel();
+    aiTTSState = "idle";
+  }
+
+  // Mark as read
+  markRead(link);
+
+  // Show modal
+  aiSummaryModal.classList.remove("hidden");
+  aiSummaryModal.classList.add("flex");
+  aiSummaryModal.scrollTop = 0;
+
+  // Fetch AI summary
+  fetchAISummary(link);
+}
+
+async function fetchAISummary(url) {
+  try {
+    const response = await fetch(`/api/ai-summary?url=${encodeURIComponent(url)}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'AI Summary failed');
+    }
+
+    // Display success state
+    aiSummaryLoading.classList.add("hidden");
+    aiSummaryContent.classList.remove("hidden");
+    
+    // Update content
+    aiSummaryText.innerHTML = formatAISummary(data.aiSummary);
+    
+    // Update stats
+    if (data.originalLength && data.summaryLength) {
+      const compressionRatio = Math.round((1 - data.summaryLength / data.originalLength) * 100);
+      aiCompression.textContent = `${compressionRatio}%`;
+    }
+    
+    // Show translation badge if applicable
+    if (data.translated) {
+      aiTranslatedBadge.style.display = 'flex';
+    }
+    
+    // Update source with additional info
+    let sourceText = `Nguồn: ${currentAIItem?.sourceName || ""}`;
+    if (data.translated) {
+      sourceText += ` • 🌐 Đã dịch từ tiếng Anh`;
+    }
+    if (data.cached) {
+      sourceText += ` • ⚡ Từ cache`;
+    }
+    aiSummarySource.textContent = sourceText;
+
+    // Show TTS controls if supported
+    if (ttsSupported()) {
+      aiSpeakBtn.classList.remove("hidden");
+      aiStopSpeakBtn.classList.remove("hidden");
+    }
+    
+    // Show compare button
+    aiSummaryCompare.classList.remove("hidden");
+
+  } catch (error) {
+    console.error('AI Summary error:', error);
+    
+    // Show error state
+    aiSummaryLoading.classList.add("hidden");
+    aiSummaryError.classList.remove("hidden");
+    aiSummaryErrorMsg.textContent = error.message || "Không thể tạo AI summary cho bài viết này.";
+  }
+}
+
+function formatAISummary(summary) {
+  if (!summary) return "<p class='text-gray-500'>Không có nội dung tóm tắt.</p>";
+  
+  // Convert summary to HTML with proper formatting
+  let formatted = summary.trim();
+  
+  // Handle bullet points
+  if (formatted.includes('•') || formatted.includes('*') || formatted.includes('-')) {
+    const lines = formatted.split('\n').filter(line => line.trim());
+    const bullets = lines.map(line => {
+      const cleaned = line.replace(/^[•\-\*]\s*/, '').trim();
+      return cleaned ? `<li class="mb-2">${escapeHtml(cleaned)}</li>` : '';
+    }).filter(Boolean);
+    
+    if (bullets.length > 0) {
+      return `<ul class="list-disc list-inside space-y-2 text-gray-800">${bullets.join('')}</ul>`;
+    }
+  }
+  
+  // Handle numbered lists
+  if (/^\d+\./.test(formatted)) {
+    const lines = formatted.split('\n').filter(line => line.trim());
+    const items = lines.map(line => {
+      const cleaned = line.replace(/^\d+\.\s*/, '').trim();
+      return cleaned ? `<li class="mb-2">${escapeHtml(cleaned)}</li>` : '';
+    }).filter(Boolean);
+    
+    if (items.length > 0) {
+      return `<ol class="list-decimal list-inside space-y-2 text-gray-800">${items.join('')}</ol>`;
+    }
+  }
+  
+  // Handle paragraph format
+  const paragraphs = formatted.split('\n\n').filter(p => p.trim());
+  const htmlParagraphs = paragraphs.map(p => 
+    `<p class="mb-3 text-gray-800 leading-relaxed">${escapeHtml(p.trim())}</p>`
+  );
+  
+  return htmlParagraphs.join('');
+}
+
+function closeAISummaryModal() {
+  // Stop TTS if running
+  if (aiTTSState !== "idle") {
+    window.speechSynthesis.cancel();
+    aiTTSState = "idle";
+  }
+  
+  aiSummaryModal.classList.add("hidden");
+  aiSummaryModal.classList.remove("flex");
+  currentAIItem = null;
+}
 
 /* ===== Events ===== */
 grid.addEventListener("click", (e) => {
@@ -381,6 +551,19 @@ grid.addEventListener("click", (e) => {
   openSummaryModal(currentItem, link);
 });
 
+// AI Summary button click handler
+grid.addEventListener("click", (e) => {
+  const aiBtn = e.target.closest(".js-ai-summary");
+  if (!aiBtn) return;
+  e.preventDefault();
+  
+  const idx = Number(aiBtn.getAttribute("data-index"));
+  const link = aiBtn.getAttribute("data-link");
+  const item = renderedItems[idx];
+  
+  openAISummaryModal(item, link);
+});
+
 // Webview button click handler
 grid.addEventListener("click", (e) => {
   const webviewBtn = e.target.closest(".js-webview");
@@ -393,19 +576,17 @@ grid.addEventListener("click", (e) => {
 
 async function loadNews() {
   badge.textContent = "Đang tải…";
-  allItems = []; // Clear current items
+  allItems = [];
   renderedItems = [];
-  grid.innerHTML = ""; // Clear grid
+  grid.innerHTML = "";
   empty.classList.add("hidden");
   
   const hours = hoursSelect.value;
   const group = activeGroup === "all" ? "" : activeGroup;
   
-  // Fetch với streaming support
   const response = await fetch(`/api/news?hours=${hours}&group=${group}&stream=true`);
   
   if (response.headers.get('content-type')?.includes('application/x-ndjson')) {
-    // Server hỗ trợ streaming
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -416,7 +597,7 @@ async function loadNews() {
       
       buffer += decoder.decode(value, {stream: true});
       const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // Giữ lại phần chưa hoàn thành
+      buffer = lines.pop() || '';
       
       for (const line of lines) {
         if (line.trim()) {
@@ -424,14 +605,12 @@ async function loadNews() {
             const item = JSON.parse(line);
             if (item.error) continue;
             
-            // Add group info if not present
             if (!item.group) {
               item.group = determineGroupFromSource(item.sourceId);
             }
             
             allItems.push(item);
             
-            // Render ngay lập tức nếu match filter
             if (shouldDisplayItem(item)) {
               renderNewItem(item);
             }
@@ -441,15 +620,12 @@ async function loadNews() {
         }
       }
       
-      // Update badge
       badge.textContent = `${allItems.length} bài`;
     }
   } else {
-    // Fallback: server không hỗ trợ streaming
     const data = await response.json();
     allItems = data.items || [];
     
-    // Add group info to each item if not present
     allItems.forEach(item => {
       if (!item.group) {
         item.group = determineGroupFromSource(item.sourceId);
@@ -462,7 +638,6 @@ async function loadNews() {
   badge.textContent = `${allItems.length} bài`;
 }
 
-// Helper: check if item should be displayed with current filters
 function shouldDisplayItem(item) {
   const q = search.value.trim().toLowerCase();
   const okSource = activeSource === "all" || item.sourceId === activeSource;
@@ -471,21 +646,17 @@ function shouldDisplayItem(item) {
   return okSource && okQuery && okGroup;
 }
 
-// Helper: render single new item
 function renderNewItem(item) {
   const isRead = isReadLink(item.link);
   const idx = renderedItems.length;
   renderedItems.push(item);
   
-  // Create card HTML
   const cardHtml = card(item, idx, isRead);
   
-  // Insert vào vị trí phù hợp (theo thời gian và status)
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = cardHtml;
   const newCard = tempDiv.firstElementChild;
   
-  // Find insertion point
   const cards = Array.from(grid.children);
   let insertBefore = null;
   
@@ -493,17 +664,15 @@ function renderNewItem(item) {
     const existingIdx = parseInt(existingCard.querySelector('[data-index]').dataset.index);
     const existingItem = renderedItems[existingIdx];
     
-    // Sort logic: unread first, then by date
     const existingRead = isReadLink(existingItem.link);
     const newRead = isRead;
     
-    if (newRead && !existingRead) continue; // New is read, existing unread -> continue
+    if (newRead && !existingRead) continue;
     if (!newRead && existingRead) {
       insertBefore = existingCard;
-      break; // New is unread, existing read -> insert here
+      break;
     }
     
-    // Same read status -> sort by date
     const newTime = item.publishedAt ? new Date(item.publishedAt).getTime() : 0;
     const existingTime = existingItem.publishedAt ? new Date(existingItem.publishedAt).getTime() : 0;
     
@@ -522,19 +691,15 @@ function renderNewItem(item) {
   empty.classList.add("hidden");
 }
 
-// Helper function to determine group from source
 function determineGroupFromSource(sourceId) {
-  // This will be provided by backend, but as fallback
   const internationalEconomicsSources = ['wsj', 'ft', 'bloomberg', 'economist', 'reuters', 'cnbc', 'marketwatch'];
   return internationalEconomicsSources.includes(sourceId) ? 'internationaleconomics' : 'vietnam';
 }
 
-// Khởi tạo với filter sources cho nhóm vietnam mặc định
 async function initializeWithVietnamNews() {
   const res = await fetch("/api/sources");
   const data = await res.json();
   
-  // Filter sources cho nhóm vietnam
   const vietnamSources = data.sources.filter(s => s.group === 'vietnam' || !s.group);
   updateSourceSelect(vietnamSources);
 }
@@ -570,7 +735,6 @@ function openSummaryModal(item, link) {
       const j = await r.json();
       if (j.error) throw new Error(j.error);
       
-      // Hiển thị phần trăm tóm tắt và trạng thái dịch
       if (j.percentage !== undefined) {
         const percentColor = j.percentage > 70 ? "text-orange-600" : 
                            j.percentage > 40 ? "text-yellow-600" : "text-emerald-600";
@@ -614,9 +778,6 @@ function closeModal() {
   modal.classList.add("hidden");
   modal.classList.remove("flex");
 }
-modalClose.addEventListener("click", closeModal);
-modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
-modalOverlay.addEventListener("click", closeModal);
 
 /* ===== Webview Modal ===== */
 function openWebviewModal(url, title) {
@@ -625,21 +786,16 @@ function openWebviewModal(url, title) {
   webviewOpenExternal.href = url;
   webviewErrorLink.href = url;
   
-  // Mark as read
   markRead(url);
   
-  // Show modal
   webviewModal.classList.remove("hidden");
   webviewModal.classList.add("flex");
   
-  // Show loading
   webviewLoading.classList.remove("hidden");
   webviewError.classList.add("hidden");
   
-  // Load iframe
   webviewFrame.src = url;
   
-  // Handle iframe load events
   let loadTimeout;
   
   const handleLoad = () => {
@@ -653,15 +809,12 @@ function openWebviewModal(url, title) {
     webviewError.classList.remove("hidden");
   };
   
-  // Remove old listeners
   webviewFrame.removeEventListener("load", handleLoad);
   webviewFrame.removeEventListener("error", handleError);
   
-  // Add new listeners
   webviewFrame.addEventListener("load", handleLoad, { once: true });
   webviewFrame.addEventListener("error", handleError, { once: true });
   
-  // Timeout after 10 seconds - assume blocked by X-Frame-Options
   loadTimeout = setTimeout(() => {
     webviewLoading.classList.add("hidden");
     webviewError.classList.remove("hidden");
@@ -674,7 +827,82 @@ function closeWebviewModal() {
   webviewFrame.src = "about:blank";
 }
 
-// Webview modal events
+// Event handlers for AI Summary modal
+aiSummaryClose.addEventListener("click", closeAISummaryModal);
+aiSummaryModal.addEventListener("click", (e) => {
+  if (e.target === aiSummaryModal || e.target === aiSummaryOverlay) {
+    closeAISummaryModal();
+  }
+});
+
+aiSummaryRetry.addEventListener("click", () => {
+  if (currentAIItem) {
+    fetchAISummary(currentAIItem.link);
+  }
+});
+
+// AI TTS controls
+aiSpeakBtn?.addEventListener("click", () => {
+  if (!ttsSupported()) return;
+  
+  if (aiTTSState === "idle") {
+    const text = aiSummaryText.innerText || aiSummaryText.textContent || "";
+    if (text.trim().length < 5) return;
+    
+    window.speechSynthesis.cancel();
+    aiTTSState = "playing";
+    aiSpeakBtn.innerHTML = '<span>⏸</span><span>Tạm dừng</span>';
+    
+    const chunks = chunkTextForTTS(text);
+    chunks.forEach((chunk, i) => {
+      const u = new SpeechSynthesisUtterance(chunk);
+      if (ttsVoice) u.voice = ttsVoice;
+      u.lang = (ttsVoice && ttsVoice.lang) || "vi-VN";
+      u.rate = Math.min(3.0, Math.max(0.6, ttsRate));
+      u.pitch = 1.0;
+      
+      if (i === chunks.length - 1) {
+        u.onend = () => {
+          aiTTSState = "idle";
+          aiSpeakBtn.innerHTML = '<span>🔊</span><span>Đọc AI summary</span>';
+        };
+      }
+      
+      window.speechSynthesis.speak(u);
+    });
+    
+  } else if (aiTTSState === "playing") {
+    window.speechSynthesis.pause();
+    aiTTSState = "paused";
+    aiSpeakBtn.innerHTML = '<span>▶️</span><span>Tiếp tục</span>';
+    
+  } else if (aiTTSState === "paused") {
+    window.speechSynthesis.resume();
+    aiTTSState = "playing";
+    aiSpeakBtn.innerHTML = '<span>⏸</span><span>Tạm dừng</span>';
+  }
+});
+
+aiStopSpeakBtn?.addEventListener("click", () => {
+  if (!ttsSupported()) return;
+  
+  window.speechSynthesis.cancel();
+  aiTTSState = "idle";
+  aiSpeakBtn.innerHTML = '<span>🔊</span><span>Đọc AI summary</span>';
+});
+
+// Compare with regular summary
+aiSummaryCompare?.addEventListener("click", () => {
+  if (currentAIItem) {
+    closeAISummaryModal();
+    openSummaryModal(currentAIItem, currentAIItem.link);
+  }
+});
+
+modalClose.addEventListener("click", closeModal);
+modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+modalOverlay.addEventListener("click", closeModal);
+
 webviewClose.addEventListener("click", closeWebviewModal);
 webviewModal.addEventListener("click", (e) => {
   if (e.target === webviewModal || e.target === webviewOverlay) {
@@ -692,10 +920,11 @@ webviewReload.addEventListener("click", () => {
   }, 100);
 });
 
-// Handle ESC key
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if (!webviewModal.classList.contains("hidden")) {
+    if (!aiSummaryModal.classList.contains("hidden")) {
+      closeAISummaryModal();
+    } else if (!webviewModal.classList.contains("hidden")) {
       closeWebviewModal();
     } else if (!modal.classList.contains("hidden")) {
       closeModal();
@@ -714,20 +943,17 @@ function escapeHtml(s) {
 sourceSelect.addEventListener("change", (e) => { activeSource = e.target.value; render(); });
 groupSelect.addEventListener("change", async (e) => { 
   activeGroup = e.target.value; 
-  activeSource = "all"; // Reset source when changing group
+  activeSource = "all";
   
-  // Reload sources for the selected group
   const res = await fetch("/api/sources");
   const data = await res.json();
   updateSourceSelect(data.sources);
   
-  // Reload news if group changed
   await loadNews();
 });
 search.addEventListener("input", render);
 hoursSelect.addEventListener("change", loadNews);
 refreshBtn.addEventListener("click", loadNews);
 
-// Khởi tạo với tin tức Việt Nam mặc định
 await initializeWithVietnamNews();
 await loadNews();

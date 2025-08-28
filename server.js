@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import pino from "pino";
@@ -28,26 +31,22 @@ app.get("/api/news", async (req, res) => {
   
   try {
     if (streaming) {
-      // Streaming mode: gửi từng item khi có
       res.setHeader('Content-Type', 'application/x-ndjson');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       
-      // Stream từng item khi có
       await fetchAllStreaming({ 
         include, 
         hours, 
         limitPerSource, 
         group,
         onItem: (item) => {
-          // Gửi từng item dạng NDJSON
           res.write(JSON.stringify(item) + '\n');
         }
       });
       
       res.end();
     } else {
-      // Normal mode: đợi tất cả xong mới gửi
       const items = await fetchAll({ include, hours, limitPerSource, group });
       res.json({ generatedAt: new Date().toISOString(), count: items.length, items });
     }
@@ -59,13 +58,46 @@ app.get("/api/news", async (req, res) => {
   }
 });
 
+// Caches
 const SUM_CACHE = new Map();
+const TRANSLATION_CACHE = new Map();
+const AI_SUMMARY_CACHE = new Map();
 const TTL_MS = 30 * 60 * 1000;
+const TRANSLATION_TTL = 24 * 60 * 60 * 1000;
+const AI_SUMMARY_TTL = 60 * 60 * 1000;
+
 const cacheGet = k => { const v = SUM_CACHE.get(k); if (!v) return null; if (Date.now()-v.ts>TTL_MS){SUM_CACHE.delete(k); return null;} return v.data; };
 const cacheSet = (k,d) => SUM_CACHE.set(k,{ts:Date.now(), data:d});
 
+const translationCacheGet = (key) => {
+  const entry = TRANSLATION_CACHE.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > TRANSLATION_TTL) {
+    TRANSLATION_CACHE.delete(key);
+    return null;
+  }
+  return entry.text;
+};
+
+const translationCacheSet = (key, text) => {
+  TRANSLATION_CACHE.set(key, { text, timestamp: Date.now() });
+};
+
+const aiSummaryCacheGet = (key) => {
+  const entry = AI_SUMMARY_CACHE.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > AI_SUMMARY_TTL) {
+    AI_SUMMARY_CACHE.delete(key);
+    return null;
+  }
+  return entry.data;
+};
+
+const aiSummaryCacheSet = (key, data) => {
+  AI_SUMMARY_CACHE.set(key, { data, timestamp: Date.now() });
+};
+
 function extractMainContent($) {
-  // KIỂM TRA PAYWALL/ĐĂNG KÝ TRƯỚC
   const paywallIndicators = [
     "vui lòng nhập email",
     "vui lòng đăng nhập", 
@@ -79,16 +111,13 @@ function extractMainContent($) {
   const bodyText = $("body").text().toLowerCase();
   const hasPaywall = paywallIndicators.some(indicator => bodyText.includes(indicator));
   
-  // Nếu có paywall, thử bypass
   if (hasPaywall) {
     console.log("Detected paywall/registration form, attempting bypass...");
     
-    // Xóa overlay, modal, popup
     $(".modal, .popup, .overlay, .paywall, .subscription-box, .register-form").remove();
     $("[class*='modal'], [class*='popup'], [class*='overlay']").remove();
     $("[id*='modal'], [id*='popup'], [id*='overlay']").remove();
     
-    // Xóa form đăng ký
     $("form").each((_, form) => {
       const $form = $(form);
       const formText = $form.text().toLowerCase();
@@ -97,7 +126,6 @@ function extractMainContent($) {
       }
     });
     
-    // Hiển thị content bị ẩn
     $(".content, .article-content, [class*='content']").css({
       'display': 'block',
       'visibility': 'visible',
@@ -106,7 +134,6 @@ function extractMainContent($) {
       'max-height': 'none'
     });
     
-    // Xóa blur effect
     $("*").each((_, el) => {
       const $el = $(el);
       const style = $el.attr("style") || "";
@@ -119,7 +146,6 @@ function extractMainContent($) {
     });
   }
   
-  // Xóa TẤT CẢ các thành phần không phải nội dung chính
   $(
     "script, style, noscript, iframe, " +
     ".advertisement, .ads, .banner, .sidebar, .widget, " +
@@ -133,7 +159,6 @@ function extractMainContent($) {
     ".register-form, .login-form, .subscription-form"
   ).remove();
   
-  // XÓA các element chứa text "Từ khóa", "Tags", etc.
   $("*").each((_, el) => {
     const $el = $(el);
     const text = $el.text().toLowerCase();
@@ -146,12 +171,10 @@ function extractMainContent($) {
     }
   });
   
-  // PHƯƠNG PHÁP 1: Tìm theo meta tags và structured data
   const ogDescription = $("meta[property='og:description']").attr("content") || "";
   const metaDescription = $("meta[name='description']").attr("content") || "";
   const articleLead = $(".sapo, .lead, .description, .chapeau, .article-summary").text().trim();
   
-  // PHƯƠNG PHÁP 2: Selector cụ thể cho các trang báo VN
   const selectors = {
     vnexpress: [".fck_detail", ".article-content", ".content-detail"],
     tuoitre: [".content-detail", ".detail-content", ".detail__content"],
@@ -170,7 +193,6 @@ function extractMainContent($) {
   let bestContent = "";
   let maxScore = 0;
   
-  // Tìm content container tốt nhất
   Object.values(selectors).flat().forEach(sel => {
     try {
       $(sel).each((_, el) => {
@@ -192,7 +214,6 @@ function extractMainContent($) {
     } catch (e) {}
   });
   
-  // PHƯƠNG PHÁP 3: Thu thập paragraphs nếu không tìm thấy container
   if (!bestContent || bestContent.length < 300) {
     const contentParts = [];
     
@@ -222,14 +243,12 @@ function extractMainContent($) {
     bestContent = contentParts.join(" ");
   }
   
-  // PHƯƠNG PHÁP 4: Fallback với meta nếu vẫn không có
   if (!bestContent || bestContent.length < 100) {
     bestContent = [ogDescription, metaDescription, articleLead]
       .filter(text => text && !text.includes("Từ khóa"))
       .join(" ");
   }
   
-  // Làm sạch content TRIỆT ĐỂ
   bestContent = bestContent
     .replace(/\s+/g, " ")
     .replace(/(\r\n|\n|\r)/gm, " ")
@@ -254,36 +273,108 @@ function extractMainContent($) {
   return bestContent;
 }
 
-// Thêm translation helper
+// Enhanced Translation System
 async function translateText(text, targetLang = 'vi') {
-  try {
-    // Option 1: LibreTranslate (self-hosted hoặc public instance)
-    const response = await fetch('https://translate.terraprint.co/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        q: text,
-        source: 'auto',
-        target: targetLang,
-        format: 'text'
-      })
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return data.translatedText || text;
+  if (!text || text.trim().length === 0) return text;
+  
+  const cacheKey = `${text.slice(0, 100)}_${targetLang}`;
+  const cached = translationCacheGet(cacheKey);
+  if (cached) return cached;
+
+  const translationMethods = [
+    async () => {
+      const response = await fetch('https://translate.terraprint.co/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          q: text,
+          source: 'auto',
+          target: targetLang,
+          format: 'text'
+        }),
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.translatedText || null;
+      }
+      return null;
+    },
+
+    async () => {
+      const encoded = encodeURIComponent(text);
+      const response = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encoded}&langpair=auto|${targetLang}`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.responseData && data.responseData.translatedText && 
+            !data.responseData.translatedText.includes('MYMEMORY WARNING')) {
+          return data.responseData.translatedText;
+        }
+      }
+      return null;
+    },
+
+    async () => {
+      const encoded = encodeURIComponent(text);
+      const response = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encoded}`,
+        { 
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Translation Bot)' },
+          signal: AbortSignal.timeout(8000)
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data[0] && data[0][0] && data[0][0][0]) {
+          return data[0].map(item => item[0]).join('');
+        }
+      }
+      return null;
     }
-  } catch (e) {
-    console.error('Translation failed:', e);
+  ];
+
+  for (const method of translationMethods) {
+    try {
+      const result = await method();
+      if (result && result.trim() !== text.trim()) {
+        translationCacheSet(cacheKey, result);
+        console.log(`Translation successful: ${text.slice(0, 50)}... -> ${result.slice(0, 50)}...`);
+        return result;
+      }
+    } catch (error) {
+      console.log(`Translation method failed: ${error.message}`);
+      continue;
+    }
   }
   
-  // Fallback: return original text with [EN] marker
+  console.log('All translation methods failed, returning original with [EN] prefix');
   return `[EN] ${text}`;
 }
 
-// Helper để detect language
+async function translatePageContent(content, sourceLanguage = 'en') {
+  if (!content || content.length < 10) return content;
+  
+  const chunks = content.match(/.{1,800}(?:\s|$)/g) || [content];
+  const translatedChunks = [];
+  
+  for (const chunk of chunks) {
+    if (chunk.trim()) {
+      const translated = await translateText(chunk.trim());
+      translatedChunks.push(translated);
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+  
+  return translatedChunks.join(' ');
+}
+
 function detectLanguage(text) {
-  // Simple detection based on characters
   const vietnamesePattern = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
   const chinesePattern = /[\u4e00-\u9fa5]/;
   const koreanPattern = /[\uac00-\ud7af]/;
@@ -294,22 +385,18 @@ function detectLanguage(text) {
   if (koreanPattern.test(text)) return 'ko';
   if (japanesePattern.test(text)) return 'ja';
   
-  // Default to English for Latin characters
   return 'en';
 }
 
-// Modified summarizeToBullets to translate if needed
 async function summarizeToBulletsWithTranslation(fullText, sourceGroup) {
   const bullets = summarizeToBullets(fullText);
   
-  // Only translate for international sources
   if (sourceGroup === 'internationaleconomics') {
     const lang = detectLanguage(fullText);
     if (lang !== 'vi') {
-      // Translate each bullet
       const translatedBullets = await Promise.all(
         bullets.map(async (bullet) => {
-          if (bullet.startsWith('(')) return bullet; // Skip error messages
+          if (bullet.startsWith('(')) return bullet;
           const translated = await translateText(bullet);
           return translated;
         })
@@ -321,7 +408,11 @@ async function summarizeToBulletsWithTranslation(fullText, sourceGroup) {
   return bullets;
 }
 
-// TÓM TẮT THÔNG MINH: Lấy những ý chính quan trọng
+function splitSentencesNoLookbehind(fullText) {
+  if (!fullText) return [];
+  return fullText.match(/[^.!?…]+(?:[.!?…]+|$)/g) || [];
+}
+
 function summarizeToBullets(fullText) {
   if (!fullText || fullText.length < 30) {
     console.log(`Text too short: ${fullText?.length || 0} chars`);
@@ -349,11 +440,9 @@ function summarizeToBullets(fullText) {
     return sentences;
   }
   
-  // THUẬT TOÁN TÓM TẮT Ý CHÍNH
   const mainPoints = [];
   const processedIndexes = new Set();
   
-  // 1. Tìm câu mở đầu quan trọng
   for (let i = 0; i < Math.min(2, sentences.length); i++) {
     if (sentences[i].length > 50) {
       mainPoints.push({
@@ -366,7 +455,6 @@ function summarizeToBullets(fullText) {
     }
   }
   
-  // 2. Tìm các câu chứa số liệu, phần trăm
   sentences.forEach((s, i) => {
     if (!processedIndexes.has(i)) {
       const hasNumbers = /\d+[\s]*(tỷ|triệu|nghìn|%|phần trăm|USD|VND|đồng)/i.test(s);
@@ -384,7 +472,6 @@ function summarizeToBullets(fullText) {
     }
   });
   
-  // 3. Tìm câu có từ khóa quan trọng
   const importantKeywords = [
     /^(Theo|Ông|Bà|PGS|TS|BS|Luật sư|Chuyên gia)/i,
     /quan trọng|chủ yếu|chính là|điểm nổi bật|đáng chú ý/i,
@@ -410,7 +497,6 @@ function summarizeToBullets(fullText) {
     }
   });
   
-  // 4. Tìm câu kết
   for (let i = sentences.length - 2; i < sentences.length; i++) {
     if (i >= 0 && !processedIndexes.has(i) && sentences[i].length > 50) {
       mainPoints.push({
@@ -423,7 +509,6 @@ function summarizeToBullets(fullText) {
     }
   }
   
-  // 5. Bổ sung thêm câu quan trọng nếu còn thiếu
   if (mainPoints.length < 5) {
     sentences.forEach((s, i) => {
       if (!processedIndexes.has(i) && s.length > 100 && mainPoints.length < 10) {
@@ -437,10 +522,8 @@ function summarizeToBullets(fullText) {
     });
   }
   
-  // Sắp xếp theo thứ tự xuất hiện trong bài
   mainPoints.sort((a, b) => a.index - b.index);
   
-  // Gộp các câu liên quan thành bullets
   const finalBullets = [];
   let currentBullet = "";
   let lastIndex = -1;
@@ -462,7 +545,6 @@ function summarizeToBullets(fullText) {
     finalBullets.push(currentBullet.trim());
   }
   
-  // Loại bỏ trùng lặp
   const uniqueBullets = [];
   const seenStarts = new Set();
   
@@ -478,6 +560,166 @@ function summarizeToBullets(fullText) {
          [`(Tìm thấy ${sentences.length} câu, ${fullText.length} ký tự nhưng không thể tóm tắt)`];
 }
 
+// AI Summary Functions
+async function generateAISummary(content, language = 'vi') {
+  if (!content || content.length < 100) {
+    throw new Error('Nội dung quá ngắn để tóm tắt');
+  }
+
+  const maxLength = 4000;
+  const truncatedContent = content.length > maxLength 
+    ? content.substring(0, maxLength) + '...' 
+    : content;
+
+  const aiMethods = [
+    async () => {
+      if (!process.env.OPENAI_API_KEY) return null;
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [{
+            role: 'user',
+            content: `Hãy tóm tắt nội dung sau thành 3-5 điểm chính bằng tiếng Việt, mỗi điểm khoảng 1-2 câu:\n\n${truncatedContent}`
+          }],
+          max_tokens: 500,
+          temperature: 0.3
+        }),
+        signal: AbortSignal.timeout(15000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content?.trim();
+      }
+      return null;
+    },
+
+    async () => {
+      if (!process.env.COHERE_API_KEY) return null;
+      const response = await fetch('https://api.cohere.ai/v1/summarize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.COHERE_API_KEY}`
+        },
+        body: JSON.stringify({
+          text: truncatedContent,
+          length: 'medium',
+          format: 'bullets',
+          model: 'summarize-xlarge',
+          additional_command: 'Summarize in Vietnamese language'
+        }),
+        signal: AbortSignal.timeout(15000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.summary;
+      }
+      return null;
+    },
+
+    async () => {
+      if (!process.env.HUGGINGFACE_API_KEY) return null;
+      const response = await fetch('https://api-inference.huggingface.co/models/facebook/bart-large-cnn', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`
+        },
+        body: JSON.stringify({
+          inputs: truncatedContent,
+          parameters: {
+            max_length: 200,
+            min_length: 50,
+            do_sample: false
+          }
+        }),
+        signal: AbortSignal.timeout(20000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const summary = data[0]?.summary_text || data.summary_text;
+        if (summary) {
+          const translated = await translateText(summary, 'vi');
+          return translated;
+        }
+      }
+      return null;
+    },
+
+    async () => {
+      return generateLocalAISummary(truncatedContent);
+    }
+  ];
+
+  for (const method of aiMethods) {
+    try {
+      const result = await method();
+      if (result && result.trim().length > 50) {
+        return result.trim();
+      }
+    } catch (error) {
+      console.log(`AI summary method failed: ${error.message}`);
+      continue;
+    }
+  }
+
+  throw new Error('Không thể tạo AI summary');
+}
+
+function generateLocalAISummary(content) {
+  const sentences = splitSentencesNoLookbehind(content);
+  if (sentences.length < 3) return content;
+
+  const scored = sentences.map((sentence, index) => {
+    let score = 0;
+    
+    if (index === 0) score += 10;
+    if (index === sentences.length - 1) score += 5;
+    if (index < sentences.length * 0.3) score += 3;
+    
+    const length = sentence.length;
+    if (length > 50 && length < 200) score += 5;
+    if (length > 200) score -= 2;
+    
+    const importantKeywords = [
+      /\d+[\s]*(%|phần trăm|tỷ|triệu|nghìn|USD|VND|đồng)/gi,
+      /(quan trọng|chủ yếu|chính là|đáng chú ý|nổi bật)/gi,
+      /(kết luận|tóm lại|như vậy|do đó|vì thế)/gi,
+      /(đầu tiên|thứ hai|thứ ba|cuối cùng)/gi,
+      /(theo|ông|bà|PGS|TS|BS|chuyên gia)/gi
+    ];
+    
+    importantKeywords.forEach(regex => {
+      const matches = sentence.match(regex);
+      if (matches) score += matches.length * 3;
+    });
+    
+    if (sentence.toLowerCase().includes('xem thêm') || 
+        sentence.toLowerCase().includes('đọc thêm') ||
+        sentence.toLowerCase().includes('tin liên quan')) {
+      score -= 10;
+    }
+    
+    return { sentence, score, index };
+  }).sort((a, b) => b.score - a.score);
+
+  const selected = scored
+    .slice(0, Math.min(5, Math.max(3, Math.floor(sentences.length * 0.3))))
+    .sort((a, b) => a.index - b.index)
+    .map(item => item.sentence);
+
+  return '• ' + selected.join('\n• ');
+}
+
+// API Endpoints
 app.get("/api/summary", async (req,res) => {
   const raw = String(req.query.url || "").trim();
   const fallbackSummary = req.query.fallback || "";
@@ -488,7 +730,6 @@ app.get("/api/summary", async (req,res) => {
     if (!/^https?:$/.test(u.protocol)) return res.status(400).json({ error: "Only http/https allowed" });
     const cached = cacheGet(raw); if (cached) return res.json({ cached:true, ...cached });
 
-    // Headers giả lập browser thật + bypass một số paywall
     const headers = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -520,13 +761,11 @@ app.get("/api/summary", async (req,res) => {
         const site = (new URL(raw)).hostname;
         const mainText = extractMainContent($);
         
-        // Detect if international source
         const isInternational = site.includes('wsj.com') || site.includes('ft.com') || 
                                site.includes('bloomberg.com') || site.includes('economist.com') || 
                                site.includes('reuters.com') || site.includes('cnbc.com') || 
                                site.includes('marketwatch.com');
         
-        // Translate title if international
         if (isInternational && detectLanguage(title) !== 'vi') {
           title = await translateText(title);
         }
@@ -558,7 +797,6 @@ app.get("/api/summary", async (req,res) => {
     const html = await resp.text();
     const $ = cheerio.load(html);
     
-    // Kiểm tra và bypass JavaScript rendering
     const hasJsContent = html.includes("__NEXT_DATA__") || 
                         html.includes("window.__INITIAL_STATE__") ||
                         html.includes("ReactDOM.render");
@@ -596,13 +834,11 @@ app.get("/api/summary", async (req,res) => {
     const site = $("meta[property='og:site_name']").attr("content") || (new URL(raw)).hostname;
     const mainText = extractMainContent($);
     
-    // Detect if international source
     const isInternational = site.includes('wsj.com') || site.includes('ft.com') || 
                            site.includes('bloomberg.com') || site.includes('economist.com') || 
                            site.includes('reuters.com') || site.includes('cnbc.com') || 
                            site.includes('marketwatch.com');
     
-    // Translate title if international
     if (isInternational && detectLanguage(title) !== 'vi') {
       title = await translateText(title);
     }
@@ -614,7 +850,6 @@ app.get("/api/summary", async (req,res) => {
       const contentToUse = metaDesc || fallbackSummary || "";
       
       if (contentToUse) {
-        // Translate if international
         if (isInternational && detectLanguage(contentToUse) !== 'vi') {
           bullets = [await translateText(contentToUse)];
         } else {
@@ -658,6 +893,83 @@ app.get("/api/summary", async (req,res) => {
     }
     
     res.status(500).json({ error: e.message || "Summary error" });
+  }
+});
+
+app.get("/api/ai-summary", async (req, res) => {
+  const raw = String(req.query.url || "").trim();
+  
+  try {
+    if (!raw) return res.status(400).json({ error: "Missing url parameter" });
+    
+    const url = new URL(raw);
+    if (!/^https?:$/.test(url.protocol)) {
+      return res.status(400).json({ error: "Only http/https URLs allowed" });
+    }
+
+    const cached = aiSummaryCacheGet(raw);
+    if (cached) {
+      return res.json({ cached: true, ...cached });
+    }
+
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
+    };
+
+    const response = await fetch(raw, { 
+      headers,
+      redirect: "follow",
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    
+    const content = extractMainContent($);
+    if (!content || content.length < 100) {
+      throw new Error('Không thể trích xuất nội dung từ trang này');
+    }
+
+    const isEnglish = detectLanguage(content) === 'en';
+    let processedContent = content;
+    
+    if (isEnglish) {
+      console.log('Detected English content, translating...');
+      processedContent = await translatePageContent(content);
+    }
+
+    const aiSummary = await generateAISummary(processedContent);
+    
+    const title = ($("meta[property='og:title']").attr("content") || $("title").text() || "").trim();
+    const site = $("meta[property='og:site_name']").attr("content") || url.hostname;
+
+    const result = {
+      url: raw,
+      title: isEnglish && title ? await translateText(title) : title,
+      site,
+      aiSummary,
+      originalLength: content.length,
+      summaryLength: aiSummary.length,
+      translated: isEnglish,
+      method: 'ai'
+    };
+
+    aiSummaryCacheSet(raw, result);
+    
+    res.json(result);
+    
+  } catch (error) {
+    console.error(`AI Summary error for ${raw}:`, error.message);
+    res.status(500).json({ 
+      error: error.message || "AI Summary generation failed",
+      fallback: true
+    });
   }
 });
 
