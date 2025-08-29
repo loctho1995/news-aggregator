@@ -1,8 +1,8 @@
 // server/services/aggregator/rss-fetcher.js
 import Parser from "rss-parser";
 import * as cheerio from "cheerio";
-import { cleanText, toISO, toArray, summarizeContent, deriveCategoriesFromURL } from "./utils.js";
-import { extractFullContent } from "./content-extractor.js";
+import { cleanText, toISO, toArray, createCardSummary, deriveCategoriesFromURL } from "./utils.js";
+import { extractFullContent, createSmartSummary } from "./content-extractor.js";
 import { isVietnamese, translateToVietnamese } from "./translator.js";
 
 const parser = new Parser({ 
@@ -40,10 +40,12 @@ export async function fetchRSSWithFullContent(source) {
         title = await translateToVietnamese(title) || title;
       }
       
-      // Tóm tắt và translate nếu cần
-      let summary = summarizeContent(fullContent);
-      if (isInternational && summary && !isVietnamese(summary)) {
-        summary = await translateToVietnamese(summary) || summary;
+      // Tạo smart summary cho card (200-250 ký tự)
+      let cardSummary = createCardSummary(fullContent || it.contentSnippet || it.content || "", 250);
+      
+      // Dịch summary nếu cần
+      if (isInternational && cardSummary && !isVietnamese(cardSummary)) {
+        cardSummary = await translateToVietnamese(cardSummary) || cardSummary;
       }
       
       const cats = toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean);
@@ -54,7 +56,7 @@ export async function fetchRSSWithFullContent(source) {
         sourceName: source.name,
         title: title,
         link: it.link,
-        summary: summary || cleanText(it.contentSnippet || it.content, 280),
+        summary: cardSummary, // Smart summary cho card
         fullContent: fullContent,
         publishedAt: toISO(it.isoDate || it.pubDate),
         image: it.enclosure?.url || $("meta[property='og:image']").attr("content") || null,
@@ -64,9 +66,12 @@ export async function fetchRSSWithFullContent(source) {
     } catch (e) {
       console.error(`Error fetching ${it.link}: ${e.message}`);
       
-      // Fallback với translation cho RSS content
+      // Fallback với RSS content
       let title = cleanText(it.title, 280);
-      let summary = cleanText(it.contentSnippet || it.content || it.summary, 280);
+      let summary = createCardSummary(
+        it.contentSnippet || it.content || it.summary || "", 
+        250
+      );
       
       if (isInternational) {
         if (title && !isVietnamese(title)) {

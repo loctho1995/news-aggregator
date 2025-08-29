@@ -489,6 +489,89 @@ export function extractAndSummarizeContent($, summaryPercent = 70) {
   };
 }
 
+// Hàm tóm tắt thông minh cho card description
+export function createSmartSummary(fullText, maxLength = 250) {
+  if (!fullText || fullText.length < 50) return fullText || "";
+  
+  // Tách câu
+  const sentences = fullText.match(/[^.!?…]+[.!?…]+/g) || [fullText];
+  
+  // Tính điểm cho mỗi câu để tìm câu quan trọng nhất
+  const scoredSentences = sentences.map((sentence, index) => {
+    let score = 0;
+    const cleanSent = sentence.trim();
+    
+    // Ưu tiên câu có thông tin cụ thể
+    if (/\d+[%]?/.test(cleanSent)) score += 5; // Số liệu
+    if (/triệu|tỷ|nghìn|USD|VND|đồng/.test(cleanSent)) score += 4; // Tiền tệ
+    if (/tăng|giảm|phát triển|sụt|tụt/.test(cleanSent)) score += 3; // Xu hướng
+    if (/["'"]/.test(cleanSent)) score += 3; // Trích dẫn
+    if (/theo|cho biết|khẳng định|tuyên bố/.test(cleanSent)) score += 2; // Nguồn
+    
+    // Vị trí quan trọng
+    if (index === 0) score += 4; // Câu đầu
+    if (index === 1) score += 2; // Câu thứ 2
+    
+    // Độ dài phù hợp (không quá ngắn, không quá dài)
+    if (cleanSent.length > 50 && cleanSent.length < 150) score += 2;
+    
+    return { sentence: cleanSent, score, index };
+  });
+  
+  // Sắp xếp theo điểm
+  scoredSentences.sort((a, b) => b.score - a.score);
+  
+  // Xây dựng summary
+  let summary = "";
+  let usedIndexes = new Set();
+  
+  // Lấy câu quan trọng nhất
+  if (scoredSentences.length > 0) {
+    summary = scoredSentences[0].sentence;
+    usedIndexes.add(scoredSentences[0].index);
+  }
+  
+  // Thêm câu bổ sung nếu còn chỗ
+  for (let i = 1; i < scoredSentences.length && summary.length < maxLength - 50; i++) {
+    const sent = scoredSentences[i];
+    
+    // Tránh câu liền kề để tạo tính tóm tắt
+    if (!usedIndexes.has(sent.index - 1) && !usedIndexes.has(sent.index + 1)) {
+      const newSummary = summary + " " + sent.sentence;
+      
+      if (newSummary.length <= maxLength) {
+        summary = newSummary;
+        usedIndexes.add(sent.index);
+      } else {
+        // Nếu quá dài, thử cắt bớt câu
+        const words = sent.sentence.split(' ');
+        const remainingSpace = maxLength - summary.length - 10;
+        const wordsToTake = Math.floor(remainingSpace / 6); // Ước tính 6 ký tự/từ
+        
+        if (wordsToTake > 5) {
+          summary += " " + words.slice(0, wordsToTake).join(' ') + "...";
+        }
+        break;
+      }
+    }
+  }
+  
+  // Đảm bảo không vượt quá maxLength
+  if (summary.length > maxLength) {
+    // Cắt tại câu hoàn chỉnh gần nhất
+    const cutPoint = summary.lastIndexOf('.', maxLength - 3);
+    if (cutPoint > maxLength * 0.6) {
+      summary = summary.substring(0, cutPoint + 1);
+    } else {
+      // Cắt tại từ gần nhất
+      const words = summary.substring(0, maxLength - 3).split(' ');
+      summary = words.slice(0, -1).join(' ') + '...';
+    }
+  }
+  
+  return summary.trim();
+}
+
 // Export hàm extractFullContent cũ cho backward compatibility
 export function extractFullContent($) {
   const { fullContent } = extractFullContentWithParagraphs($);
