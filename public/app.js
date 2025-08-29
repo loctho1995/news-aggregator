@@ -388,25 +388,27 @@ function createCardElement(item) {
       ${item.title || "Không có tiêu đề"}
     </h3>
     
-    <p class="text-base text-gray-700 mb-4 line-clamp-6 leading-relaxed">
+    <p class="text-base text-gray-700 mb-auto line-clamp-7 leading-relaxed">
       ${item.summary || "Không có tóm tắt."}
     </p>
     
-    <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
-      <div class="flex items-center gap-2">
-        <span class="font-medium text-emerald-600">${item.sourceName || "N/A"}</span>
-        ${groupBadge}
-        ${item.translated ? '<span class="text-blue-600">Đã dịch</span>' : ''}
+    <div class="mt-3">
+      <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-emerald-600">${item.sourceName || "N/A"}</span>
+          ${groupBadge}
+          ${item.translated ? '<span class="text-blue-600">Đã dịch</span>' : ''}
+        </div>
+        <span>${timeAgo(item.publishedAt)}</span>
       </div>
-      <span>${timeAgo(item.publishedAt)}</span>
-    </div>
-    
-    <div class="flex gap-2 mt-auto">
-      ${readStatusButton}
-      <a href="${item.link}" target="_blank" rel="noopener" 
-         class="flex-1 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors text-center">
-        Link bài báo
-      </a>
+      
+      <div class="flex gap-2">
+        ${readStatusButton}
+        <a href="${item.link}" target="_blank" rel="noopener" 
+           class="flex-1 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors text-center">
+          Link bài báo
+        </a>
+      </div>
     </div>
   `;
   
