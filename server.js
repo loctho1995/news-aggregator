@@ -560,13 +560,13 @@ function summarizeToBullets(fullText) {
          [`(Tìm thấy ${sentences.length} câu, ${fullText.length} ký tự nhưng không thể tóm tắt)`];
 }
 
-// AI Summary Functions
 async function generateAISummary(content, language = 'vi') {
   if (!content || content.length < 100) {
     throw new Error('Nội dung quá ngắn để tóm tắt');
   }
 
-  const maxLength = 4000;
+  // TĂNG maxLength để xử lý nhiều content hơn
+  const maxLength = 6000; // TĂNG từ 4000 lên 6000
   const truncatedContent = content.length > maxLength 
     ? content.substring(0, maxLength) + '...' 
     : content;
@@ -584,9 +584,9 @@ async function generateAISummary(content, language = 'vi') {
           model: 'gpt-3.5-turbo',
           messages: [{
             role: 'user',
-            content: `Hãy tóm tắt nội dung sau thành 3-5 điểm chính bằng tiếng Việt, mỗi điểm khoảng 1-2 câu:\n\n${truncatedContent}`
+            content: `Hãy tóm tắt nội dung sau thành 5-7 điểm chính bằng tiếng Việt, mỗi điểm khoảng 2-3 câu chi tiết để người đọc hiểu rõ vấn đề:\n\n${truncatedContent}`
           }],
-          max_tokens: 500,
+          max_tokens: 800, // TĂNG từ 500 lên 800 
           temperature: 0.3
         }),
         signal: AbortSignal.timeout(15000)
@@ -609,10 +609,10 @@ async function generateAISummary(content, language = 'vi') {
         },
         body: JSON.stringify({
           text: truncatedContent,
-          length: 'medium',
+          length: 'long', // THAY ĐỔI từ 'medium' thành 'long'
           format: 'bullets',
           model: 'summarize-xlarge',
-          additional_command: 'Summarize in Vietnamese language'
+          additional_command: 'Summarize in Vietnamese language with detailed points'
         }),
         signal: AbortSignal.timeout(15000)
       });
@@ -635,8 +635,8 @@ async function generateAISummary(content, language = 'vi') {
         body: JSON.stringify({
           inputs: truncatedContent,
           parameters: {
-            max_length: 200,
-            min_length: 50,
+            max_length: 350, // TĂNG từ 200 lên 350
+            min_length: 100,  // TĂNG từ 50 lên 100
             do_sample: false
           }
         }),
@@ -662,7 +662,7 @@ async function generateAISummary(content, language = 'vi') {
   for (const method of aiMethods) {
     try {
       const result = await method();
-      if (result && result.trim().length > 50) {
+      if (result && result.trim().length > 100) { // TĂNG min length từ 50 lên 100
         return result.trim();
       }
     } catch (error) {
@@ -674,49 +674,112 @@ async function generateAISummary(content, language = 'vi') {
   throw new Error('Không thể tạo AI summary');
 }
 
+// CŨNG CẦN SỬA function generateLocalAISummary để TĂNG output:
 function generateLocalAISummary(content) {
   const sentences = splitSentencesNoLookbehind(content);
   if (sentences.length < 3) return content;
 
-  const scored = sentences.map((sentence, index) => {
-    let score = 0;
+  // ... (giữ nguyên phần TF-IDF và scoring) ...
+
+  // 3. MMR - TĂNG targetCount để có nhiều nội dung hơn
+  const selectedSentences = [];
+  const selectedIndices = new Set();
+  
+  // Chọn câu đầu tiên có điểm cao nhất
+  scoredSentences.sort((a, b) => b.score - a.score);
+  const firstSentence = scoredSentences[0];
+  selectedSentences.push(firstSentence);
+  selectedIndices.add(firstSentence.index);
+  
+  // Chọn các câu tiếp theo với MMR
+  const lambda = 0.7;
+  // THAY ĐỔI: TĂNG targetCount để có nhiều câu hơn
+  const targetCount = Math.min(8, Math.max(4, Math.ceil(sentences.length * 0.4))); // TĂNG từ 0.3 lên 0.4, max từ 5 lên 8
+  
+  while (selectedSentences.length < targetCount && selectedSentences.length < scoredSentences.length) {
+    let bestCandidate = null;
+    let bestMMR = -Infinity;
     
-    if (index === 0) score += 10;
-    if (index === sentences.length - 1) score += 5;
-    if (index < sentences.length * 0.3) score += 3;
-    
-    const length = sentence.length;
-    if (length > 50 && length < 200) score += 5;
-    if (length > 200) score -= 2;
-    
-    const importantKeywords = [
-      /\d+[\s]*(%|phần trăm|tỷ|triệu|nghìn|USD|VND|đồng)/gi,
-      /(quan trọng|chủ yếu|chính là|đáng chú ý|nổi bật)/gi,
-      /(kết luận|tóm lại|như vậy|do đó|vì thế)/gi,
-      /(đầu tiên|thứ hai|thứ ba|cuối cùng)/gi,
-      /(theo|ông|bà|PGS|TS|BS|chuyên gia)/gi
-    ];
-    
-    importantKeywords.forEach(regex => {
-      const matches = sentence.match(regex);
-      if (matches) score += matches.length * 3;
-    });
-    
-    if (sentence.toLowerCase().includes('xem thêm') || 
-        sentence.toLowerCase().includes('đọc thêm') ||
-        sentence.toLowerCase().includes('tin liên quan')) {
-      score -= 10;
+    for (const candidate of scoredSentences) {
+      if (selectedIndices.has(candidate.index)) continue;
+      
+      // Calculate similarity với các câu đã chọn
+      let maxSimilarity = 0;
+      for (const selected of selectedSentences) {
+        const similarity = calculateSimilarity(candidate.sentence, selected.sentence);
+        maxSimilarity = Math.max(maxSimilarity, similarity);
+      }
+      
+      // MMR score
+      const mmr = lambda * (candidate.score / 100) - (1 - lambda) * maxSimilarity;
+      
+      if (mmr > bestMMR) {
+        bestMMR = mmr;
+        bestCandidate = candidate;
+      }
     }
     
-    return { sentence, score, index };
-  }).sort((a, b) => b.score - a.score);
+    if (bestCandidate) {
+      selectedSentences.push(bestCandidate);
+      selectedIndices.add(bestCandidate.index);
+    } else {
+      break;
+    }
+  }
 
-  const selected = scored
-    .slice(0, Math.min(5, Math.max(3, Math.floor(sentences.length * 0.3))))
-    .sort((a, b) => a.index - b.index)
-    .map(item => item.sentence);
+  // ... (giữ nguyên phần còn lại) ...
 
-  return '• ' + selected.join('\n• ');
+  // 6. Final formatting - TĂNG giới hạn độ dài output
+  if (bullets.length === 0) {
+    return content.substring(0, 500) + "..."; // TĂNG từ 300 lên 500
+  }
+  
+  const finalSummary = '• ' + bullets.join('\n• ');
+  
+  // TĂNG giới hạn độ dài tối đa
+  if (finalSummary.length > 1200) { // TĂNG từ 400 lên 1200
+    const truncated = finalSummary.substring(0, 1197) + "...";
+    return truncated;
+  }
+  
+  return finalSummary;
+}
+// Helper functions
+function isStopWord(word) {
+  const stopWords = new Set([
+    'và', 'là', 'của', 'có', 'trong', 'với', 'được', 'này', 'đã', 'cho', 
+    'không', 'những', 'một', 'các', 'để', 'đến', 'khi', 'người', 'từ', 'về',
+    'như', 'nhưng', 'nếu', 'thì', 'bởi', 'vì', 'do', 'nên', 'hay', 'hoặc',
+    'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with'
+  ]);
+  return stopWords.has(word.toLowerCase());
+}
+
+function calculateSimilarity(sent1, sent2) {
+  const words1 = new Set(sent1.toLowerCase().split(/\s+/)
+    .filter(w => w.length > 2 && !isStopWord(w)));
+  const words2 = new Set(sent2.toLowerCase().split(/\s+/)
+    .filter(w => w.length > 2 && !isStopWord(w)));
+  
+  if (words1.size === 0 || words2.size === 0) return 0;
+  
+  const intersection = [...words1].filter(w => words2.has(w)).length;
+  const union = new Set([...words1, ...words2]).size;
+  
+  return intersection / union; // Jaccard similarity
+}
+
+function formatBullet(text) {
+  text = text.trim();
+  text = text.charAt(0).toUpperCase() + text.slice(1);
+  
+  if (!/[.!?]$/.test(text)) {
+    text += '.';
+  }
+  
+  text = text.replace(/\s+/g, ' ');
+  
+  return text;
 }
 
 // API Endpoints

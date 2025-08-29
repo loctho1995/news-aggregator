@@ -388,10 +388,13 @@ rateRange?.addEventListener("change", () => {
 });
 
 /* ===== AI Summary Functions ===== */
+// Trong file app.js, tìm function openAISummaryModal và sửa như sau:
+
 function openAISummaryModal(item, link) {
   currentAIItem = item;
   
-  aiSummaryTitle.textContent = "AI Tóm tắt thông minh";
+  // THAY ĐỔI: Sử dụng title của bài báo thay vì "AI Tóm tắt thông minh"
+  aiSummaryTitle.textContent = item?.title || "AI Tóm tắt thông minh";
   aiSummarySource.textContent = item?.sourceName ? `Nguồn: ${item.sourceName}` : "";
   aiSummaryOpenLink.href = link;
 
