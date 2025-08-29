@@ -88,7 +88,7 @@
       <div id="empty" class="hidden text-center text-slate-400 py-16">Không có bài phù hợp.</div>
     </main>
 
-    <!-- Modal: TÓM TẮT THỐNG NHẤT với tùy chọn phần trăm -->
+    <!-- Modal: TÓM TẮT ĐƠN GIẢN -->
     <div id="modal" class="fixed inset-0 z-50 hidden overflow-y-auto p-4 sm:p-6 flex items-center justify-center">
       <div id="modalOverlay" class="absolute inset-0 bg-black/60"></div>
 
@@ -105,43 +105,19 @@
           <button id="modalClose" class="px-2 py-1 text-gray-600 hover:text-gray-900">✕</button>
         </div>
 
-        <!-- Tab controls và phần trăm tóm tắt -->
-        <div class="flex flex-col gap-3 mb-4 pb-3 border-b border-gray-300">
-          <!-- Tab buttons -->
-          <div class="flex gap-2">
-            <button id="toggleRegular" 
-                    class="px-4 py-2 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-sm text-gray-700 active-summary-type">
-              📄 Tóm tắt thường
-            </button>
-            <button id="toggleAI" 
-                    class="px-4 py-2 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-sm text-gray-700 flex items-center gap-2">
-              <span>🤖</span>
-              <span>AI Tóm tắt</span>
-            </button>
-          </div>
-
-          <!-- Percent controls - visible cho cả 2 modes -->
-          <div id="percentControls" class="flex items-center gap-3">
-            <label class="text-sm text-gray-600 font-medium">Mức độ tóm tắt:</label>
-            <select id="summaryPercent" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700">
-              <option value="30">30% - Rất ngắn gọn</option>
-              <option value="40" selected>40% - Ngắn gọn</option>
-              <option value="50">50% - Trung bình</option>
-              <option value="60">60% - Chi tiết</option>
-              <option value="70">70% - Rất chi tiết</option>
-            </select>
-            <button id="regenerateBtn" class="px-3 py-1.5 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg">
-              🔄 Tạo lại
-            </button>
-          </div>
-
-          <!-- AI specific controls - chỉ hiện khi ở AI mode -->
-          <div id="aiSpecificControls" class="hidden">
-            <div class="flex items-center gap-2 text-xs text-gray-500">
-              <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
-              <span>AI đang phân tích và tạo tóm tắt thông minh...</span>
-            </div>
-          </div>
+        <!-- Phần trăm tóm tắt -->
+        <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-300">
+          <label class="text-sm text-gray-600 font-medium">Mức độ tóm tắt:</label>
+          <select id="summaryPercent" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-700">
+            <option value="30">30% - Rất ngắn gọn</option>
+            <option value="40">40% - Ngắn gọn</option>
+            <option value="50">50% - Trung bình</option>
+            <option value="60">60% - Chi tiết</option>
+            <option value="70" selected>70% - Rất chi tiết</option>
+          </select>
+          <button id="regenerateBtn" class="px-3 py-1.5 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg">
+            🔄 Tạo lại
+          </button>
         </div>
 
         <!-- Nội dung tóm tắt (phần giữa, chiếm hết không gian) -->
@@ -149,49 +125,23 @@
           <!-- Loading state -->
           <div id="summaryLoading" class="text-lg text-gray-600">Đang tóm tắt…</div>
           
-          <!-- Regular summary list -->
+          <!-- Summary content -->
           <div id="summaryList" class="text-lg leading-relaxed text-gray-800"></div>
-          
-          <!-- AI Loading state -->
-          <div id="aiSummaryLoading" class="hidden flex flex-col items-center justify-center h-full">
-            <div class="relative mb-4">
-              <div class="w-16 h-16 border-4 border-purple-200 rounded-full"></div>
-              <div class="w-16 h-16 border-4 border-purple-500 rounded-full border-t-transparent absolute top-0 animate-spin"></div>
-            </div>
-            <p id="aiLoadingText" class="text-lg text-gray-700 text-center">AI đang phân tích nội dung...</p>
-            <p class="text-sm text-gray-500 text-center max-w-md mt-2">
-              Vui lòng đợi trong giây lát. AI đang đọc, hiểu và tóm tắt nội dung một cách thông minh.
-            </p>
-          </div>
-
-          <!-- AI Error state -->
-          <div id="aiSummaryError" class="hidden text-center py-8">
-            <div class="text-6xl mb-4">😅</div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Oops! AI gặp khó khăn</h3>
-            <p class="text-gray-600 mb-4" id="aiSummaryErrorMsg">Không thể tạo AI summary cho bài viết này.</p>
-            <button id="retryAI" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">
-              Thử lại
-            </button>
-          </div>
         </div>
 
-        <!-- Stats area - hiển thị thông tin về tóm tắt -->
+        <!-- Stats area -->
         <div id="summaryStats" class="hidden mb-3 flex flex-wrap gap-4 text-sm text-gray-600 bg-gray-100 rounded-lg p-3">
           <div class="flex items-center gap-1">
             <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-            <span>Độ chính xác: <span id="accuracy">95%</span></span>
-          </div>
-          <div class="flex items-center gap-1">
-            <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
             <span>Độ nén: <span id="compression">-</span></span>
           </div>
           <div class="flex items-center gap-1" id="translatedBadge" style="display: none;">
-            <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+            <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
             <span>Đã dịch từ tiếng Anh</span>
           </div>
-          <div class="flex items-center gap-1" id="aiMethodBadge" style="display: none;">
-            <span class="w-2 h-2 bg-orange-500 rounded-full"></span>
-            <span>Engine: <span id="aiMethod">Local AI</span></span>
+          <div class="flex items-center gap-1">
+            <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+            <span>Số điểm chính: <span id="bulletCount">-</span></span>
           </div>
         </div>
 
@@ -212,14 +162,8 @@
               </div>
             </div>
 
-            <!-- Nút action bên phải -->
+            <!-- Nút đọc bài gốc bên phải -->
             <div class="flex items-center gap-2">
-              <button id="compareBtn" class="hidden px-4 py-2 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-sm text-gray-700">
-                So sánh
-              </button>
-              <button id="webviewBtn" class="px-4 py-2 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-sm text-gray-700">
-                👁️ Xem chi tiết
-              </button>
               <a id="modalOpenLink" href="#" target="_blank" rel="noopener"
                 class="px-4 py-2 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">
                 Đọc bài gốc ↗
