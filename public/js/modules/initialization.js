@@ -156,6 +156,70 @@ function addCustomStyles() {
           margin-bottom: 12px;
         }
       }
+
+        /* Clickable content area styles */
+        .clickable-content {
+        position: relative;
+        transition: all 0.2s ease;
+        margin: -8px;
+        padding: 8px;
+        border-radius: 8px;
+        }
+
+        .clickable-content:hover {
+        background-color: rgba(16, 185, 129, 0.03);
+        }
+
+        /* Visual feedback on hover */
+        .clickable-content:hover h3 {
+        color: rgb(16, 185, 129);
+        }
+
+        /* Cursor pointer for entire clickable area */
+        .clickable-content * {
+        cursor: pointer;
+        }
+
+        /* Prevent text selection on double click */
+        .clickable-content {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        }
+
+        /* Allow text selection in modal */
+        #summaryList {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+        }
+
+        /* Active state */
+        .clickable-content:active {
+        transform: scale(0.99);
+        background-color: rgba(16, 185, 129, 0.05);
+        }
+
+        /* Responsive hover for mobile */
+        @media (hover: none) {
+        .clickable-content:active {
+            background-color: rgba(16, 185, 129, 0.08);
+        }
+        }
+
+        /* Ensure proper layout */
+        .news-card {
+        position: relative;
+        }
+
+        /* Smooth transition for all interactive elements */
+        .clickable-content,
+        .clickable-content h3,
+        .clickable-content ul li {
+        transition: all 0.2s ease;
+        }
     `;
     document.head.appendChild(style);
   }

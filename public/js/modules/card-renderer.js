@@ -24,12 +24,14 @@ export function createCardElement(item) {
   const summaryContent = formatSummaryContent(item);
   
   card.innerHTML = `
-    <h3 class="title-clickable text-xl font-semibold text-gray-900 line-clamp-2 leading-snug mb-3 cursor-pointer hover:text-emerald-600 transition-colors">
-      ${item.title || "Không có tiêu đề"}
-    </h3>
-    
-    <div class="flex-1 mb-auto">
-      ${summaryContent}
+    <div class="clickable-content cursor-pointer hover:bg-gray-50 hover:bg-opacity-30 rounded-lg -m-2 p-2 transition-colors">
+      <h3 class="text-xl font-semibold text-gray-900 line-clamp-2 leading-snug mb-3 hover:text-emerald-600 transition-colors">
+        ${item.title || "Không có tiêu đề"}
+      </h3>
+      
+      <div class="flex-1 mb-auto">
+        ${summaryContent}
+      </div>
     </div>
     
     <div class="mt-3">
@@ -83,14 +85,24 @@ function formatSummaryContent(item) {
 }
 
 function attachCardEventListeners(card, item) {
-  const titleElement = card.querySelector('.title-clickable');
-  titleElement.addEventListener('click', () => {
+  // Click vào toàn bộ vùng content (title + description)
+  const clickableContent = card.querySelector('.clickable-content');
+  clickableContent.addEventListener('click', (e) => {
+    // Ngăn không cho event bubble up
+    e.stopPropagation();
     openSummaryModal(item, item.link);
   });
   
+  // Click vào nút đọc/chưa đọc
   const readStatusBtn = card.querySelector('.read-status-btn');
   readStatusBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleReadStatus(item.link);
+  });
+  
+  // Ngăn link bài báo trigger click event của card
+  const articleLink = card.querySelector('a[target="_blank"]');
+  articleLink.addEventListener('click', (e) => {
+    e.stopPropagation();
   });
 }
