@@ -37,6 +37,13 @@ const groupSelect = document.getElementById("groupSelect");
 const hours = document.getElementById("hours");
 const refreshBtn = document.getElementById("refreshBtn");
 
+let loadingInProgress = false;
+let currentFilters = {
+  query: "",
+  sources: [],
+  group: null
+};
+
 // State variables
 let currentItem = null;
 let currentModalLink = null;
@@ -233,115 +240,182 @@ function truncate(text, maxLength = 120) {
   return text.length > maxLength ? text.slice(0, maxLength) + "…" : text;
 }
 
-function createCard(item) {
-  const readClass = isRead(item.link) ? "opacity-60 read" : "";
+function itemPassesFilters(item, filters) {
+  if (filters.group && item.group !== filters.group) return false;
+  if (filters.sources.length && !filters.sources.includes(item.sourceId)) return false;
+  
+  if (filters.query) {
+    const query = filters.query.toLowerCase();
+    const titleMatch = item.title && item.title.toLowerCase().includes(query);
+    const summaryMatch = item.summary && item.summary.toLowerCase().includes(query);
+    if (!titleMatch && !summaryMatch) return false;
+  }
+  
+  return true;
+}
+
+function addItemToGrid(item) {
+  if (!itemPassesFilters(item, currentFilters)) return;
+  
+  if (!empty.classList.contains("hidden")) {
+    empty.classList.add("hidden");
+  }
+  
+  const cardElement = createCardElement(item);
+  grid.appendChild(cardElement);
+  
+  cardElement.style.opacity = '0';
+  cardElement.style.transform = 'translateY(10px)';
+  
+  requestAnimationFrame(() => {
+    cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    cardElement.style.opacity = '1';
+    cardElement.style.transform = 'translateY(0)';
+  });
+}
+
+function createCardElement(item) {
+  const card = document.createElement('div');
+  card.className = `news-card bg-[#40414f] border border-[#565869] rounded-2xl p-4 hover:border-[#6b7280] transition-colors ${isRead(item.link) ? "opacity-60 read" : ""}`;
+  card.setAttribute('data-url', item.link);
+  card.setAttribute('data-title', item.title || '');
+  card.setAttribute('data-source', item.sourceName || '');
+  
   const groupBadge = item.group === 'internationaleconomics' ? 
     '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">🌍 Quốc tế</span>' : '';
   
-  return `
-    <div class="news-card bg-[#40414f] border border-[#565869] rounded-2xl p-4 hover:border-[#6b7280] transition-colors ${readClass}" 
-         data-url="${item.link}" data-title="${item.title || ''}" data-source="${item.sourceName || ''}">
-      <div class="flex items-start justify-between gap-2 mb-2">
-        <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 leading-snug">
-          ${item.title || "Không có tiêu đề"}
-        </h3>
-        ${item.image ? `<img src="${item.image}" class="w-16 h-16 object-cover rounded-lg flex-shrink-0 ml-2" loading="lazy" onerror="this.style.display='none'">` : ''}
+  card.innerHTML = `
+    <div class="flex items-start justify-between gap-2 mb-2">
+      <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 leading-snug">
+        ${item.title || "Không có tiêu đề"}
+      </h3>
+      ${item.image ? `<img src="${item.image}" class="w-16 h-16 object-cover rounded-lg flex-shrink-0 ml-2" loading="lazy" onerror="this.style.display='none'">` : ''}
+    </div>
+    
+    <p class="text-xs text-slate-300 mb-3 line-clamp-4">
+      ${truncate(item.summary || "Không có tóm tắt.")}
+    </p>
+    
+    <div class="flex items-center justify-between text-xs text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="font-medium text-emerald-400">${item.sourceName || "N/A"}</span>
+        ${groupBadge}
+        ${item.translated ? '<span class="text-blue-400">🌍</span>' : ''}
       </div>
-      
-      <p class="text-xs text-slate-300 mb-3 line-clamp-4">
-        ${truncate(item.summary || "Không có tóm tắt.")}
-      </p>
-      
-      <div class="flex items-center justify-between text-xs text-slate-400">
-        <div class="flex items-center gap-2">
-          <span class="font-medium text-emerald-400">${item.sourceName || "N/A"}</span>
-          ${groupBadge}
-          ${item.translated ? '<span class="text-blue-400">🌍</span>' : ''}
-        </div>
-        <span>${timeAgo(item.publishedAt)}</span>
-      </div>
-      
-      <div class="flex gap-2 mt-3">
-        <button class="summary-btn flex-1 px-3 py-1.5 text-xs bg-[#565869] hover:bg-[#6b7280] text-slate-200 rounded-lg transition-colors">
-          📄 Tóm tắt
-        </button>
-        <a href="${item.link}" target="_blank" rel="noopener" 
-           class="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors">
-          Đọc gốc ↗
-        </a>
-      </div>
+      <span>${timeAgo(item.publishedAt)}</span>
+    </div>
+    
+    <div class="flex gap-2 mt-3">
+      <button class="summary-btn flex-1 px-3 py-1.5 text-xs bg-[#565869] hover:bg-[#6b7280] text-slate-200 rounded-lg transition-colors">
+        📄 Tóm tắt
+      </button>
+      <a href="${item.link}" target="_blank" rel="noopener" 
+         class="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors">
+        Đọc gốc ↗
+      </a>
     </div>
   `;
+  
+  // Add event listener directly
+  const summaryBtn = card.querySelector('.summary-btn');
+  summaryBtn.addEventListener('click', () => {
+    openSummaryModal(item, item.link);
+  });
+  
+  return card;
 }
 
 function renderItems(itemsToRender) {
+  grid.innerHTML = "";
+  
   if (!itemsToRender.length) {
-    grid.innerHTML = "";
     empty.classList.remove("hidden");
     return;
   }
 
   empty.classList.add("hidden");
-  grid.innerHTML = itemsToRender.map(createCard).join("");
   
-  // Add event listeners
-  document.querySelectorAll(".summary-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const card = e.target.closest(".news-card");
-      const url = card.dataset.url;
-      const item = items.find(i => i.link === url);
-      if (item) {
-        openSummaryModal(item, item.link);
-      }
-    });
+  const fragment = document.createDocumentFragment();
+  
+  itemsToRender.forEach(item => {
+    const cardElement = createCardElement(item);
+    fragment.appendChild(cardElement);
   });
+  
+  grid.appendChild(fragment);
 }
 
-function filterItems() {
-  const query = search.value.toLowerCase().trim();
-  const selectedSources = sourceSelect.value ? [sourceSelect.value] : [];
-  const selectedGroup = groupSelect.value === 'all' ? null : groupSelect.value;
+function updateFilters() {
+  currentFilters = {
+    query: search.value.toLowerCase().trim(),
+    sources: sourceSelect.value ? [sourceSelect.value] : [],
+    group: groupSelect.value === 'all' ? null : groupSelect.value
+  };
   
-  let filtered = items;
-  
-  if (selectedGroup) {
-    filtered = filtered.filter(item => item.group === selectedGroup);
-  }
-  
-  if (selectedSources.length) {
-    filtered = filtered.filter(item => selectedSources.includes(item.sourceId));
-  }
-  
-  if (query) {
-    filtered = filtered.filter(item => 
-      (item.title && item.title.toLowerCase().includes(query)) ||
-      (item.summary && item.summary.toLowerCase().includes(query))
-    );
-  }
-  
+  const filtered = items.filter(item => itemPassesFilters(item, currentFilters));
   renderItems(filtered);
 }
 
 async function loadNews() {
+  if (loadingInProgress) return;
+  
   try {
+    loadingInProgress = true;
+    
+    items = [];
+    grid.innerHTML = "";
+    empty.classList.add("hidden");
+    
     badge.textContent = "Đang tải…";
     badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-yellow-600 text-white border border-yellow-500";
     
     const selectedGroup = groupSelect.value === 'all' ? '' : `&group=${groupSelect.value}`;
     const hoursValue = hours.value || "24";
     
-    const response = await fetch(`/api/news?hours=${hoursValue}${selectedGroup}`);
-    const data = await response.json();
+    const response = await fetch(`/api/news?hours=${hoursValue}${selectedGroup}&stream=true`);
     
-    if (data.error) throw new Error(data.error);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
-    items = data.items || [];
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let itemCount = 0;
     
-    badge.textContent = `${items.length} bài`;
-    badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-emerald-600 text-white border border-emerald-500";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(line => line.trim());
+      
+      for (const line of lines) {
+        try {
+          const item = JSON.parse(line);
+          
+          if (item.error) {
+            console.warn(`Source ${item.sourceId} failed: ${item.message}`);
+            continue;
+          }
+          
+          items.push(item);
+          itemCount++;
+          
+          addItemToGrid(item);
+          
+          badge.textContent = `${itemCount} bài`;
+          
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+    
+    badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-emerged-600 text-white border border-emerald-500";
     
     populateSourceSelect();
-    filterItems();
+    
+    if (itemCount === 0) {
+      empty.classList.remove("hidden");
+    }
     
   } catch (error) {
     console.error("Error loading news:", error);
@@ -356,15 +430,22 @@ async function loadNews() {
         </button>
       </div>
     `;
+  } finally {
+    loadingInProgress = false;
   }
 }
 
+let populateTimeout;
 function populateSourceSelect() {
-  const sources = [...new Set(items.map(item => ({ id: item.sourceId, name: item.sourceName })))];
-  sources.sort((a, b) => a.name.localeCompare(b.name));
-  
-  sourceSelect.innerHTML = '<option value="">Tất cả nguồn</option>' + 
-    sources.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  clearTimeout(populateTimeout);
+  populateTimeout = setTimeout(() => {
+    const sources = [...new Set(items.map(item => ({ id: item.sourceId, name: item.sourceName })))];
+    sources.sort((a, b) => a.name.localeCompare(b.name));
+    
+    const currentValue = sourceSelect.value;
+    sourceSelect.innerHTML = '<option value="">Tất cả nguồn</option>' + 
+      sources.map(s => `<option value="${s.id}"${s.id === currentValue ? ' selected' : ''}>${s.name}</option>`).join('');
+  }, 100);
 }
 
 // ===== EVENT HANDLERS =====
@@ -443,9 +524,14 @@ rateRange?.addEventListener("input", (e) => {
 });
 
 // Main app events
+let searchTimeout;
+search?.addEventListener("input", () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(updateFilters, 300);
+});
+
 refreshBtn?.addEventListener("click", loadNews);
-search?.addEventListener("input", filterItems);
-sourceSelect?.addEventListener("change", filterItems);
+sourceSelect?.addEventListener("change", updateFilters);
 groupSelect?.addEventListener("change", () => {
   sourceSelect.value = "";
   loadNews();
