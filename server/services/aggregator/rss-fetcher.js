@@ -40,8 +40,8 @@ export async function fetchRSSWithFullContent(source) {
         title = await translateToVietnamese(title) || title;
       }
       
-      // Tạo smart summary cho card (200-250 ký tự)
-      let cardSummary = createCardSummary(fullContent || it.contentSnippet || it.content || "", 250);
+      // Tạo smart summary cho card (400-500 ký tự)
+      let cardSummary = createCardSummary(fullContent || it.contentSnippet || it.content || "", 500);
       
       // Dịch summary nếu cần
       if (isInternational && cardSummary && !isVietnamese(cardSummary)) {

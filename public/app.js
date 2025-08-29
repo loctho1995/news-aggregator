@@ -347,7 +347,7 @@ function timeAgo(iso) {
   return "vừa xong";
 }
 
-function truncate(text, maxLength = 140) {
+function truncate(text, maxLength = 500) {
   if (!text) return "";
   return text.length > maxLength ? text.slice(0, maxLength) + "…" : text;
 }
@@ -371,7 +371,7 @@ function createCardElement(item) {
   const card = document.createElement('div');
   const readStatus = isRead(item.link);
   
-  card.className = `news-card bg-[#ecf0f1] border border-gray-300 rounded-2xl p-4 hover:border-gray-400 transition-colors min-h-[200px] ${readStatus ? "opacity-60 read" : ""}`;
+  card.className = `news-card bg-[#ecf0f1] border border-gray-300 rounded-2xl p-4 hover:border-gray-400 transition-colors min-h-[360px] ${readStatus ? "opacity-60 read" : ""}`;
   card.setAttribute('data-url', item.link);
   card.setAttribute('data-title', item.title || '');
   card.setAttribute('data-source', item.sourceName || '');
@@ -388,8 +388,8 @@ function createCardElement(item) {
       ${item.title || "Không có tiêu đề"}
     </h3>
     
-    <p class="text-base text-gray-700 mb-4 line-clamp-4 leading-relaxed">
-      ${truncate(item.summary || "Không có tóm tắt.")}
+    <p class="text-base text-gray-700 mb-4 line-clamp-6 leading-relaxed">
+      ${item.summary || "Không có tóm tắt."}
     </p>
     
     <div class="flex items-center justify-between text-xs text-gray-500 mb-3">

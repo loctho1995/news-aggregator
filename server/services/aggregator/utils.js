@@ -35,103 +35,90 @@ export function deriveCategoriesFromURL(href) {
   }
 }
 
-// Hàm tóm tắt thông minh cho card description (200-300 ký tự)
-export function createCardSummary(fullText, maxLength = 250) {
+// Hàm tóm tắt thông minh cho card description (400-500 ký tự)
+export function createCardSummary(fullText, maxLength = 500) {
   if (!fullText || fullText.length < 50) return fullText || "";
   
-  // Nếu text đã ngắn sẵn
+  // Nếu text ngắn hơn target, trả về nguyên bản
   if (fullText.length <= maxLength) return fullText;
   
-  // Tách câu
-  const sentences = fullText.match(/[^.!?…]+[.!?…]+/g) || [fullText];
+  // Nếu text chỉ hơn target một chút, cắt tại ranh giới từ
+  if (fullText.length <= maxLength + 50) {
+    const cutPoint = fullText.lastIndexOf(' ', maxLength);
+    if (cutPoint > maxLength * 0.8) {
+      return fullText.substring(0, cutPoint) + '...';
+    }
+  }
   
-  // Tính điểm cho mỗi câu
-  const scoredSentences = sentences.slice(0, 5).map((sentence, index) => {
-    let score = 0;
-    const cleanSent = sentence.trim();
-    
-    // Skip câu quá ngắn
-    if (cleanSent.length < 20) return null;
-    
-    // Ưu tiên câu có thông tin quan trọng
-    if (/\d+[%]?/.test(cleanSent)) score += 5; // Số liệu
-    if (/triệu|tỷ|nghìn|USD|VND|đồng|\$/.test(cleanSent)) score += 4; // Tiền tệ
-    if (/tăng|giảm|phát triển|mở|đóng|ra mắt|công bố/.test(cleanSent)) score += 3; // Hành động
-    if (/["'"]/.test(cleanSent)) score += 2; // Trích dẫn
-    
-    // Ưu tiên câu đầu
-    if (index === 0) score += 3;
-    if (index === 1) score += 1;
-    
-    // Độ dài phù hợp cho summary
-    if (cleanSent.length > 40 && cleanSent.length < 120) score += 2;
-    
-    return { sentence: cleanSent, score, length: cleanSent.length };
-  }).filter(Boolean);
+  // Tách câu - hỗ trợ nhiều kiểu ngắt câu
+  const sentences = fullText.match(/[^.!?;]+[.!?;]+/g) || 
+                   fullText.match(/[^\n]+/g) || 
+                   [fullText];
   
-  // Sắp xếp theo điểm
-  scoredSentences.sort((a, b) => b.score - a.score);
-  
-  // Xây dựng summary
+  // Build summary từ các câu đầu
   let summary = "";
-  const targetMin = 200;
+  const targetMin = 400;
   const targetMax = maxLength;
   
-  for (const item of scoredSentences) {
-    const testSummary = summary ? summary + " " + item.sentence : item.sentence;
+  // Phương pháp 1: Lấy theo thứ tự câu
+  for (let i = 0; i < sentences.length && summary.length < targetMin; i++) {
+    const sent = sentences[i].trim();
     
-    // Nếu thêm câu này vẫn trong giới hạn
-    if (testSummary.length <= targetMax) {
-      summary = testSummary;
-      
-      // Đã đủ độ dài tối thiểu
-      if (summary.length >= targetMin) {
-        break;
-      }
-    } else if (!summary) {
-      // Nếu câu đầu tiên quá dài, cắt nó
-      const words = item.sentence.split(' ');
-      const wordsNeeded = Math.floor(targetMax / 6); // ~6 ký tự/từ
-      summary = words.slice(0, wordsNeeded).join(' ');
-      
-      // Thêm "..." nếu đã cắt
-      if (words.length > wordsNeeded) {
-        summary += '...';
-      }
-      break;
-    } else {
-      // Đã có summary, kiểm tra xem có thể thêm một phần không
-      const remainingSpace = targetMax - summary.length - 4; // -4 cho "..."
-      
+    // Bỏ qua câu rác
+    if (sent.length < 10) continue;
+    if (/^(Xem thêm|Đọc thêm|Chia sẻ|Bình luận)/i.test(sent)) continue;
+    
+    // Kiểm tra nếu thêm câu này có vượt limit không
+    const testLength = summary ? summary.length + sent.length + 1 : sent.length;
+    
+    if (testLength <= targetMax) {
+      summary = summary ? summary + " " + sent : sent;
+    } else if (summary.length < targetMin) {
+      // Nếu chưa đủ min, cắt câu này và thêm vào
+      const remainingSpace = targetMax - summary.length - 4;
       if (remainingSpace > 50) {
-        const words = item.sentence.split(' ');
-        const wordsToAdd = Math.floor(remainingSpace / 6);
+        const words = sent.split(' ');
+        const wordsToTake = Math.floor(remainingSpace / 6); // ~6 ký tự/từ
         
-        if (wordsToAdd > 5) {
-          summary += " " + words.slice(0, wordsToAdd).join(' ') + '...';
+        if (wordsToTake > 3) {
+          const partial = words.slice(0, wordsToTake).join(' ');
+          summary = summary ? summary + " " + partial + "..." : partial + "...";
         }
       }
       break;
     }
   }
   
-  // Nếu vẫn quá ngắn, lấy thêm từ text gốc
-  if (summary.length < targetMin && fullText.length > summary.length) {
-    const words = fullText.split(' ');
-    const wordsNeeded = Math.ceil(targetMin / 6);
-    summary = words.slice(0, wordsNeeded).join(' ');
+  // Nếu vẫn quá ngắn, lấy trực tiếp từ đầu text
+  if (summary.length < targetMin) {
+    // Lấy 450 ký tự đầu và cắt tại ranh giới từ
+    const directCut = fullText.substring(0, 450);
+    const lastSpace = directCut.lastIndexOf(' ');
     
-    if (words.length > wordsNeeded) {
-      summary += '...';
+    if (lastSpace > 350) {
+      summary = directCut.substring(0, lastSpace) + '...';
+    } else {
+      summary = directCut + '...';
     }
   }
   
-  // Đảm bảo không vượt quá giới hạn
+  // Đảm bảo không vượt quá max
   if (summary.length > targetMax) {
-    summary = summary.substring(0, targetMax - 3) + '...';
+    const cutPoint = summary.lastIndexOf(' ', targetMax - 4);
+    if (cutPoint > targetMin) {
+      summary = summary.substring(0, cutPoint) + '...';
+    } else {
+      summary = summary.substring(0, targetMax - 3) + '...';
+    }
   }
   
-  return summary.trim();
+  // Làm sạch
+  summary = summary
+    .replace(/\s+/g, ' ')
+    .replace(/\.\.\.\./g, '...')
+    .trim();
+  
+  return summary;
 }
 
 // Hàm tóm tắt cũ (giữ cho backward compatibility)
