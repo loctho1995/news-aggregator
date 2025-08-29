@@ -4,110 +4,209 @@
 // Trích xuất nội dung đầy đủ với các đoạn văn
 export function extractFullContentWithParagraphs($) {
   // Xóa các thành phần không cần thiết
-  $("script,style,noscript,iframe,.advertisement,.ads,.banner,.sidebar,.widget,.social-share,.related-news,.comment,.comments,.footer,header,nav").remove();
+  $("script,style,noscript,iframe,.advertisement,.ads,.banner,.sidebar,.widget,.social-share,.related-news,.comment,.comments,footer,header,nav,.breadcrumb").remove();
   
-  // Danh sách selectors ưu tiên cho từng trang báo
+  // Danh sách selectors ưu tiên cho từng trang báo (mở rộng và cải thiện)
   const contentSelectors = {
     // VnExpress
     vnexpress: {
-      article: ".fck_detail, .article-content, .content-detail",
-      paragraphs: "p:not(.Image):not(.caption)"
+      article: ".fck_detail, .article-content, .content-detail, .Normal",
+      paragraphs: "p:not(.Image):not(.caption), .Normal"
     },
     // Tuổi Trẻ
     tuoitre: {
-      article: ".content-detail, .detail-content, .detail__content",
-      paragraphs: "p"
+      article: ".content-detail, .detail-content, .detail__content, .VCSortableInPreviewMode",
+      paragraphs: "p, div.VCSortableInPreviewMode"
     },
     // Dân Trí
     dantri: {
-      article: ".singular-content, .detail-content, .e-magazine__body",
-      paragraphs: "p"
+      article: ".singular-content, .detail-content, .e-magazine__body, .dt-news__content",
+      paragraphs: "p, .dt-news__content p"
     },
     // Thanh Niên
     thanhnien: {
-      article: ".detail-content, .content, .article-body",
-      paragraphs: "p"
+      article: ".detail-content, .content, .article-body, .cms-body",
+      paragraphs: "p, .cms-body p"
     },
     // CafeF/CafeBiz
     cafe: {
-      article: ".newscontent, .detail-content, .content-detail",
-      paragraphs: "p"
+      article: ".newscontent, .detail-content, .content-detail, .knc-content",
+      paragraphs: "p, .knc-content p"
     },
     // VietnamNet
     vietnamnet: {
-      article: ".ArticleContent, .article-content, .content__body",
+      article: ".ArticleContent, .article-content, .content__body, .maincontent",
+      paragraphs: "p, .maincontent p"
+    },
+    // Lao Động
+    laodong: {
+      article: ".article-content, .the-article-body",
       paragraphs: "p"
     },
-    // Generic fallback
+    // Generic fallback (mở rộng)
     generic: {
-      article: "article, [itemprop='articleBody'], .article-body, .entry-content, .post-content, .news-content, .main-content, .story-body",
-      paragraphs: "p"
+      article: "article, [itemprop='articleBody'], .article-body, .entry-content, .post-content, .news-content, .main-content, .story-body, .text-content, .body-content, .article__body, main",
+      paragraphs: "p, .text-content p"
     }
   };
 
   let paragraphs = [];
   let fullContent = "";
-  let contentElement = null;
+  let contentFound = false;
 
-  // Thử tìm content element chính xác nhất
+  // Thử tìm content với nhiều phương pháp
+  // Phương pháp 1: Tìm theo selectors cụ thể
   for (const [site, selectors] of Object.entries(contentSelectors)) {
-    const $content = $(selectors.article);
-    if ($content.length > 0) {
-      contentElement = $content.first();
+    if (contentFound) break;
+    
+    const $contents = $(selectors.article);
+    
+    for (let i = 0; i < $contents.length; i++) {
+      const $content = $($contents[i]);
       
-      // Lấy tất cả paragraphs trong content element
-      const $paragraphs = contentElement.find(selectors.paragraphs);
+      // Lấy TẤT CẢ text nodes và paragraphs
+      const textContent = $content.find(selectors.paragraphs).add($content.filter(selectors.paragraphs));
       
-      if ($paragraphs.length > 0) {
-        $paragraphs.each((i, el) => {
+      if (textContent.length > 0) {
+        textContent.each((j, el) => {
           const text = $(el).text().trim();
-          // Lọc paragraph có nội dung thực sự
-          if (text && text.length > 30 && 
-              !text.includes("Xem thêm") && 
-              !text.includes("Đọc thêm") &&
+          
+          // Lọc nội dung hợp lệ (giảm ngưỡng để lấy nhiều content hơn)
+          if (text && text.length > 20 && 
+              !text.includes("Xem thêm:") && 
+              !text.includes("Đọc thêm:") &&
               !text.includes("TIN LIÊN QUAN") &&
-              !text.includes("Chia sẻ")) {
-            paragraphs.push(text);
+              !text.includes("Chia sẻ bài viết") &&
+              !text.includes("Bình luận")) {
+            
+            // Tránh duplicate
+            if (!paragraphs.some(p => p.includes(text) || text.includes(p))) {
+              paragraphs.push(text);
+            }
           }
         });
         
-        if (paragraphs.length > 0) break;
+        if (paragraphs.length > 2) { // Cần ít nhất 3 đoạn để coi là tìm thấy content
+          contentFound = true;
+          break;
+        }
       }
     }
   }
 
-  // Fallback: Nếu không tìm thấy content chính, thu thập tất cả paragraphs
-  if (paragraphs.length === 0) {
-    $("p").each((i, el) => {
-      const text = $(el).text().trim();
-      const parent = $(el).parent();
+  // Phương pháp 2: Nếu vẫn ít content, thử tìm theo text density
+  if (paragraphs.length < 3) {
+    const allParagraphs = [];
+    
+    // Tìm tất cả các khối text
+    $("p, div, section, article").each((i, el) => {
+      const $el = $(el);
+      const text = $el.clone()
+        .children()
+        .remove()
+        .end()
+        .text()
+        .trim();
       
-      // Kiểm tra paragraph không nằm trong sidebar, footer, etc.
-      if (text && text.length > 50 && 
-          !parent.hasClass('sidebar') && 
-          !parent.hasClass('footer') &&
-          !parent.hasClass('related') &&
-          !text.includes("Xem thêm") && 
-          !text.includes("Đọc thêm")) {
+      // Chỉ lấy khối có đủ text
+      if (text && text.length > 50) {
+        const childText = $el.find("p, div").text().trim();
+        
+        // Nếu là container (có child elements với text)
+        if (childText && childText.length > text.length * 0.5) {
+          // Lấy từng paragraph con
+          $el.find("p").each((j, p) => {
+            const pText = $(p).text().trim();
+            if (pText && pText.length > 30) {
+              allParagraphs.push({
+                text: pText,
+                parent: $el.attr('class') || $el.attr('id') || 'unknown'
+              });
+            }
+          });
+        } else if (text.length > 50) {
+          // Là text node trực tiếp
+          allParagraphs.push({
+            text: text,
+            parent: $el.parent().attr('class') || $el.parent().attr('id') || 'unknown'
+          });
+        }
+      }
+    });
+    
+    // Nhóm theo parent và chọn nhóm lớn nhất
+    const groupedByParent = {};
+    allParagraphs.forEach(p => {
+      const key = p.parent;
+      if (!groupedByParent[key]) groupedByParent[key] = [];
+      groupedByParent[key].push(p.text);
+    });
+    
+    // Tìm nhóm có nhiều content nhất
+    let maxGroup = [];
+    Object.values(groupedByParent).forEach(group => {
+      if (group.length > maxGroup.length) {
+        maxGroup = group;
+      }
+    });
+    
+    // Thêm vào paragraphs nếu chưa có
+    maxGroup.forEach(text => {
+      if (!paragraphs.some(p => p.includes(text) || text.includes(p))) {
         paragraphs.push(text);
       }
     });
   }
 
-  // Lấy thêm lead/summary nếu có
-  const lead = $(".sapo, .lead, .description, .chapeau, .article-summary").text().trim();
-  if (lead && lead.length > 50 && !paragraphs.includes(lead)) {
-    paragraphs.unshift(lead); // Thêm vào đầu
-  }
+  // Phương pháp 3: Lấy thêm lead/summary/description
+  const leadSelectors = [
+    ".sapo", ".lead", ".description", ".chapeau", ".article-summary",
+    ".excerpt", ".intro", ".abstract", "[class*='lead']", "[class*='summary']"
+  ];
+  
+  leadSelectors.forEach(selector => {
+    const lead = $(selector).text().trim();
+    if (lead && lead.length > 30) {
+      // Thêm vào đầu nếu chưa có
+      if (!paragraphs.some(p => p.includes(lead) || lead.includes(p))) {
+        paragraphs.unshift(lead);
+      }
+    }
+  });
 
+  // Ghép thành fullContent
   fullContent = paragraphs.join("\n\n");
 
-  // Nếu vẫn không có content, fallback với meta tags
+  // Nếu vẫn quá ít content, thử lấy tất cả text có structure
+  if (fullContent.length < 500) {
+    const bodyText = $("body").text()
+      .replace(/\s+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    
+    // Tìm phần text dài nhất liên tục
+    const chunks = bodyText.split(/\n\n+/);
+    const longChunks = chunks
+      .filter(c => c.length > 100)
+      .sort((a, b) => b.length - a.length)
+      .slice(0, 10); // Lấy 10 đoạn dài nhất
+    
+    if (longChunks.length > 0) {
+      fullContent = longChunks.join("\n\n");
+      paragraphs = longChunks;
+    }
+  }
+
+  // Fallback cuối cùng với meta tags
   if (!fullContent || fullContent.length < 100) {
     const ogDescription = $("meta[property='og:description']").attr("content") || "";
     const metaDescription = $("meta[name='description']").attr("content") || "";
+    const articleDescription = $("meta[property='article:description']").attr("content") || "";
     
-    fullContent = [ogDescription, metaDescription].filter(Boolean).join("\n\n");
+    fullContent = [ogDescription, metaDescription, articleDescription]
+      .filter(Boolean)
+      .join("\n\n");
+    
     if (fullContent) {
       paragraphs = fullContent.split("\n\n");
     }
