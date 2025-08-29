@@ -275,26 +275,14 @@ function markRead(url) {
       readStatusBtn.classList.add('bg-green-600', 'hover:bg-green-500');
     }
     
-    setTimeout(() => {
-      moveCardToEnd(card);
-    }, 500);
-  }
-}
-
-function moveCardToEnd(card) {
-  card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-  card.style.opacity = '0.5';
-  card.style.transform = 'scale(0.95)';
-  
-  setTimeout(() => {
+    // Chuyển card xuống cuối danh sách ngay lập tức
     grid.appendChild(card);
-    card.style.opacity = '0.6';
-    card.style.transform = 'scale(1)';
-  }, 300);
+  }
 }
 
 function toggleReadStatus(url) {
   if (readItems.has(url)) {
+    // Mark as unread
     readItems.delete(url);
     saveReadItems();
     
@@ -309,9 +297,35 @@ function toggleReadStatus(url) {
         readStatusBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
         readStatusBtn.classList.add('bg-blue-600', 'hover:bg-blue-500');
       }
+      
+      // Chuyển card lên đầu (hoặc trước card đã đọc đầu tiên)
+      const firstReadCard = grid.querySelector('.read');
+      if (firstReadCard && firstReadCard !== card) {
+        grid.insertBefore(card, firstReadCard);
+      } else {
+        grid.insertBefore(card, grid.firstChild);
+      }
     }
   } else {
-    markRead(url);
+    // Mark as read
+    readItems.add(url);
+    saveReadItems();
+    
+    const card = document.querySelector(`[data-url="${CSS.escape(url)}"]`);
+    if (card) {
+      card.classList.add("opacity-60");
+      card.classList.add("read");
+      
+      const readStatusBtn = card.querySelector('.read-status-btn');
+      if (readStatusBtn) {
+        readStatusBtn.innerHTML = '✅ Đã đọc';
+        readStatusBtn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+        readStatusBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+      }
+      
+      // Chuyển card xuống cuối danh sách ngay lập tức
+      grid.appendChild(card);
+    }
   }
 }
 
@@ -568,7 +582,16 @@ let populateTimeout;
 function populateSourceSelect() {
   clearTimeout(populateTimeout);
   populateTimeout = setTimeout(() => {
-    const sources = [...new Set(items.map(item => ({ id: item.sourceId, name: item.sourceName })))];
+    // Tạo Map để loại bỏ trùng lặp theo sourceId
+    const uniqueSources = new Map();
+    items.forEach(item => {
+      if (item.sourceId && item.sourceName && !uniqueSources.has(item.sourceId)) {
+        uniqueSources.set(item.sourceId, item.sourceName);
+      }
+    });
+    
+    // Chuyển Map thành array và sắp xếp
+    const sources = Array.from(uniqueSources, ([id, name]) => ({ id, name }));
     sources.sort((a, b) => a.name.localeCompare(b.name));
     
     const currentValue = sourceSelect.value;

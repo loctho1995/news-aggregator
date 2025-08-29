@@ -71,7 +71,7 @@
       <div id="empty" class="hidden text-center text-slate-400 py-16">Không có bài phù hợp.</div>
     </main>
 
-    <!-- Modal: TÓM TẮT -->
+<!-- Modal: TÓM TẮT -->
     <div id="modal" class="fixed inset-0 z-50 hidden overflow-y-auto p-4 sm:p-6 flex items-center justify-center">
       <div id="modalOverlay" class="absolute inset-0 bg-black/60"></div>
       <div id="modalPanel" class="relative w-full max-w-3xl lg:max-w-4xl mx-auto bg-[#ecf0f1] text-gray-900 rounded-2xl shadow-xl p-5 pointer-events-auto border border-gray-300 h-[90vh] lg:h-[85vh] flex flex-col">
@@ -87,11 +87,12 @@
             <div class="flex items-center gap-2">
               <label class="text-sm text-gray-600 font-medium">Mức độ tóm tắt:</label>
               <select id="summaryPercent" class="px-2 py-1 text-sm border border-gray-300 rounded-lg bg-white text-gray-700">
-                <option value="50">50% - Ngắn gọn</option>
-                <option value="60">60% - Trung bình</option>
+                <option value="30">30% - Rất ngắn gọn</option>
+                <option value="40">40% - Ngắn gọn</option>
+                <option value="50">50% - Vừa phải</option>
+                <option value="60">60% - Chi tiết vừa</option>
                 <option value="70" selected>70% - Chi tiết</option>
                 <option value="80">80% - Rất chi tiết</option>
-                <option value="90">90% - Đầy đủ nhất</option>
               </select>
               <button id="regenerateBtn" class="px-2 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg">🔄 Tạo lại</button>
             </div>
@@ -133,7 +134,6 @@
         </div>
       </div>
     </div>
-
     <!-- Modal: AI TÓM TẮT -->
     <!-- (giữ nguyên AI summary modal, webview modal, footer) -->
 
