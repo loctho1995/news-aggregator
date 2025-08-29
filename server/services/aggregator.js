@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import tz from "dayjs/plugin/timezone.js";
 import relativeTime from "dayjs/plugin/relativeTime.js";
-import { SOURCES } from "./sources.js";
+import { SOURCES } from "../constants/sources.js";
 
 dayjs.extend(utc);
 dayjs.extend(tz);
