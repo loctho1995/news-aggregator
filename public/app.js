@@ -1,6 +1,7 @@
-// VN NEWS AGGREGATOR - APP.JS - UPDATED VERSION
+// VN NEWS AGGREGATOR - APP.JS - COMPLETE VERSION WITH PARAGRAPH SUMMARY
 
-// UI Elements - Modal
+// ===== UI ELEMENTS =====
+// Modal elements
 const modal = document.getElementById("modal");
 const modalOverlay = document.getElementById("modalOverlay");
 const modalPanel = document.getElementById("modalPanel");
@@ -9,7 +10,7 @@ const modalTitle = document.getElementById("modalTitle");
 const modalSource = document.getElementById("modalSource");
 const modalOpenLink = document.getElementById("modalOpenLink");
 
-// UI Elements - Summary controls
+// Summary controls
 const summaryPercent = document.getElementById("summaryPercent");
 const regenerateBtn = document.getElementById("regenerateBtn");
 const summaryArea = document.getElementById("summaryArea");
@@ -17,14 +18,15 @@ const summaryLoading = document.getElementById("summaryLoading");
 const summaryList = document.getElementById("summaryList");
 const summaryStats = document.getElementById("summaryStats");
 const translatedBadge = document.getElementById("translatedBadge");
-// UI Elements - TTS
+
+// TTS elements
 const btnSpeak = document.getElementById("btnSpeak");
 const btnStopSpeak = document.getElementById("btnStopSpeak");
 const ttsRateBox = document.getElementById("ttsRateBox");
 const rateRange = document.getElementById("rateRange");
 const rateLabel = document.getElementById("rateLabel");
 
-// UI Elements - Main app
+// Main app elements
 const grid = document.getElementById("grid");
 const empty = document.getElementById("empty");
 const badge = document.getElementById("badge");
@@ -34,6 +36,7 @@ const groupSelect = document.getElementById("groupSelect");
 const hours = document.getElementById("hours");
 const refreshBtn = document.getElementById("refreshBtn");
 
+// ===== STATE VARIABLES =====
 let loadingInProgress = false;
 let currentFilters = {
   query: "",
@@ -41,7 +44,6 @@ let currentFilters = {
   group: null
 };
 
-// State variables
 let currentItem = null;
 let currentModalLink = null;
 let ttsState = "idle"; // "idle", "speaking", "paused"
@@ -49,7 +51,7 @@ let ttsRate = 1.0;
 let items = [];
 let readItems = new Set();
 
-// Load read items from localStorage on init
+// ===== LOCAL STORAGE FUNCTIONS =====
 function loadReadItems() {
   try {
     const stored = localStorage.getItem('readItems');
@@ -62,7 +64,6 @@ function loadReadItems() {
   }
 }
 
-// Save read items to localStorage
 function saveReadItems() {
   try {
     localStorage.setItem('readItems', JSON.stringify([...readItems]));
@@ -73,7 +74,7 @@ function saveReadItems() {
 
 // ===== MODAL FUNCTIONS =====
 
-// Main function mở modal
+// Open summary modal
 function openSummaryModal(item, link) {
   currentModalLink = link;
   currentItem = item;
@@ -111,11 +112,51 @@ function resetModalUI() {
   }
 }
 
-// Load summary với phần trăm được chọn
+// Render summary content - ENHANCED VERSION
+function renderSummaryContent({ bullets, paragraphs, fallbackText }) {
+  // Ưu tiên hiển thị theo đoạn văn nếu có
+  if (paragraphs && paragraphs.length > 0) {
+    return renderParagraphSummary(paragraphs);
+  }
+  
+  // Fallback về bullets nếu có
+  if (bullets && bullets.length > 0) {
+    return renderBulletSummary(bullets);
+  }
+  
+  // Fallback cuối cùng
+  return fallbackText ? 
+    `<p class="text-gray-700 text-lg">${fallbackText}</p>` : 
+    `<p class="text-gray-500 italic text-lg">Không có nội dung tóm tắt.</p>`;
+}
+
+// Render tóm tắt theo đoạn văn
+function renderParagraphSummary(paragraphs) {
+  if (!paragraphs || paragraphs.length === 0) return "";
+  
+  return paragraphs.map((paragraph, index) => {
+    return `
+      <div class="mb-4 p-4 bg-white/60 rounded-lg border-l-4 border-emerald-500 hover:bg-white/80 transition-colors">
+        <p class="text-gray-800 leading-relaxed text-lg">${paragraph}</p>
+      </div>
+    `;
+  }).join('');
+}
+
+// Render tóm tắt dạng bullets (backward compatibility)
+function renderBulletSummary(bullets) {
+  return bullets.map(bullet => `
+    <div class="mb-3 p-4 bg-white/50 rounded-lg border-l-4 border-emerald-500">
+      <p class="text-gray-800 leading-relaxed text-lg">${bullet}</p>
+    </div>
+  `).join('');
+}
+
+// Load summary với paragraph support
 function loadSummary(item, link) {
   const percent = summaryPercent.value || "70";
   
-  summaryLoading.textContent = `Đang tóm tắt ${percent}% nội dung…`;
+  summaryLoading.textContent = `Đang tóm tắt ${percent}% nội dung...`;
   summaryLoading.classList.remove("hidden");
   summaryList.classList.add("hidden");
   summaryStats.classList.add("hidden");
@@ -127,6 +168,7 @@ function loadSummary(item, link) {
       const j = await r.json();
       if (j.error) throw new Error(j.error);
       
+      // Cập nhật thông tin tóm tắt
       if (j.percentage !== undefined) {
         const percentColor = j.percentage > 70 ? "text-orange-600" : 
                            j.percentage > 40 ? "text-yellow-600" : "text-emerald-600";
@@ -141,18 +183,19 @@ function loadSummary(item, link) {
         `;
       }
       
+      // Render nội dung với paragraph support
       const html = renderSummaryContent({
+        paragraphs: j.paragraphs || null,
         bullets: j.bullets || [],
-        fallbackText: item.summary || "",
+        fallbackText: j.fullSummary || item.summary || "",
       });
       
       summaryList.innerHTML = html;
       summaryLoading.classList.add("hidden");
       summaryList.classList.remove("hidden");
       
+      // Hiển thị stats
       summaryStats.classList.remove("hidden");
-      if (j.percentage) // removed: compression update
-      if (j.bullets) // removed: bulletCount update
       
       if (j.translated) {
         translatedBadge.style.display = 'flex';
@@ -160,6 +203,7 @@ function loadSummary(item, link) {
         translatedBadge.style.display = 'none';
       }
       
+      // Enable TTS buttons
       if (ttsSupported()) {
         btnSpeak.classList.remove("hidden");
         btnStopSpeak.classList.remove("hidden");
@@ -171,6 +215,7 @@ function loadSummary(item, link) {
     .catch((err) => {
       console.error('Summary error:', err);
       const html = renderSummaryContent({
+        paragraphs: null,
         bullets: [],
         fallbackText: item.summary || "Không thể tải tóm tắt.",
       });
@@ -188,20 +233,6 @@ function loadSummary(item, link) {
     });
 }
 
-// Render summary content
-function renderSummaryContent({ bullets, fallbackText }) {
-  if (!bullets || bullets.length === 0) {
-    return fallbackText ? `<p class="text-gray-700 text-lg">${fallbackText}</p>` : 
-           `<p class="text-gray-500 italic text-lg">Không có nội dung tóm tắt.</p>`;
-  }
-  
-  return bullets.map(bullet => `
-    <div class="mb-3 p-4 bg-white/50 rounded-lg border-l-4 border-emerald-500">
-      <p class="text-gray-800 leading-relaxed text-lg">${bullet}</p>
-    </div>
-  `).join('');
-}
-
 // Close modal
 function closeModal() {
   if (ttsSupported()) {
@@ -216,7 +247,6 @@ function closeModal() {
 }
 
 // ===== TTS FUNCTIONS =====
-
 function ttsSupported() {
   return 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 }
@@ -226,21 +256,18 @@ function setRateUI(rate) {
   if (rateLabel) rateLabel.textContent = `${rate}x`;
 }
 
-// ===== MAIN APP FUNCTIONS =====
-
+// ===== READ STATUS FUNCTIONS =====
 function markRead(url) {
-  if (readItems.has(url)) return; // Already marked as read
+  if (readItems.has(url)) return;
   
   readItems.add(url);
   saveReadItems();
   
   const card = document.querySelector(`[data-url="${CSS.escape(url)}"]`);
   if (card) {
-    // Update read status visually
     card.classList.add("opacity-60");
     card.classList.add("read");
     
-    // Update read status button
     const readStatusBtn = card.querySelector('.read-status-btn');
     if (readStatusBtn) {
       readStatusBtn.innerHTML = '✅ Đã đọc';
@@ -248,7 +275,6 @@ function markRead(url) {
       readStatusBtn.classList.add('bg-green-600', 'hover:bg-green-500');
     }
     
-    // Move to end of list after a short delay
     setTimeout(() => {
       moveCardToEnd(card);
     }, 500);
@@ -256,24 +282,19 @@ function markRead(url) {
 }
 
 function moveCardToEnd(card) {
-  // Remove from current position
   card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
   card.style.opacity = '0.5';
   card.style.transform = 'scale(0.95)';
   
   setTimeout(() => {
-    // Move to end
     grid.appendChild(card);
-    
-    // Animate back in
-    card.style.opacity = '0.6'; // Keep read opacity
+    card.style.opacity = '0.6';
     card.style.transform = 'scale(1)';
   }, 300);
 }
 
 function toggleReadStatus(url) {
   if (readItems.has(url)) {
-    // Mark as unread
     readItems.delete(url);
     saveReadItems();
     
@@ -290,7 +311,6 @@ function toggleReadStatus(url) {
       }
     }
   } else {
-    // Mark as read
     markRead(url);
   }
 }
@@ -299,6 +319,7 @@ function isRead(url) {
   return readItems.has(url);
 }
 
+// ===== UTILITY FUNCTIONS =====
 function timeAgo(iso) {
   if (!iso) return "";
   const now = new Date();
@@ -331,43 +352,11 @@ function itemPassesFilters(item, filters) {
   return true;
 }
 
-function addItemToGrid(item) {
-  if (!itemPassesFilters(item, currentFilters)) return;
-  
-  if (!empty.classList.contains("hidden")) {
-    empty.classList.add("hidden");
-  }
-  
-  const cardElement = createCardElement(item);
-  
-  // Insert based on read status - unread first, read at the end
-  if (isRead(item.link)) {
-    grid.appendChild(cardElement);
-  } else {
-    // Find the first read item and insert before it
-    const firstReadCard = grid.querySelector('.read');
-    if (firstReadCard) {
-      grid.insertBefore(cardElement, firstReadCard);
-    } else {
-      grid.appendChild(cardElement);
-    }
-  }
-  
-  cardElement.style.opacity = '0';
-  cardElement.style.transform = 'translateY(10px)';
-  
-  requestAnimationFrame(() => {
-    cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-    cardElement.style.opacity = isRead(item.link) ? '0.6' : '1';
-    cardElement.style.transform = 'translateY(0)';
-  });
-}
-
+// ===== GRID FUNCTIONS =====
 function createCardElement(item) {
   const card = document.createElement('div');
   const readStatus = isRead(item.link);
   
-  // Slightly increased size but more reasonable
   card.className = `news-card bg-[#ecf0f1] border border-gray-300 rounded-2xl p-4 hover:border-gray-400 transition-colors min-h-[200px] ${readStatus ? "opacity-60 read" : ""}`;
   card.setAttribute('data-url', item.link);
   card.setAttribute('data-title', item.title || '');
@@ -377,8 +366,8 @@ function createCardElement(item) {
     '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">Quốc tế</span>' : '';
   
   const readStatusButton = readStatus ? 
-    '<button class="read-status-btn px-2 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded transition-colors">Đã đọc</button>' :
-    '<button class="read-status-btn px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">Chưa đọc</button>';
+    '<button class="read-status-btn px-2 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded transition-colors">✅ Đã đọc</button>' :
+    '<button class="read-status-btn px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">⚪ Chưa đọc</button>';
   
   card.innerHTML = `
     <h3 class="title-clickable text-xl font-semibold text-gray-900 line-clamp-2 leading-snug mb-3 cursor-pointer hover:text-emerald-600 transition-colors">
@@ -422,6 +411,36 @@ function createCardElement(item) {
   return card;
 }
 
+function addItemToGrid(item) {
+  if (!itemPassesFilters(item, currentFilters)) return;
+  
+  if (!empty.classList.contains("hidden")) {
+    empty.classList.add("hidden");
+  }
+  
+  const cardElement = createCardElement(item);
+  
+  if (isRead(item.link)) {
+    grid.appendChild(cardElement);
+  } else {
+    const firstReadCard = grid.querySelector('.read');
+    if (firstReadCard) {
+      grid.insertBefore(cardElement, firstReadCard);
+    } else {
+      grid.appendChild(cardElement);
+    }
+  }
+  
+  cardElement.style.opacity = '0';
+  cardElement.style.transform = 'translateY(10px)';
+  
+  requestAnimationFrame(() => {
+    cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    cardElement.style.opacity = isRead(item.link) ? '0.6' : '1';
+    cardElement.style.transform = 'translateY(0)';
+  });
+}
+
 function renderItems(itemsToRender) {
   grid.innerHTML = "";
   
@@ -434,15 +453,13 @@ function renderItems(itemsToRender) {
   
   const fragment = document.createDocumentFragment();
   
-  // Sort items: unread first, read last
   const sortedItems = [...itemsToRender].sort((a, b) => {
     const aRead = isRead(a.link);
     const bRead = isRead(b.link);
     
-    if (aRead && !bRead) return 1;  // a is read, b is unread -> b comes first
-    if (!aRead && bRead) return -1; // a is unread, b is read -> a comes first
+    if (aRead && !bRead) return 1;
+    if (!aRead && bRead) return -1;
     
-    // Both same read status, sort by date
     const aDate = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
     const bDate = b.publishedAt ? new Date(b.publishedAt) : new Date(0);
     return bDate - aDate;
@@ -467,6 +484,7 @@ function updateFilters() {
   renderItems(filtered);
 }
 
+// ===== MAIN LOAD FUNCTION =====
 async function loadNews() {
   if (loadingInProgress) return;
   
@@ -655,6 +673,56 @@ document.addEventListener("keydown", (e) => {
     closeModal();
   }
 });
+
+// ===== ADD CUSTOM STYLES =====
+if (!document.getElementById('paragraph-styles')) {
+  const style = document.createElement('style');
+  style.id = 'paragraph-styles';
+  style.textContent = `
+    /* Animation cho paragraph summary */
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    #summaryList > div {
+      animation: slideIn 0.3s ease-out;
+      animation-fill-mode: both;
+    }
+    
+    #summaryList > div:nth-child(1) { animation-delay: 0.1s; }
+    #summaryList > div:nth-child(2) { animation-delay: 0.2s; }
+    #summaryList > div:nth-child(3) { animation-delay: 0.3s; }
+    #summaryList > div:nth-child(4) { animation-delay: 0.4s; }
+    #summaryList > div:nth-child(5) { animation-delay: 0.5s; }
+    #summaryList > div:nth-child(6) { animation-delay: 0.6s; }
+    #summaryList > div:nth-child(7) { animation-delay: 0.7s; }
+    #summaryList > div:nth-child(8) { animation-delay: 0.8s; }
+    #summaryList > div:nth-child(9) { animation-delay: 0.9s; }
+    #summaryList > div:nth-child(10) { animation-delay: 1.0s; }
+    
+    /* Hover effect cho paragraph */
+    #summaryList > div:hover {
+      transform: translateX(5px);
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+    
+    /* Responsive paragraph spacing */
+    @media (max-width: 640px) {
+      #summaryList > div {
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 // ===== INITIALIZATION =====
 document.addEventListener("DOMContentLoaded", () => {
