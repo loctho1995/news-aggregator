@@ -560,6 +560,202 @@ function summarizeToBullets(fullText) {
          [`(Tìm thấy ${sentences.length} câu, ${fullText.length} ký tự nhưng không thể tóm tắt)`];
 }
 
+async function summarizeToBulletsWithPercentage(fullText, sourceGroup, percent = 40) {
+  // Tính số bullets dựa trên percent
+  let maxBullets = 3; // mặc định
+  
+  if (percent <= 30) {
+    maxBullets = 2; // Rất ngắn gọn
+  } else if (percent <= 40) {
+    maxBullets = 3; // Ngắn gọn
+  } else if (percent <= 50) {
+    maxBullets = 4; // Trung bình  
+  } else if (percent <= 60) {
+    maxBullets = 5; // Chi tiết
+  } else {
+    maxBullets = 6; // Rất chi tiết
+  }
+  
+  // Sử dụng logic summarize với maxBullets được điều chỉnh
+  const bullets = summarizeToBulletsCustom(fullText, maxBullets);
+  
+  if (sourceGroup === 'internationaleconomics') {
+    const lang = detectLanguage(fullText);
+    if (lang !== 'vi') {
+      const translatedBullets = await Promise.all(
+        bullets.map(async (bullet) => {
+          if (bullet.startsWith('(')) return bullet;
+          const translated = await translateText(bullet);
+          return translated;
+        })
+      );
+      return translatedBullets;
+    }
+  }
+  
+  return bullets;
+}
+
+// Function tóm tắt với số bullets tùy chỉnh
+function summarizeToBulletsCustom(fullText, maxBullets = 3) {
+  if (!fullText || fullText.length < 30) {
+    console.log(`Text too short: ${fullText?.length || 0} chars`);
+    return [`(Không thể trích xuất nội dung từ trang này)`];
+  }
+  
+  if (fullText.length < 200) {
+    return [fullText];
+  }
+  
+  const sentences = splitSentencesNoLookbehind(fullText)
+    .filter(s => {
+      const clean = s.trim();
+      return clean.length > 30 && 
+             !clean.toLowerCase().includes("từ khóa") &&
+             !clean.toLowerCase().includes("xem thêm") &&
+             !clean.toLowerCase().includes("đọc thêm");
+    });
+  
+  if (sentences.length === 0) {
+    return [fullText.slice(0, 300) + (fullText.length > 300 ? "..." : "")];
+  }
+  
+  if (sentences.length <= maxBullets) {
+    return sentences.slice(0, maxBullets);
+  }
+  
+  const mainPoints = [];
+  const processedIndexes = new Set();
+  
+  // Chọn 1-2 câu đầu dựa trên maxBullets
+  const introCount = Math.max(1, Math.floor(maxBullets * 0.3));
+  for (let i = 0; i < Math.min(introCount, sentences.length); i++) {
+    if (sentences[i].length > 50) {
+      mainPoints.push({
+        text: sentences[i],
+        index: i,
+        type: 'intro',
+        score: 100 - i * 10
+      });
+      processedIndexes.add(i);
+    }
+  }
+  
+  // Tìm câu có số liệu và trích dẫn
+  sentences.forEach((s, i) => {
+    if (!processedIndexes.has(i) && mainPoints.length < maxBullets - 1) {
+      const hasNumbers = /\d+[\s]*(tỷ|triệu|nghìn|%|phần trăm|USD|VND|đồng)/i.test(s);
+      const hasQuotes = /"[^"]{20,}"/.test(s) || /["""][^"""]{20,}["""]/.test(s);
+      
+      if (hasNumbers || hasQuotes) {
+        mainPoints.push({
+          text: s,
+          index: i,
+          type: hasNumbers ? 'data' : 'quote',
+          score: 80
+        });
+        processedIndexes.add(i);
+      }
+    }
+  });
+  
+  // Tìm câu với từ khóa quan trọng
+  const importantKeywords = [
+    /^(Theo|Ông|Bà|PGS|TS|BS|Luật sư|Chuyên gia)/i,
+    /quan trọng|chủ yếu|chính là|điểm nổi bật|đáng chú ý/i,
+    /kết luận|tóm lại|như vậy|do đó|vì thế/i,
+    /tuy nhiên|mặt khác|ngược lại|trong khi đó/i,
+    /đầu tiên|thứ hai|thứ ba|cuối cùng/i
+  ];
+  
+  sentences.forEach((s, i) => {
+    if (!processedIndexes.has(i) && mainPoints.length < maxBullets - 1) {
+      for (const pattern of importantKeywords) {
+        if (pattern.test(s)) {
+          mainPoints.push({
+            text: s,
+            index: i,
+            type: 'keyword',
+            score: 70
+          });
+          processedIndexes.add(i);
+          break;
+        }
+      }
+    }
+  });
+  
+  // Chọn 1 câu cuối nếu còn chỗ
+  if (mainPoints.length < maxBullets) {
+    for (let i = sentences.length - 1; i >= 0; i--) {
+      if (!processedIndexes.has(i) && sentences[i].length > 50) {
+        mainPoints.push({
+          text: sentences[i],
+          index: i,
+          type: 'conclusion',
+          score: 60
+        });
+        processedIndexes.add(i);
+        break;
+      }
+    }
+  }
+  
+  // Điền thêm câu khác nếu chưa đủ
+  if (mainPoints.length < maxBullets) {
+    sentences.forEach((s, i) => {
+      if (!processedIndexes.has(i) && s.length > 100 && mainPoints.length < maxBullets) {
+        mainPoints.push({
+          text: s,
+          index: i,
+          type: 'additional',
+          score: 50
+        });
+        processedIndexes.add(i);
+      }
+    });
+  }
+  
+  // Sắp xếp theo thứ tự xuất hiện
+  mainPoints.sort((a, b) => a.index - b.index);
+  
+  // Ghép câu liên tiếp thành bullets
+  const finalBullets = [];
+  let currentBullet = "";
+  let lastIndex = -1;
+  
+  for (const point of mainPoints) {
+    if (lastIndex >= 0 && point.index === lastIndex + 1 && 
+        currentBullet.length + point.text.length < 400) {
+      currentBullet += " " + point.text;
+    } else {
+      if (currentBullet) {
+        finalBullets.push(currentBullet.trim());
+      }
+      currentBullet = point.text;
+    }
+    lastIndex = point.index;
+  }
+  
+  if (currentBullet) {
+    finalBullets.push(currentBullet.trim());
+  }
+  
+  // Loại bỏ trùng lặp
+  const uniqueBullets = [];
+  const seenStarts = new Set();
+  
+  for (const bullet of finalBullets) {
+    const start = bullet.slice(0, 50).toLowerCase();
+    if (!seenStarts.has(start)) {
+      seenStarts.add(start);
+      uniqueBullets.push(bullet);
+    }
+  }
+  
+  return uniqueBullets.slice(0, maxBullets);
+}
+
 async function generateAISummary(content, language = 'vi', targetLength = null, percent = 40) {
   if (!content || content.length < 100) {
     throw new Error('Nội dung quá ngắn để tóm tắt');
@@ -920,12 +1116,17 @@ function formatBullet(text) {
 app.get("/api/summary", async (req,res) => {
   const raw = String(req.query.url || "").trim();
   const fallbackSummary = req.query.fallback || "";
+  const percent = parseInt(req.query.percent || "40", 10); // THÊM MỚI
   
   try {
     if (!raw) return res.status(400).json({ error: "Missing url" });
     const u = new URL(raw);
     if (!/^https?:$/.test(u.protocol)) return res.status(400).json({ error: "Only http/https allowed" });
-    const cached = cacheGet(raw); if (cached) return res.json({ cached:true, ...cached });
+    
+    // THAY ĐỔI: thêm percent vào cache key
+    const cacheKey = `${raw}_${percent}`;
+    const cached = cacheGet(cacheKey); 
+    if (cached) return res.json({ cached:true, ...cached });
 
     const headers = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -967,26 +1168,28 @@ app.get("/api/summary", async (req,res) => {
           title = await translateText(title);
         }
         
+        // THAY ĐỔI: sử dụng function mới với percent
         const bullets = mainText.length > 100 ? 
-          await summarizeToBulletsWithTranslation(mainText, isInternational ? 'internationaleconomics' : 'vietnam') : 
+          await summarizeToBulletsWithPercentage(mainText, isInternational ? 'internationaleconomics' : 'vietnam', percent) : 
           [fallbackSummary || "(Không có nội dung)"];
         
         const originalLength = mainText.length || 0;
         const summaryLength = bullets.join(" ").length;
-        const percentage = originalLength > 0 ? Math.round((summaryLength / originalLength) * 100) : 100;
+        const actualPercentage = originalLength > 0 ? Math.round((summaryLength / originalLength) * 100) : percent;
         
         const data = { 
           url: raw, 
           title, 
           site, 
           bullets, 
-          percentage, 
+          percentage: actualPercentage,
+          requestedPercent: percent, // THÊM MỚI
           originalLength, 
           summaryLength,
           source: "Google Cache",
           translated: isInternational
         };
-        cacheSet(raw, data);
+        cacheSet(cacheKey, data); // THAY ĐỔI: dùng cacheKey thay vì raw
         return res.json(data);
       }
     }
@@ -1056,24 +1259,26 @@ app.get("/api/summary", async (req,res) => {
         bullets = ["(Trang có thể yêu cầu đăng nhập hoặc có paywall. Vui lòng xem bài gốc)"];
       }
     } else {
-      bullets = await summarizeToBulletsWithTranslation(mainText, isInternational ? 'internationaleconomics' : 'vietnam');
+      // THAY ĐỔI: sử dụng function mới với percent
+      bullets = await summarizeToBulletsWithPercentage(mainText, isInternational ? 'internationaleconomics' : 'vietnam', percent);
     }
     
     const originalLength = mainText.length || (fallbackSummary ? fallbackSummary.length : 0);
     const summaryLength = bullets.join(" ").length;
-    const percentage = originalLength > 0 ? Math.round((summaryLength / originalLength) * 100) : 100;
+    const actualPercentage = originalLength > 0 ? Math.round((summaryLength / originalLength) * 100) : percent;
     
     const data = { 
       url: raw, 
       title, 
       site, 
       bullets, 
-      percentage, 
+      percentage: actualPercentage,
+      requestedPercent: percent, // THÊM MỚI
       originalLength, 
       summaryLength,
       translated: isInternational
     };
-    cacheSet(raw, data);
+    cacheSet(cacheKey, data); // THAY ĐỔI: dùng cacheKey
     res.json(data);
   } catch (e) {
     console.error(`Error summarizing ${raw}:`, e.message);
@@ -1084,7 +1289,8 @@ app.get("/api/summary", async (req,res) => {
         title: "Không thể tải trang",
         site: (new URL(raw)).hostname,
         bullets: [fallbackSummary],
-        percentage: 100,
+        percentage: percent,
+        requestedPercent: percent, // THÊM MỚI
         error: e.message
       });
     }
