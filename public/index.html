@@ -67,7 +67,7 @@
           <div id="summaryList" class="text-lg leading-relaxed text-gray-800"></div>
         </div>
 
-        <!-- Footer với các nút điều khiển -->
+       <!-- Footer với các nút điều khiển -->
         <div class="border-t border-gray-300 pt-3">
           <div class="flex items-end justify-between gap-2">
             <!-- Cột TTS bên trái -->
@@ -79,16 +79,23 @@
               <div id="ttsRateBox" class="hidden flex items-center gap-1">
                 <label for="rateRange" class="text-xs text-gray-600">Tốc độ</label>
                 <input id="rateRange" type="range" min="0.6" max="3.0" step="0.1" value="1.0"
-                       class="w-28 accent-emerald-500" aria-label="Tốc độ đọc">
+                      class="w-28 accent-emerald-500" aria-label="Tốc độ đọc">
                 <span id="rateLabel" class="text-xs text-gray-600">1.0x</span>
               </div>
             </div>
 
-            <!-- Nút đọc bài gốc bên phải -->
-            <a id="modalOpenLink" href="#" target="_blank" rel="noopener"
-               class="px-4 py-2 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">
-               Đọc bài gốc ↗
-            </a>
+            <!-- Nút AI và đọc bài gốc bên phải -->
+            <div class="flex items-center gap-2">
+              <button id="modalAIBtn" 
+                      class="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-sm text-white font-medium flex items-center gap-1">
+                <span>🤖</span>
+                <span>AI Tóm tắt</span>
+              </button>
+              <a id="modalOpenLink" href="#" target="_blank" rel="noopener"
+                class="px-4 py-2 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">
+                Đọc bài gốc ↗
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -114,6 +121,21 @@
               AI Tóm tắt thông minh
             </h2>
             <p class="text-sm text-gray-600 mt-1" id="aiSummarySource"></p>
+            
+            <!-- Thêm phần chọn phần trăm -->
+            <div class="mt-2 flex items-center gap-2">
+              <label class="text-sm text-gray-600">Mức độ tóm tắt:</label>
+              <select id="aiSummaryPercent" class="px-2 py-1 text-sm border border-purple-300 rounded-lg bg-white text-gray-700">
+                <option value="30">30% - Rất ngắn gọn</option>
+                <option value="40" selected>40% - Ngắn gọn</option>
+                <option value="50">50% - Trung bình</option>
+                <option value="60">60% - Chi tiết</option>
+                <option value="70">70% - Rất chi tiết</option>
+              </select>
+              <button id="aiSummaryRefresh" class="px-2 py-1 text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg">
+                🔄 Tạo lại
+              </button>
+            </div>
           </div>
           <button id="aiSummaryClose" class="flex-shrink-0 px-3 py-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-white/50">
             ✕

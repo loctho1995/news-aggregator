@@ -560,18 +560,41 @@ function summarizeToBullets(fullText) {
          [`(Tìm thấy ${sentences.length} câu, ${fullText.length} ký tự nhưng không thể tóm tắt)`];
 }
 
-async function generateAISummary(content, language = 'vi') {
+async function generateAISummary(content, language = 'vi', targetLength = null, percent = 40) {
   if (!content || content.length < 100) {
     throw new Error('Nội dung quá ngắn để tóm tắt');
   }
 
-  // TĂNG maxLength để xử lý nhiều content hơn
-  const maxLength = 6000; // TĂNG từ 4000 lên 6000
+  const maxLength = 6000;
   const truncatedContent = content.length > maxLength 
     ? content.substring(0, maxLength) + '...' 
     : content;
 
+  // Tính số điểm chính dựa trên phần trăm
+  let numPoints = 5; // mặc định
+  let detailLevel = "trung bình";
+  
+  if (percent <= 30) {
+    numPoints = 3;
+    detailLevel = "rất ngắn gọn";
+  } else if (percent <= 40) {
+    numPoints = 4;
+    detailLevel = "ngắn gọn";
+  } else if (percent <= 50) {
+    numPoints = 5;
+    detailLevel = "trung bình";
+  } else if (percent <= 60) {
+    numPoints = 6;
+    detailLevel = "chi tiết";
+  } else {
+    numPoints = 7;
+    detailLevel = "rất chi tiết";
+  }
+  
+  console.log(`AI Summary params: ${numPoints} points, ${detailLevel}, target: ${targetLength} chars`);
+
   const aiMethods = [
+    // OpenAI Method
     async () => {
       if (!process.env.OPENAI_API_KEY) return null;
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -584,9 +607,15 @@ async function generateAISummary(content, language = 'vi') {
           model: 'gpt-3.5-turbo',
           messages: [{
             role: 'user',
-            content: `Hãy tóm tắt nội dung sau thành 5-7 điểm chính bằng tiếng Việt, mỗi điểm khoảng 2-3 câu chi tiết để người đọc hiểu rõ vấn đề:\n\n${truncatedContent}`
+            content: `Hãy tóm tắt nội dung sau thành ĐÚNG ${numPoints} điểm chính bằng tiếng Việt.
+                     Mức độ chi tiết: ${detailLevel}.
+                     Độ dài tóm tắt mục tiêu: khoảng ${targetLength || 500} ký tự (${percent}% nội dung gốc).
+                     Mỗi điểm nên có độ dài phù hợp với yêu cầu về phần trăm.
+                     
+                     Nội dung cần tóm tắt:
+                     ${truncatedContent}`
           }],
-          max_tokens: 800, // TĂNG từ 500 lên 800 
+          max_tokens: Math.min(1500, Math.round((targetLength || 800) * 0.4)),
           temperature: 0.3
         }),
         signal: AbortSignal.timeout(15000)
@@ -599,8 +628,16 @@ async function generateAISummary(content, language = 'vi') {
       return null;
     },
 
+    // Cohere Method
     async () => {
       if (!process.env.COHERE_API_KEY) return null;
+      
+      // Map percent to Cohere length parameter
+      let cohereLength = 'medium';
+      if (percent <= 30) cohereLength = 'short';
+      else if (percent <= 50) cohereLength = 'medium';
+      else cohereLength = 'long';
+      
       const response = await fetch('https://api.cohere.ai/v1/summarize', {
         method: 'POST',
         headers: {
@@ -609,10 +646,11 @@ async function generateAISummary(content, language = 'vi') {
         },
         body: JSON.stringify({
           text: truncatedContent,
-          length: 'long', // THAY ĐỔI từ 'medium' thành 'long'
+          length: cohereLength,
           format: 'bullets',
           model: 'summarize-xlarge',
-          additional_command: 'Summarize in Vietnamese language with detailed points'
+          additional_command: `Summarize in Vietnamese with ${numPoints} key points, ${detailLevel} level of detail`,
+          extractiveness: percent <= 40 ? 'low' : 'medium' // More abstractive for lower percentages
         }),
         signal: AbortSignal.timeout(15000)
       });
@@ -624,8 +662,14 @@ async function generateAISummary(content, language = 'vi') {
       return null;
     },
 
+    // HuggingFace Method
     async () => {
       if (!process.env.HUGGINGFACE_API_KEY) return null;
+      
+      // Calculate max/min length based on percentage
+      const maxLen = Math.min(500, Math.round((targetLength || 350) * 0.5));
+      const minLen = Math.max(50, Math.round(maxLen * 0.3));
+      
       const response = await fetch('https://api-inference.huggingface.co/models/facebook/bart-large-cnn', {
         method: 'POST',
         headers: {
@@ -635,9 +679,10 @@ async function generateAISummary(content, language = 'vi') {
         body: JSON.stringify({
           inputs: truncatedContent,
           parameters: {
-            max_length: 350, // TĂNG từ 200 lên 350
-            min_length: 100,  // TĂNG từ 50 lên 100
-            do_sample: false
+            max_length: maxLen,
+            min_length: minLen,
+            do_sample: false,
+            length_penalty: percent <= 40 ? 2.0 : 1.0 // Prefer shorter summaries for lower percentages
           }
         }),
         signal: AbortSignal.timeout(20000)
@@ -654,15 +699,31 @@ async function generateAISummary(content, language = 'vi') {
       return null;
     },
 
+    // Local AI Summary Method
     async () => {
-      return generateLocalAISummary(truncatedContent);
+      return generateLocalAISummary(truncatedContent, numPoints, targetLength);
     }
   ];
 
+  // Try each method in order
   for (const method of aiMethods) {
     try {
       const result = await method();
-      if (result && result.trim().length > 100) { // TĂNG min length từ 50 lên 100
+      if (result && result.trim().length > 100) {
+        // Ensure the result is not too long based on target
+        if (targetLength && result.length > targetLength * 1.5) {
+          // Truncate if too long
+          const sentences = result.match(/[^.!?]+[.!?]+/g) || [result];
+          let truncated = '';
+          for (const sent of sentences) {
+            if (truncated.length + sent.length <= targetLength * 1.2) {
+              truncated += sent;
+            } else {
+              break;
+            }
+          }
+          return truncated.trim() || result.substring(0, targetLength) + '...';
+        }
         return result.trim();
       }
     } catch (error) {
@@ -674,28 +735,70 @@ async function generateAISummary(content, language = 'vi') {
   throw new Error('Không thể tạo AI summary');
 }
 
-// CŨNG CẦN SỬA function generateLocalAISummary để TĂNG output:
-function generateLocalAISummary(content) {
+function generateLocalAISummary(content, numPoints = 5, targetLength = null) {
   const sentences = splitSentencesNoLookbehind(content);
   if (sentences.length < 3) return content;
 
-  // ... (giữ nguyên phần TF-IDF và scoring) ...
-
-  // 3. MMR - TĂNG targetCount để có nhiều nội dung hơn
+  // 1. TF-IDF scoring
+  const wordFreq = {};
+  const docFreq = {};
+  
+  sentences.forEach(sent => {
+    const words = sent.toLowerCase().split(/\s+/)
+      .filter(w => w.length > 2 && !isStopWord(w));
+    const uniqueWords = new Set(words);
+    
+    words.forEach(w => {
+      wordFreq[w] = (wordFreq[w] || 0) + 1;
+    });
+    
+    uniqueWords.forEach(w => {
+      docFreq[w] = (docFreq[w] || 0) + 1;
+    });
+  });
+  
+  // 2. Score sentences - FIXED: khai báo đúng biến
+  const scoredSentences = sentences.map((sentence, index) => {
+    const words = sentence.toLowerCase().split(/\s+/)
+      .filter(w => w.length > 2 && !isStopWord(w));
+    
+    let score = 0;
+    words.forEach(w => {
+      const tf = (wordFreq[w] || 0) / words.length;
+      const idf = Math.log(sentences.length / (docFreq[w] || 1));
+      score += tf * idf;
+    });
+    
+    // Position boost
+    if (index < 2) score *= 1.5;
+    if (index >= sentences.length - 2) score *= 1.2;
+    
+    // Length penalty
+    if (sentence.length < 40) score *= 0.5;
+    if (sentence.length > 300) score *= 0.8;
+    
+    return { sentence, index, score: score * 100 };
+  });
+  
+  // 3. MMR - Select sentences
   const selectedSentences = [];
   const selectedIndices = new Set();
   
-  // Chọn câu đầu tiên có điểm cao nhất
+  // Sort by score
   scoredSentences.sort((a, b) => b.score - a.score);
-  const firstSentence = scoredSentences[0];
-  selectedSentences.push(firstSentence);
-  selectedIndices.add(firstSentence.index);
   
-  // Chọn các câu tiếp theo với MMR
+  // Select first sentence
+  if (scoredSentences.length > 0) {
+    const firstSentence = scoredSentences[0];
+    selectedSentences.push(firstSentence);
+    selectedIndices.add(firstSentence.index);
+  }
+  
+  // MMR parameters
   const lambda = 0.7;
-  // THAY ĐỔI: TĂNG targetCount để có nhiều câu hơn
-  const targetCount = Math.min(8, Math.max(4, Math.ceil(sentences.length * 0.4))); // TĂNG từ 0.3 lên 0.4, max từ 5 lên 8
+  const targetCount = Math.min(numPoints + 2, Math.max(numPoints, Math.ceil(sentences.length * 0.3)));
   
+  // Select additional sentences using MMR
   while (selectedSentences.length < targetCount && selectedSentences.length < scoredSentences.length) {
     let bestCandidate = null;
     let bestMMR = -Infinity;
@@ -703,14 +806,12 @@ function generateLocalAISummary(content) {
     for (const candidate of scoredSentences) {
       if (selectedIndices.has(candidate.index)) continue;
       
-      // Calculate similarity với các câu đã chọn
       let maxSimilarity = 0;
       for (const selected of selectedSentences) {
         const similarity = calculateSimilarity(candidate.sentence, selected.sentence);
         maxSimilarity = Math.max(maxSimilarity, similarity);
       }
       
-      // MMR score
       const mmr = lambda * (candidate.score / 100) - (1 - lambda) * maxSimilarity;
       
       if (mmr > bestMMR) {
@@ -726,24 +827,57 @@ function generateLocalAISummary(content) {
       break;
     }
   }
-
-  // ... (giữ nguyên phần còn lại) ...
-
-  // 6. Final formatting - TĂNG giới hạn độ dài output
-  if (bullets.length === 0) {
-    return content.substring(0, 500) + "..."; // TĂNG từ 300 lên 500
+  
+  // 4. Sort by original position
+  selectedSentences.sort((a, b) => a.index - b.index);
+  
+  // 5. Group consecutive sentences and create bullets
+  const bullets = [];
+  let currentBullet = [];
+  let lastIndex = -2;
+  
+  for (const item of selectedSentences) {
+    if (item.index === lastIndex + 1 && currentBullet.length > 0) {
+      currentBullet.push(item.sentence);
+    } else {
+      if (currentBullet.length > 0) {
+        const text = currentBullet.join(' ');
+        if (text.trim()) {
+          bullets.push(formatBullet(text));
+        }
+      }
+      currentBullet = [item.sentence];
+    }
+    lastIndex = item.index;
   }
   
-  const finalSummary = '• ' + bullets.join('\n• ');
+  // Add last bullet
+  if (currentBullet.length > 0) {
+    const text = currentBullet.join(' ');
+    if (text.trim()) {
+      bullets.push(formatBullet(text));
+    }
+  }
   
-  // TĂNG giới hạn độ dài tối đa
-  if (finalSummary.length > 1200) { // TĂNG từ 400 lên 1200
-    const truncated = finalSummary.substring(0, 1197) + "...";
+  // 6. Limit to numPoints
+  const finalBullets = bullets.slice(0, numPoints);
+  
+  // 7. Format final summary
+  if (finalBullets.length === 0) {
+    return content.substring(0, targetLength || 500) + "...";
+  }
+  
+  const finalSummary = '• ' + finalBullets.join('\n• ');
+  
+  // Apply target length if specified
+  if (targetLength && finalSummary.length > targetLength) {
+    const truncated = finalSummary.substring(0, targetLength - 3) + "...";
     return truncated;
   }
   
   return finalSummary;
 }
+
 // Helper functions
 function isStopWord(word) {
   const stopWords = new Set([
@@ -961,6 +1095,7 @@ app.get("/api/summary", async (req,res) => {
 
 app.get("/api/ai-summary", async (req, res) => {
   const raw = String(req.query.url || "").trim();
+  const percent = parseInt(req.query.percent || "40", 10); // NEW: Lấy phần trăm từ query
   
   try {
     if (!raw) return res.status(400).json({ error: "Missing url parameter" });
@@ -970,7 +1105,9 @@ app.get("/api/ai-summary", async (req, res) => {
       return res.status(400).json({ error: "Only http/https URLs allowed" });
     }
 
-    const cached = aiSummaryCacheGet(raw);
+    // Generate cache key including percent
+    const cacheKey = `${raw}_${percent}`;
+    const cached = aiSummaryCacheGet(cacheKey);
     if (cached) {
       return res.json({ cached: true, ...cached });
     }
@@ -1007,7 +1144,11 @@ app.get("/api/ai-summary", async (req, res) => {
       processedContent = await translatePageContent(content);
     }
 
-    const aiSummary = await generateAISummary(processedContent);
+    // NEW: Tính toán độ dài mục tiêu dựa trên phần trăm
+    const targetLength = Math.round(content.length * (percent / 100));
+    console.log(`Generating AI summary: ${percent}% of ${content.length} chars = ${targetLength} chars`);
+    
+    const aiSummary = await generateAISummary(processedContent, 'vi', targetLength, percent);
     
     const title = ($("meta[property='og:title']").attr("content") || $("title").text() || "").trim();
     const site = $("meta[property='og:site_name']").attr("content") || url.hostname;
@@ -1020,10 +1161,11 @@ app.get("/api/ai-summary", async (req, res) => {
       originalLength: content.length,
       summaryLength: aiSummary.length,
       translated: isEnglish,
+      percent: percent,
       method: 'ai'
     };
 
-    aiSummaryCacheSet(raw, result);
+    aiSummaryCacheSet(cacheKey, result);
     
     res.json(result);
     

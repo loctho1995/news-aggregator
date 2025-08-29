@@ -53,6 +53,13 @@ const webviewError = document.getElementById("webviewError");
 const webviewErrorLink = document.getElementById("webviewErrorLink");
 const webviewOpenExternal = document.getElementById("webviewOpenExternal");
 
+const modalAIBtn = document.getElementById("modalAIBtn");
+const aiSummaryPercent = document.getElementById("aiSummaryPercent");
+const aiSummaryRefresh = document.getElementById("aiSummaryRefresh");
+
+// Thêm biến lưu link hiện tại
+let currentModalLink = null;
+
 // TTS controls
 const btnSpeak = document.getElementById("btnSpeak");
 const btnStopSpeak = document.getElementById("btnStopSpeak");
@@ -429,7 +436,22 @@ function openAISummaryModal(item, link) {
 
 async function fetchAISummary(url) {
   try {
-    const response = await fetch(`/api/ai-summary?url=${encodeURIComponent(url)}`);
+    // THÊM: Lấy giá trị percent từ input element
+    const percent = aiSummaryPercent ? aiSummaryPercent.value || "50" : "50";
+    
+    // Hiển thị loading với thông tin phần trăm
+    aiSummaryLoading.innerHTML = `
+      <div class="relative">
+        <div class="w-16 h-16 border-4 border-purple-200 rounded-full"></div>
+        <div class="w-16 h-16 border-4 border-purple-500 rounded-full border-t-transparent absolute top-0 animate-spin"></div>
+      </div>
+      <p class="mt-4 text-lg text-gray-700 text-center">AI đang phân tích nội dung...</p>
+      <p class="text-sm text-gray-500 text-center max-w-md mt-2">
+        Đang tạo tóm tắt ${percent}% nội dung gốc...
+      </p>
+    `;
+    
+    const response = await fetch(`/api/ai-summary?url=${encodeURIComponent(url)}&percent=${percent}`);
     const data = await response.json();
     
     if (!response.ok) {
@@ -457,7 +479,7 @@ async function fetchAISummary(url) {
     // Update source with additional info
     let sourceText = `Nguồn: ${currentAIItem?.sourceName || ""}`;
     if (data.translated) {
-      sourceText += ` • 🌐 Đã dịch từ tiếng Anh`;
+      sourceText += ` • 🌏 Đã dịch từ tiếng Anh`;
     }
     if (data.cached) {
       sourceText += ` • ⚡ Từ cache`;
@@ -646,6 +668,30 @@ async function loadNews() {
   badge.textContent = `${allItems.length} bài`;
 }
 
+// Thêm sau phần event handlers (khoảng dòng 650)
+modalAIBtn?.addEventListener("click", () => {
+  if (currentItem && currentModalLink) {
+    closeModal(); // Đóng modal tóm tắt thường
+    openAISummaryModal(currentItem, currentModalLink);
+  }
+});
+
+// Event handler cho nút refresh AI summary
+aiSummaryRefresh?.addEventListener("click", () => {
+  if (currentAIItem) {
+    const percent = aiSummaryPercent.value;
+    fetchAISummary(currentAIItem.link, percent);
+  }
+});
+
+// Event handler khi thay đổi phần trăm
+aiSummaryPercent?.addEventListener("change", () => {
+  if (currentAIItem) {
+    const percent = aiSummaryPercent.value;
+    fetchAISummary(currentAIItem.link, percent);
+  }
+});
+
 function shouldDisplayItem(item) {
   const q = search.value.trim().toLowerCase();
   const okSource = activeSource === "all" || item.sourceId === activeSource;
@@ -714,6 +760,17 @@ async function initializeWithVietnamNews() {
 
 /* ===== Modal Summary ===== */
 function openSummaryModal(item, link) {
+  currentModalLink = link; // Lưu link để dùng cho nút AI
+  
+  modalTitle.textContent = item?.title || "Tóm tắt";
+  modalSource.textContent = item?.sourceName ? `Nguồn: ${item.sourceName}` : "";
+  modalOpenLink.href = link;
+  
+  // Hiển thị nút AI tóm tắt
+  if (modalAIBtn) {
+    modalAIBtn.style.display = 'flex';
+  }
+
   modalTitle.textContent = item?.title || "Tóm tắt";
   modalSource.textContent = item?.sourceName ? `Nguồn: ${item.sourceName}` : "";
   modalOpenLink.href = link;
