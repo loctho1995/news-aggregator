@@ -572,6 +572,174 @@ export function createSmartSummary(fullText, maxLength = 250) {
   return summary.trim();
 }
 
+// Hàm tạo bullet point summary cho card
+export function createBulletPointSummary(fullText, maxBullets = 3) {
+  if (!fullText || fullText.length < 50) {
+    return {
+      bullets: [fullText || "Không có nội dung"],
+      text: fullText || ""
+    };
+  }
+  
+  // Tách câu - hỗ trợ cả tiếng Việt và tiếng Anh
+  const sentences = fullText.match(/[^.!?…]+[.!?…]+/g) || 
+                   fullText.split(/[.!?]\s+/).filter(s => s.trim()) ||
+                   [fullText];
+  
+  // Tính điểm cho mỗi câu để tìm câu quan trọng nhất
+  const scoredSentences = sentences.map((sentence, index) => {
+    let score = 0;
+    const cleanSent = sentence.trim().replace(/^[-•●○■□▪▫◦‣⁃]\s*/, '');
+    
+    // Bỏ qua câu quá ngắn
+    if (cleanSent.length < 20) return { sentence: cleanSent, score: -10, index };
+    
+    // Ưu tiên câu có thông tin cụ thể
+    if (/\d+[%]?/.test(cleanSent)) score += 6; // Số liệu
+    if (/triệu|tỷ|nghìn|USD|VND|đồng|\$|€/.test(cleanSent)) score += 5; // Tiền tệ
+    if (/tăng|giảm|phát triển|sụt|tụt|mở rộng|thu hẹp/.test(cleanSent)) score += 4; // Xu hướng
+    if (/năm \d{4}|tháng \d{1,2}|quý [1-4]|Q[1-4]/.test(cleanSent)) score += 3; // Thời gian cụ thể
+    if (/theo|cho biết|khẳng định|tuyên bố|công bố/.test(cleanSent)) score += 3; // Nguồn tin
+    if (/["'"]/.test(cleanSent)) score += 3; // Trích dẫn
+    if (/nhằm|để|với mục tiêu|với mục đích/.test(cleanSent)) score += 2; // Mục đích
+    
+    // Từ khóa quan trọng
+    const importantWords = /quan trọng|chính|mới|đầu tiên|lớn nhất|cao nhất|thấp nhất|kỷ lục|đột phá|then chốt|quyết định|cốt lõi/gi;
+    const matches = cleanSent.match(importantWords);
+    if (matches) score += matches.length * 2;
+    
+    // Vị trí câu
+    if (index === 0) score += 5; // Câu đầu quan trọng nhất
+    if (index === 1) score += 3; // Câu thứ 2
+    if (index === sentences.length - 1) score += 2; // Câu cuối (kết luận)
+    
+    // Độ dài phù hợp cho bullet (không quá ngắn, không quá dài)
+    if (cleanSent.length > 40 && cleanSent.length < 150) score += 3;
+    else if (cleanSent.length > 150 && cleanSent.length < 200) score += 1;
+    else if (cleanSent.length >= 200) score -= 2; // Câu quá dài cho bullet
+    
+    // Penalize câu chứa từ không mong muốn
+    if (/Xem thêm|Đọc thêm|Chia sẻ|Bình luận|Theo dõi|Click|Nhấn vào/.test(cleanSent)) score -= 10;
+    
+    return { 
+      sentence: cleanSent, 
+      score, 
+      index,
+      length: cleanSent.length 
+    };
+  });
+  
+  // Lọc và sắp xếp theo điểm
+  const validSentences = scoredSentences
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+  
+  // Nếu không có câu hợp lệ, lấy câu đầu
+  if (validSentences.length === 0) {
+    const firstSent = sentences[0] ? sentences[0].trim() : fullText.substring(0, 150) + '...';
+    return {
+      bullets: [firstSent],
+      text: firstSent
+    };
+  }
+  
+  // Chọn bullets
+  const bullets = [];
+  const usedIndexes = new Set();
+  const selectedSentences = [];
+  
+  // Lấy câu quan trọng nhất
+  for (const sentObj of validSentences) {
+    // Tránh câu liền kề để tạo tính đa dạng
+    let tooClose = false;
+    for (const usedIdx of usedIndexes) {
+      if (Math.abs(sentObj.index - usedIdx) <= 1) {
+        tooClose = true;
+        break;
+      }
+    }
+    
+    // Nếu đã có 1 bullet và câu này quá gần, skip (trừ khi rất quan trọng)
+    if (bullets.length > 0 && tooClose && sentObj.score < 10) continue;
+    
+    // Xử lý câu dài
+    let bulletText = sentObj.sentence;
+    if (bulletText.length > 180) {
+      // Cắt tại dấu phẩy hoặc chấm phẩy gần nhất
+      const cutPoints = [
+        bulletText.lastIndexOf(',', 150),
+        bulletText.lastIndexOf(';', 150),
+        bulletText.lastIndexOf(' và ', 150),
+        bulletText.lastIndexOf(' hoặc ', 150),
+        bulletText.lastIndexOf(' nhưng ', 150)
+      ].filter(pos => pos > 80);
+      
+      if (cutPoints.length > 0) {
+        const cutAt = Math.max(...cutPoints);
+        bulletText = bulletText.substring(0, cutAt) + '...';
+      } else {
+        // Cắt tại từ gần nhất
+        const words = bulletText.substring(0, 150).split(' ');
+        bulletText = words.slice(0, -1).join(' ') + '...';
+      }
+    }
+    
+    bullets.push(bulletText);
+    selectedSentences.push(sentObj);
+    usedIndexes.add(sentObj.index);
+    
+    if (bullets.length >= maxBullets) break;
+  }
+  
+  // Nếu chưa đủ bullets và còn câu, thêm câu theo thứ tự
+  if (bullets.length < maxBullets) {
+    for (const sent of sentences.slice(0, 10)) {
+      const cleanSent = sent.trim().replace(/^[-•●○■□▪▫◦‣⁃]\s*/, '');
+      
+      // Check if already used
+      const alreadyUsed = bullets.some(b => 
+        b.includes(cleanSent.substring(0, 50)) || 
+        cleanSent.includes(b.substring(0, 50))
+      );
+      
+      if (!alreadyUsed && cleanSent.length > 30 && cleanSent.length < 200) {
+        bullets.push(cleanSent.length > 180 ? 
+          cleanSent.substring(0, 150) + '...' : 
+          cleanSent
+        );
+        
+        if (bullets.length >= maxBullets) break;
+      }
+    }
+  }
+  
+  // Nếu vẫn ít hơn yêu cầu, tách đoạn đầu thành bullets
+  if (bullets.length < maxBullets && fullText.length > 200) {
+    const chunks = fullText.substring(0, 500).split(/[.!?]\s+/);
+    for (const chunk of chunks) {
+      if (bullets.length >= maxBullets) break;
+      
+      const cleanChunk = chunk.trim();
+      if (cleanChunk.length > 30 && !bullets.some(b => b.includes(cleanChunk.substring(0, 30)))) {
+        bullets.push(cleanChunk.length > 180 ? 
+          cleanChunk.substring(0, 150) + '...' : 
+          cleanChunk
+        );
+      }
+    }
+  }
+  
+  // Format bullets với dấu • đơn giản
+  const formattedBullets = bullets.map((bullet) => {
+    return `• ${bullet}`;
+  });
+  
+  return {
+    bullets: formattedBullets,
+    text: bullets.join('. ') // Text version for backward compatibility
+  };
+}
+
 // Export hàm extractFullContent cũ cho backward compatibility
 export function extractFullContent($) {
   const { fullContent } = extractFullContentWithParagraphs($);

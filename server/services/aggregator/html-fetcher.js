@@ -1,7 +1,7 @@
 // server/services/aggregator/html-fetcher.js
 import * as cheerio from "cheerio";
-import { cleanText, toISO, deriveCategoriesFromURL, summarizeContent } from "./utils.js";
-import { extractFullContent } from "./content-extractor.js";
+import { cleanText, toISO, deriveCategoriesFromURL } from "./utils.js";
+import { extractFullContent, createBulletPointSummary } from "./content-extractor.js";
 
 export async function fetchHTMLWithFullContent(source) {
   console.log(`Fetching HTML from ${source.name}...`);
@@ -44,7 +44,9 @@ export async function fetchHTMLWithFullContent(source) {
                    $article("h1").first().text();
       
       const fullContent = extractFullContent($article);
-      const summary = summarizeContent(fullContent);
+      
+      // Tạo bullet point summary thay vì paragraph
+      const bulletSummary = createBulletPointSummary(fullContent, 3);
       
       const image = $article("meta[property='og:image']").attr("content") || 
                    $article("img").first().attr("src");
@@ -57,7 +59,8 @@ export async function fetchHTMLWithFullContent(source) {
         sourceName: source.name,
         title: cleanText(title, 280),
         link: link,
-        summary: summary,
+        summary: bulletSummary.text, // Text version for backward compatibility
+        bullets: bulletSummary.bullets, // Array of bullet points
         fullContent: fullContent,
         publishedAt: toISO(publishedTime),
         image: image,

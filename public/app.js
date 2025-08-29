@@ -371,7 +371,7 @@ function createCardElement(item) {
   const card = document.createElement('div');
   const readStatus = isRead(item.link);
   
-  card.className = `news-card bg-[#ecf0f1] border border-gray-300 rounded-2xl p-4 hover:border-gray-400 transition-colors min-h-[360px] ${readStatus ? "opacity-60 read" : ""}`;
+  card.className = `news-card bg-[#ecf0f1] border border-gray-300 rounded-2xl p-4 hover:border-gray-400 transition-colors min-h-[380px] ${readStatus ? "opacity-60 read" : ""}`;
   card.setAttribute('data-url', item.link);
   card.setAttribute('data-title', item.title || '');
   card.setAttribute('data-source', item.sourceName || '');
@@ -383,14 +383,42 @@ function createCardElement(item) {
     '<button class="read-status-btn px-2 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded transition-colors">✅ Đã đọc</button>' :
     '<button class="read-status-btn px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">⚪ Chưa đọc</button>';
   
+  // Format bullets for display
+  let summaryContent = '';
+  if (item.bullets && Array.isArray(item.bullets) && item.bullets.length > 0) {
+    // Hiển thị dưới dạng bullet points
+    summaryContent = `
+      <ul class="text-base text-gray-700 space-y-2 list-none pl-0">
+        ${item.bullets.map(bullet => {
+          // Loại bỏ bullet cũ nếu có và thêm bullet mới
+          const cleanBullet = bullet.replace(/^[•▸◦‣⁃📈📉💰⚠️🆕🤝]\s*/, '');
+          
+          return `
+            <li class="flex items-start gap-2">
+              <span class="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+              <span class="leading-relaxed flex-1">${cleanBullet}</span>
+            </li>
+          `;
+        }).join('')}
+      </ul>
+    `;
+  } else {
+    // Fallback to paragraph nếu không có bullets
+    summaryContent = `
+      <p class="text-base text-gray-700 line-clamp-7 leading-relaxed">
+        ${item.summary || "Không có tóm tắt."}
+      </p>
+    `;
+  }
+  
   card.innerHTML = `
     <h3 class="title-clickable text-xl font-semibold text-gray-900 line-clamp-2 leading-snug mb-3 cursor-pointer hover:text-emerald-600 transition-colors">
       ${item.title || "Không có tiêu đề"}
     </h3>
     
-    <p class="text-base text-gray-700 mb-auto line-clamp-7 leading-relaxed">
-      ${item.summary || "Không có tóm tắt."}
-    </p>
+    <div class="flex-1 mb-auto">
+      ${summaryContent}
+    </div>
     
     <div class="mt-3">
       <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
@@ -426,7 +454,6 @@ function createCardElement(item) {
   
   return card;
 }
-
 function addItemToGrid(item) {
   if (!itemPassesFilters(item, currentFilters)) return;
   
@@ -752,5 +779,70 @@ if (!document.getElementById('paragraph-styles')) {
 // ===== INITIALIZATION =====
 document.addEventListener("DOMContentLoaded", () => {
   loadReadItems();
+
+ // Add custom styles for bullets
+ if (!document.getElementById('bullet-styles')) {
+    const style = document.createElement('style');
+    style.id = 'bullet-styles';
+    style.textContent = `
+      /* Bullet point styles */
+      .news-card ul {
+        margin: 0;
+        padding: 0;
+      }
+      
+      .news-card ul li {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        align-items: flex-start;
+        line-height: 1.6;
+      }
+      
+      /* Adjust card min-height for bullet points */
+      .news-card {
+        min-height: 380px;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Hover effect for bullets */
+      .news-card ul li:hover {
+        background-color: rgba(16, 185, 129, 0.05);
+        margin-left: -8px;
+        margin-right: -8px;
+        padding-left: 8px;
+        padding-right: 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+      }
+      
+      /* Better spacing for bullets */
+      .news-card ul li + li {
+        margin-top: 8px;
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 640px) {
+        .news-card {
+          min-height: 360px;
+        }
+      }
+      
+      @media (min-width: 1024px) {
+        .news-card {
+          min-height: 400px;
+        }
+      }
+      
+      /* Ensure proper text wrapping */
+      .news-card ul li span:last-child {
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   loadNews();
 });

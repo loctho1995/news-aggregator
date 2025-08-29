@@ -1,8 +1,8 @@
 // server/services/aggregator/rss-fetcher.js
 import Parser from "rss-parser";
 import * as cheerio from "cheerio";
-import { cleanText, toISO, toArray, createCardSummary, deriveCategoriesFromURL } from "./utils.js";
-import { extractFullContent, createSmartSummary } from "./content-extractor.js";
+import { cleanText, toISO, toArray, deriveCategoriesFromURL } from "./utils.js";
+import { extractFullContent, createBulletPointSummary } from "./content-extractor.js";
 import { isVietnamese, translateToVietnamese } from "./translator.js";
 
 const parser = new Parser({ 
@@ -40,12 +40,24 @@ export async function fetchRSSWithFullContent(source) {
         title = await translateToVietnamese(title) || title;
       }
       
-      // Tạo smart summary cho card (400-500 ký tự)
-      let cardSummary = createCardSummary(fullContent || it.contentSnippet || it.content || "", 500);
+      // Tạo bullet point summary cho card (3-4 bullets)
+      let bulletSummary = createBulletPointSummary(
+        fullContent || it.contentSnippet || it.content || "", 
+        3 // Số bullets cho card
+      );
       
       // Dịch summary nếu cần
-      if (isInternational && cardSummary && !isVietnamese(cardSummary)) {
-        cardSummary = await translateToVietnamese(cardSummary) || cardSummary;
+      if (isInternational && bulletSummary && bulletSummary.bullets) {
+        const translatedBullets = [];
+        for (const bullet of bulletSummary.bullets) {
+          if (!isVietnamese(bullet)) {
+            const translated = await translateToVietnamese(bullet);
+            translatedBullets.push(translated || bullet);
+          } else {
+            translatedBullets.push(bullet);
+          }
+        }
+        bulletSummary.bullets = translatedBullets;
       }
       
       const cats = toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean);
@@ -56,7 +68,8 @@ export async function fetchRSSWithFullContent(source) {
         sourceName: source.name,
         title: title,
         link: it.link,
-        summary: cardSummary, // Smart summary cho card
+        summary: bulletSummary.text, // Text version for backward compatibility
+        bullets: bulletSummary.bullets, // Array of bullet points
         fullContent: fullContent,
         publishedAt: toISO(it.isoDate || it.pubDate),
         image: it.enclosure?.url || $("meta[property='og:image']").attr("content") || null,
@@ -68,17 +81,26 @@ export async function fetchRSSWithFullContent(source) {
       
       // Fallback với RSS content
       let title = cleanText(it.title, 280);
-      let summary = createCardSummary(
+      let bulletSummary = createBulletPointSummary(
         it.contentSnippet || it.content || it.summary || "", 
-        250
+        3
       );
       
       if (isInternational) {
         if (title && !isVietnamese(title)) {
           title = await translateToVietnamese(title) || title;
         }
-        if (summary && !isVietnamese(summary)) {
-          summary = await translateToVietnamese(summary) || summary;
+        if (bulletSummary && bulletSummary.bullets) {
+          const translatedBullets = [];
+          for (const bullet of bulletSummary.bullets) {
+            if (!isVietnamese(bullet)) {
+              const translated = await translateToVietnamese(bullet);
+              translatedBullets.push(translated || bullet);
+            } else {
+              translatedBullets.push(bullet);
+            }
+          }
+          bulletSummary.bullets = translatedBullets;
         }
       }
       
@@ -87,7 +109,8 @@ export async function fetchRSSWithFullContent(source) {
         sourceName: source.name,
         title: title,
         link: it.link,
-        summary: summary,
+        summary: bulletSummary.text,
+        bullets: bulletSummary.bullets,
         publishedAt: toISO(it.isoDate || it.pubDate),
         image: it.enclosure?.url || null,
         categories: toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean),
