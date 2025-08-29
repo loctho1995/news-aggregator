@@ -1,4 +1,4 @@
-// VN NEWS AGGREGATOR - APP.JS - SIMPLE MODAL VERSION
+// VN NEWS AGGREGATOR - APP.JS - UPDATED VERSION
 
 // UI Elements - Modal
 const modal = document.getElementById("modal");
@@ -16,10 +16,7 @@ const summaryArea = document.getElementById("summaryArea");
 const summaryLoading = document.getElementById("summaryLoading");
 const summaryList = document.getElementById("summaryList");
 const summaryStats = document.getElementById("summaryStats");
-const compression = document.getElementById("compression");
 const translatedBadge = document.getElementById("translatedBadge");
-const bulletCount = document.getElementById("bulletCount");
-
 // UI Elements - TTS
 const btnSpeak = document.getElementById("btnSpeak");
 const btnStopSpeak = document.getElementById("btnStopSpeak");
@@ -51,6 +48,28 @@ let ttsState = "idle"; // "idle", "speaking", "paused"
 let ttsRate = 1.0;
 let items = [];
 let readItems = new Set();
+
+// Load read items from localStorage on init
+function loadReadItems() {
+  try {
+    const stored = localStorage.getItem('readItems');
+    if (stored) {
+      readItems = new Set(JSON.parse(stored));
+    }
+  } catch (e) {
+    console.warn('Could not load read items:', e);
+    readItems = new Set();
+  }
+}
+
+// Save read items to localStorage
+function saveReadItems() {
+  try {
+    localStorage.setItem('readItems', JSON.stringify([...readItems]));
+  } catch (e) {
+    console.warn('Could not save read items:', e);
+  }
+}
 
 // ===== MODAL FUNCTIONS =====
 
@@ -112,7 +131,7 @@ function loadSummary(item, link) {
         const percentColor = j.percentage > 70 ? "text-orange-600" : 
                            j.percentage > 40 ? "text-yellow-600" : "text-emerald-600";
         const sizeInfo = j.originalLength ? ` (${j.summaryLength}/${j.originalLength} ký tự)` : "";
-        const translatedText = j.translated ? ` • 🌍 Đã dịch` : "";
+        const translatedText = j.translated ? ` • 🌐 Đã dịch` : "";
         
         modalSource.innerHTML = `
           <span>Nguồn: ${item.sourceName || ""}</span>
@@ -132,8 +151,8 @@ function loadSummary(item, link) {
       summaryList.classList.remove("hidden");
       
       summaryStats.classList.remove("hidden");
-      if (j.percentage) compression.textContent = `${100 - j.percentage}%`;
-      if (j.bullets) bulletCount.textContent = j.bullets.length;
+      if (j.percentage) // removed: compression update
+      if (j.bullets) // removed: bulletCount update
       
       if (j.translated) {
         translatedBadge.style.display = 'flex';
@@ -172,13 +191,13 @@ function loadSummary(item, link) {
 // Render summary content
 function renderSummaryContent({ bullets, fallbackText }) {
   if (!bullets || bullets.length === 0) {
-    return fallbackText ? `<p class="text-gray-700">${fallbackText}</p>` : 
-           `<p class="text-gray-500 italic">Không có nội dung tóm tắt.</p>`;
+    return fallbackText ? `<p class="text-gray-700 text-lg">${fallbackText}</p>` : 
+           `<p class="text-gray-500 italic text-lg">Không có nội dung tóm tắt.</p>`;
   }
   
   return bullets.map(bullet => `
-    <div class="mb-3 p-3 bg-white/50 rounded-lg border-l-4 border-emerald-500">
-      <p class="text-gray-800 leading-relaxed">${bullet}</p>
+    <div class="mb-3 p-4 bg-white/50 rounded-lg border-l-4 border-emerald-500">
+      <p class="text-gray-800 leading-relaxed text-lg">${bullet}</p>
     </div>
   `).join('');
 }
@@ -210,11 +229,69 @@ function setRateUI(rate) {
 // ===== MAIN APP FUNCTIONS =====
 
 function markRead(url) {
+  if (readItems.has(url)) return; // Already marked as read
+  
   readItems.add(url);
+  saveReadItems();
+  
   const card = document.querySelector(`[data-url="${CSS.escape(url)}"]`);
   if (card) {
+    // Update read status visually
     card.classList.add("opacity-60");
     card.classList.add("read");
+    
+    // Update read status button
+    const readStatusBtn = card.querySelector('.read-status-btn');
+    if (readStatusBtn) {
+      readStatusBtn.innerHTML = '✅ Đã đọc';
+      readStatusBtn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+      readStatusBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+    }
+    
+    // Move to end of list after a short delay
+    setTimeout(() => {
+      moveCardToEnd(card);
+    }, 500);
+  }
+}
+
+function moveCardToEnd(card) {
+  // Remove from current position
+  card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+  card.style.opacity = '0.5';
+  card.style.transform = 'scale(0.95)';
+  
+  setTimeout(() => {
+    // Move to end
+    grid.appendChild(card);
+    
+    // Animate back in
+    card.style.opacity = '0.6'; // Keep read opacity
+    card.style.transform = 'scale(1)';
+  }, 300);
+}
+
+function toggleReadStatus(url) {
+  if (readItems.has(url)) {
+    // Mark as unread
+    readItems.delete(url);
+    saveReadItems();
+    
+    const card = document.querySelector(`[data-url="${CSS.escape(url)}"]`);
+    if (card) {
+      card.classList.remove("opacity-60");
+      card.classList.remove("read");
+      
+      const readStatusBtn = card.querySelector('.read-status-btn');
+      if (readStatusBtn) {
+        readStatusBtn.innerHTML = '⚪ Chưa đọc';
+        readStatusBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
+        readStatusBtn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+      }
+    }
+  } else {
+    // Mark as read
+    markRead(url);
   }
 }
 
@@ -235,7 +312,7 @@ function timeAgo(iso) {
   return "vừa xong";
 }
 
-function truncate(text, maxLength = 120) {
+function truncate(text, maxLength = 140) {
   if (!text) return "";
   return text.length > maxLength ? text.slice(0, maxLength) + "…" : text;
 }
@@ -262,64 +339,84 @@ function addItemToGrid(item) {
   }
   
   const cardElement = createCardElement(item);
-  grid.appendChild(cardElement);
+  
+  // Insert based on read status - unread first, read at the end
+  if (isRead(item.link)) {
+    grid.appendChild(cardElement);
+  } else {
+    // Find the first read item and insert before it
+    const firstReadCard = grid.querySelector('.read');
+    if (firstReadCard) {
+      grid.insertBefore(cardElement, firstReadCard);
+    } else {
+      grid.appendChild(cardElement);
+    }
+  }
   
   cardElement.style.opacity = '0';
   cardElement.style.transform = 'translateY(10px)';
   
   requestAnimationFrame(() => {
     cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-    cardElement.style.opacity = '1';
+    cardElement.style.opacity = isRead(item.link) ? '0.6' : '1';
     cardElement.style.transform = 'translateY(0)';
   });
 }
 
 function createCardElement(item) {
   const card = document.createElement('div');
-  card.className = `news-card bg-[#40414f] border border-[#565869] rounded-2xl p-4 hover:border-[#6b7280] transition-colors ${isRead(item.link) ? "opacity-60 read" : ""}`;
+  const readStatus = isRead(item.link);
+  
+  // Slightly increased size but more reasonable
+  card.className = `news-card bg-[#ecf0f1] border border-gray-300 rounded-2xl p-4 hover:border-gray-400 transition-colors min-h-[200px] ${readStatus ? "opacity-60 read" : ""}`;
   card.setAttribute('data-url', item.link);
   card.setAttribute('data-title', item.title || '');
   card.setAttribute('data-source', item.sourceName || '');
   
   const groupBadge = item.group === 'internationaleconomics' ? 
-    '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">🌍 Quốc tế</span>' : '';
+    '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">Quốc tế</span>' : '';
+  
+  const readStatusButton = readStatus ? 
+    '<button class="read-status-btn px-2 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded transition-colors">Đã đọc</button>' :
+    '<button class="read-status-btn px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">Chưa đọc</button>';
   
   card.innerHTML = `
-    <div class="flex items-start justify-between gap-2 mb-2">
-      <h3 class="text-sm font-semibold text-slate-100 line-clamp-2 leading-snug">
-        ${item.title || "Không có tiêu đề"}
-      </h3>
-      ${item.image ? `<img src="${item.image}" class="w-16 h-16 object-cover rounded-lg flex-shrink-0 ml-2" loading="lazy" onerror="this.style.display='none'">` : ''}
-    </div>
+    <h3 class="title-clickable text-xl font-semibold text-gray-900 line-clamp-2 leading-snug mb-3 cursor-pointer hover:text-emerald-600 transition-colors">
+      ${item.title || "Không có tiêu đề"}
+    </h3>
     
-    <p class="text-xs text-slate-300 mb-3 line-clamp-4">
+    <p class="text-base text-gray-700 mb-4 line-clamp-4 leading-relaxed">
       ${truncate(item.summary || "Không có tóm tắt.")}
     </p>
     
-    <div class="flex items-center justify-between text-xs text-slate-400">
+    <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
       <div class="flex items-center gap-2">
-        <span class="font-medium text-emerald-400">${item.sourceName || "N/A"}</span>
+        <span class="font-medium text-emerald-600">${item.sourceName || "N/A"}</span>
         ${groupBadge}
-        ${item.translated ? '<span class="text-blue-400">🌍</span>' : ''}
+        ${item.translated ? '<span class="text-blue-600">Đã dịch</span>' : ''}
       </div>
       <span>${timeAgo(item.publishedAt)}</span>
     </div>
     
-    <div class="flex gap-2 mt-3">
-      <button class="summary-btn flex-1 px-3 py-1.5 text-xs bg-[#565869] hover:bg-[#6b7280] text-slate-200 rounded-lg transition-colors">
-        📄 Tóm tắt
-      </button>
+    <div class="flex gap-2 mt-auto">
+      ${readStatusButton}
       <a href="${item.link}" target="_blank" rel="noopener" 
-         class="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors">
-        Đọc gốc ↗
+         class="flex-1 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors text-center">
+        Link bài báo
       </a>
     </div>
   `;
   
-  // Add event listener directly
-  const summaryBtn = card.querySelector('.summary-btn');
-  summaryBtn.addEventListener('click', () => {
+  // Add event listeners
+  const titleElement = card.querySelector('.title-clickable');
+  titleElement.addEventListener('click', () => {
     openSummaryModal(item, item.link);
+  });
+  
+  const readStatusBtn = card.querySelector('.read-status-btn');
+  readStatusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleReadStatus(item.link);
   });
   
   return card;
@@ -337,7 +434,21 @@ function renderItems(itemsToRender) {
   
   const fragment = document.createDocumentFragment();
   
-  itemsToRender.forEach(item => {
+  // Sort items: unread first, read last
+  const sortedItems = [...itemsToRender].sort((a, b) => {
+    const aRead = isRead(a.link);
+    const bRead = isRead(b.link);
+    
+    if (aRead && !bRead) return 1;  // a is read, b is unread -> b comes first
+    if (!aRead && bRead) return -1; // a is unread, b is read -> a comes first
+    
+    // Both same read status, sort by date
+    const aDate = a.publishedAt ? new Date(a.publishedAt) : new Date(0);
+    const bDate = b.publishedAt ? new Date(b.publishedAt) : new Date(0);
+    return bDate - aDate;
+  });
+  
+  sortedItems.forEach(item => {
     const cardElement = createCardElement(item);
     fragment.appendChild(cardElement);
   });
@@ -409,7 +520,7 @@ async function loadNews() {
       }
     }
     
-    badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-emerged-600 text-white border border-emerald-500";
+    badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-emerald-600 text-white border border-emerald-500";
     
     populateSourceSelect();
     
@@ -547,5 +658,6 @@ document.addEventListener("keydown", (e) => {
 
 // ===== INITIALIZATION =====
 document.addEventListener("DOMContentLoaded", () => {
+  loadReadItems();
   loadNews();
 });
