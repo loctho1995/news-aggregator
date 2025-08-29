@@ -35,90 +35,91 @@ export function deriveCategoriesFromURL(href) {
   }
 }
 
-// Hàm tóm tắt thông minh cho card description (400-500 ký tự)
-export function createCardSummary(fullText, maxLength = 500) {
-  if (!fullText || fullText.length < 50) return fullText || "";
+// Hàm tạo summary dạng bullet points cho card
+export function createBulletSummary(fullText, maxLength = 500) {
+  if (!fullText || fullText.length < 50) return ["Không có thông tin chi tiết"];
   
-  // Nếu text ngắn hơn target, trả về nguyên bản
-  if (fullText.length <= maxLength) return fullText;
-  
-  // Nếu text chỉ hơn target một chút, cắt tại ranh giới từ
-  if (fullText.length <= maxLength + 50) {
-    const cutPoint = fullText.lastIndexOf(' ', maxLength);
-    if (cutPoint > maxLength * 0.8) {
-      return fullText.substring(0, cutPoint) + '...';
-    }
-  }
-  
-  // Tách câu - hỗ trợ nhiều kiểu ngắt câu
+  // Tách câu
   const sentences = fullText.match(/[^.!?;]+[.!?;]+/g) || 
                    fullText.match(/[^\n]+/g) || 
                    [fullText];
   
-  // Build summary từ các câu đầu
-  let summary = "";
-  const targetMin = 400;
-  const targetMax = maxLength;
+  const bullets = [];
+  let totalLength = 0;
+  const maxBullets = 4; // Tối đa 4 gạch đầu dòng
+  const minBulletLength = 40; // Mỗi bullet ít nhất 40 ký tự
+  const maxBulletLength = 120; // Mỗi bullet tối đa 120 ký tự
   
-  // Phương pháp 1: Lấy theo thứ tự câu
-  for (let i = 0; i < sentences.length && summary.length < targetMin; i++) {
+  // Lọc và xử lý câu thành bullets
+  for (let i = 0; i < sentences.length && bullets.length < maxBullets; i++) {
     const sent = sentences[i].trim();
     
-    // Bỏ qua câu rác
-    if (sent.length < 10) continue;
+    // Bỏ qua câu quá ngắn hoặc không có nghĩa
+    if (sent.length < 20) continue;
     if (/^(Xem thêm|Đọc thêm|Chia sẻ|Bình luận)/i.test(sent)) continue;
     
-    // Kiểm tra nếu thêm câu này có vượt limit không
-    const testLength = summary ? summary.length + sent.length + 1 : sent.length;
-    
-    if (testLength <= targetMax) {
-      summary = summary ? summary + " " + sent : sent;
-    } else if (summary.length < targetMin) {
-      // Nếu chưa đủ min, cắt câu này và thêm vào
-      const remainingSpace = targetMax - summary.length - 4;
-      if (remainingSpace > 50) {
-        const words = sent.split(' ');
-        const wordsToTake = Math.floor(remainingSpace / 6); // ~6 ký tự/từ
-        
-        if (wordsToTake > 3) {
-          const partial = words.slice(0, wordsToTake).join(' ');
-          summary = summary ? summary + " " + partial + "..." : partial + "...";
-        }
+    // Nếu câu quá dài, cắt ngắn
+    let bulletText = sent;
+    if (sent.length > maxBulletLength) {
+      const words = sent.split(' ');
+      const wordsNeeded = Math.floor(maxBulletLength / 6);
+      bulletText = words.slice(0, wordsNeeded).join(' ');
+      if (words.length > wordsNeeded) {
+        bulletText += '...';
       }
-      break;
     }
-  }
-  
-  // Nếu vẫn quá ngắn, lấy trực tiếp từ đầu text
-  if (summary.length < targetMin) {
-    // Lấy 450 ký tự đầu và cắt tại ranh giới từ
-    const directCut = fullText.substring(0, 450);
-    const lastSpace = directCut.lastIndexOf(' ');
     
-    if (lastSpace > 350) {
-      summary = directCut.substring(0, lastSpace) + '...';
-    } else {
-      summary = directCut + '...';
+    // Kiểm tra tổng độ dài
+    if (totalLength + bulletText.length > maxLength) {
+      // Nếu đã có ít nhất 2 bullets thì dừng
+      if (bullets.length >= 2) break;
+      
+      // Nếu chưa, cắt bullet này cho vừa
+      const remainingSpace = maxLength - totalLength - 10;
+      if (remainingSpace > minBulletLength) {
+        const words = bulletText.split(' ');
+        const wordsToTake = Math.floor(remainingSpace / 6);
+        if (wordsToTake > 5) {
+          bulletText = words.slice(0, wordsToTake).join(' ') + '...';
+        } else {
+          continue; // Bỏ qua bullet này
+        }
+      } else {
+        break;
+      }
+    }
+    
+    bullets.push(bulletText);
+    totalLength += bulletText.length;
+  }
+  
+  // Nếu không có bullet nào, tạo từ text gốc
+  if (bullets.length === 0) {
+    const chunks = fullText.substring(0, 400).split(/[.!?;]+/);
+    for (let i = 0; i < Math.min(3, chunks.length); i++) {
+      const chunk = chunks[i].trim();
+      if (chunk.length > 20) {
+        bullets.push(chunk.length > maxBulletLength ? 
+          chunk.substring(0, maxBulletLength - 3) + '...' : 
+          chunk);
+      }
     }
   }
   
-  // Đảm bảo không vượt quá max
-  if (summary.length > targetMax) {
-    const cutPoint = summary.lastIndexOf(' ', targetMax - 4);
-    if (cutPoint > targetMin) {
-      summary = summary.substring(0, cutPoint) + '...';
-    } else {
-      summary = summary.substring(0, targetMax - 3) + '...';
-    }
+  // Đảm bảo có ít nhất 1 bullet
+  if (bullets.length === 0) {
+    bullets.push(fullText.substring(0, Math.min(100, fullText.length)) + 
+                 (fullText.length > 100 ? '...' : ''));
   }
   
-  // Làm sạch
-  summary = summary
-    .replace(/\s+/g, ' ')
-    .replace(/\.\.\.\./g, '...')
-    .trim();
-  
-  return summary;
+  return bullets;
+}
+
+// Giữ hàm cũ cho compatibility
+export function createCardSummary(fullText, maxLength = 500) {
+  // Chuyển sang dùng bullet summary
+  const bullets = createBulletSummary(fullText, maxLength);
+  return bullets.join(' • '); // Join với bullet character
 }
 
 // Hàm tóm tắt cũ (giữ cho backward compatibility)
