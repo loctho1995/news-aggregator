@@ -1,36 +1,90 @@
 // server/services/aggregator/index.js
+// UNIVERSAL VERSION - Works on both LOCAL and SERVER
+
 import dayjs from "dayjs";
 import { SOURCES } from "../../constants/sources.js";
 import { fetchRSSWithFullContent } from "./rss-fetcher.js";
 import { fetchHTMLWithFullContent } from "./html-fetcher.js";
 import { DEFAULT_TZ } from "./utils.js";
 
-// Main fetch function
-async function fetchFromSource(sourceId) {
+// Check environment
+const isLocal = process.env.NODE_ENV !== 'production' || 
+                process.env.LOCAL_DEV === 'true' ||
+                !process.env.PORT;
+
+console.log(`Running in ${isLocal ? 'LOCAL' : 'PRODUCTION'} mode`);
+
+// Priority sources
+const PRIORITY_SOURCES = {
+  high: ['vnexpress', 'tuoitre', 'dantri', 'vietnamnet', 'cafef'],
+  medium: ['thanhnien', 'laodong', 'cafebiz', 'vietstock'],
+  low: ['baophapluat', 'bnews', 'vnbusiness', 'brandsvietnam']
+};
+
+// Fetch with retry (different config for local vs server)
+async function fetchWithRetryAndTimeout(sourceId, maxRetries = null) {
   const source = SOURCES[sourceId];
   if (!source) throw new Error("Unknown source: " + sourceId);
   
-  try {
-    if (source.type === "rss") {
-      return await fetchRSSWithFullContent(source);
-    } else if (source.type === "html") {
-      return await fetchHTMLWithFullContent(source);
+  // Different settings for local vs server
+  const retries = maxRetries || (isLocal ? 1 : 2);
+  const timeouts = {
+    rss: isLocal ? 10000 : 15000,
+    html: isLocal ? 10000 : 20000
+  };
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`[Attempt ${attempt}/${retries}] Fetching ${sourceId}...`);
+      
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        controller.abort();
+      }, timeouts[source.type] || 10000);
+      
+      let items = [];
+      
+      try {
+        if (source.type === "rss") {
+          items = await fetchRSSWithFullContent(source, controller.signal);
+        } else {
+          items = await fetchHTMLWithFullContent(source, controller.signal);
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
+      
+      if (items && items.length > 0) {
+        console.log(`✓ ${sourceId}: Got ${items.length} items`);
+        return items;
+      }
+      
+    } catch (e) {
+      console.error(`✗ ${sourceId} attempt ${attempt}: ${e.message}`);
+      
+      // Wait before retry (shorter for local)
+      if (attempt < retries) {
+        const waitTime = isLocal ? 500 : attempt * 2000;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
-  } catch (e) {
-    console.error(`Error with source ${sourceId}: ${e.message}`);
-    return [];
   }
+  
+  console.error(`✗✗ ${sourceId} failed after ${retries} attempts`);
+  return [];
 }
 
-// Streaming version
+// STREAMING VERSION
 export async function fetchAllStreaming({ 
   include = [], 
   hours = 24, 
-  limitPerSource = 30, 
+  limitPerSource = null, 
   group = null, 
   onItem 
 } = {}) {
-  // Filter sources by group if specified
+  // Default limits based on environment
+  const itemLimit = limitPerSource || (isLocal ? 30 : 15);
+  
   let ids;
   if (include.length) {
     ids = include;
@@ -39,63 +93,153 @@ export async function fetchAllStreaming({
   } else {
     ids = Object.keys(SOURCES);
   }
+  
+  // Sort by priority
+  ids.sort((a, b) => {
+    const getPriority = (id) => {
+      if (PRIORITY_SOURCES.high.includes(id)) return 0;
+      if (PRIORITY_SOURCES.medium.includes(id)) return 1;
+      if (PRIORITY_SOURCES.low.includes(id)) return 2;
+      return 3;
+    };
+    return getPriority(a) - getPriority(b);
+  });
+  
+  console.log(`Starting fetch for ${ids.length} sources (${isLocal ? 'LOCAL' : 'SERVER'} mode)`);
   
   const since = dayjs().tz(DEFAULT_TZ).subtract(hours, "hour");
   const seen = new Set();
+  let totalFetched = 0;
+  let successfulSources = 0;
+  let failedSources = [];
   
-  // Process sources in parallel but emit items as soon as available
-  const promises = ids.map(async (id) => {
-    try {
-      console.log(`Fetching from ${id}...`);
-      const items = await fetchFromSource(id);
+  // LOCAL: Can fetch in parallel
+  if (isLocal) {
+    const BATCH_SIZE = 3;
+    
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
       
-      // Process and emit each item immediately
-      for (const item of items) {
-        // Check time filter
-        if (item.publishedAt) {
-          const t = dayjs(item.publishedAt);
-          if (t.isValid() && !t.isAfter(since)) continue;
+      const batchPromises = batch.map(async (id) => {
+        try {
+          const items = await fetchWithRetryAndTimeout(id);
+          
+          if (items.length > 0) {
+            successfulSources++;
+            
+            for (const item of items.slice(0, itemLimit)) {
+              if (item.publishedAt) {
+                const t = dayjs(item.publishedAt);
+                if (t.isValid() && !t.isAfter(since)) continue;
+              }
+              
+              if (seen.has(item.link)) continue;
+              seen.add(item.link);
+              
+              item.group = SOURCES[id].group || 'vietnam';
+              item.categories = (item.categories || []).map(x => String(x).trim()).filter(Boolean);
+              
+              if (onItem) {
+                onItem(item);
+                totalFetched++;
+              }
+            }
+          } else {
+            failedSources.push(id);
+          }
+        } catch (e) {
+          console.error(`Failed to process ${id}: ${e.message}`);
+          failedSources.push(id);
+          
+          if (onItem) {
+            onItem({ 
+              error: true, 
+              sourceId: id, 
+              message: e.message,
+              group: SOURCES[id]?.group || 'vietnam'
+            });
+          }
+        }
+      });
+      
+      await Promise.allSettled(batchPromises);
+    }
+  } 
+  // SERVER: Sequential to avoid overload
+  else {
+    for (const id of ids) {
+      try {
+        // Skip low priority if have enough
+        if (totalFetched > 40 && PRIORITY_SOURCES.low.includes(id)) {
+          console.log(`Skipping low-priority ${id}`);
+          continue;
         }
         
-        // Check duplicate
-        if (seen.has(item.link)) continue;
-        seen.add(item.link);
+        const items = await fetchWithRetryAndTimeout(id);
         
-        // Add group info
-        item.group = SOURCES[id].group || 'vietnam';
-        item.categories = (item.categories || []).map(x => String(x).trim()).filter(Boolean);
+        if (items.length === 0) {
+          failedSources.push(id);
+          continue;
+        }
         
-        // Emit item immediately
+        successfulSources++;
+        
+        for (const item of items.slice(0, itemLimit)) {
+          if (item.publishedAt) {
+            const t = dayjs(item.publishedAt);
+            if (t.isValid() && !t.isAfter(since)) continue;
+          }
+          
+          if (seen.has(item.link)) continue;
+          seen.add(item.link);
+          
+          item.group = SOURCES[id].group || 'vietnam';
+          item.categories = (item.categories || []).map(x => String(x).trim()).filter(Boolean);
+          
+          if (onItem) {
+            onItem(item);
+            totalFetched++;
+          }
+        }
+        
+        // Delay between sources on server
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (e) {
+        console.error(`Failed to process ${id}: ${e.message}`);
+        failedSources.push(id);
+        
         if (onItem) {
-          onItem(item);
+          onItem({ 
+            error: true, 
+            sourceId: id, 
+            message: e.message,
+            group: SOURCES[id]?.group || 'vietnam'
+          });
         }
-      }
-    } catch (e) {
-      console.error(`Source ${id} failed: ${e.message}`);
-      // Send error item but don't stop
-      if (onItem) {
-        onItem({ 
-          error: true, 
-          sourceId: id, 
-          message: e.message,
-          group: SOURCES[id]?.group || 'vietnam'
-        });
       }
     }
-  });
+  }
   
-  // Wait for all to complete
-  await Promise.allSettled(promises);
+  console.log(`
+    ========== FETCH SUMMARY ==========
+    Mode: ${isLocal ? 'LOCAL' : 'SERVER'}
+    ✓ Successful: ${successfulSources} sources
+    ✗ Failed: ${failedSources.length} sources
+    📰 Total items: ${totalFetched}
+    ===================================
+  `);
 }
 
-// Batch version
+// BATCH VERSION
 export async function fetchAll({ 
   include = [], 
   hours = 24, 
-  limitPerSource = 30, 
+  limitPerSource = null,
   group = null 
 } = {}) {
-  // Filter sources by group if specified
+  const itemLimit = limitPerSource || (isLocal ? 30 : 15);
+  
   let ids;
   if (include.length) {
     ids = include;
@@ -105,45 +249,90 @@ export async function fetchAll({
     ids = Object.keys(SOURCES);
   }
   
-  const since = dayjs().tz(DEFAULT_TZ).subtract(hours, "hour");
+  // Sort by priority
+  ids.sort((a, b) => {
+    const getPriority = (id) => {
+      if (PRIORITY_SOURCES.high.includes(id)) return 0;
+      if (PRIORITY_SOURCES.medium.includes(id)) return 1;
+      if (PRIORITY_SOURCES.low.includes(id)) return 2;
+      return 3;
+    };
+    return getPriority(a) - getPriority(b);
+  });
   
-  // Fetch song song nhưng giới hạn concurrent
-  const batchSize = 3; // Xử lý 3 nguồn cùng lúc
+  const since = dayjs().tz(DEFAULT_TZ).subtract(hours, "hour");
   const results = [];
   
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const batch = ids.slice(i, i + batchSize);
-    const batchPromises = batch.map(async (id) => {
+  console.log(`Batch fetching ${ids.length} sources (${isLocal ? 'LOCAL' : 'SERVER'} mode)`);
+  
+  // LOCAL: Parallel fetching
+  if (isLocal) {
+    const BATCH_SIZE = 3;
+    
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      const batch = ids.slice(i, i + BATCH_SIZE);
+      
+      const batchPromises = batch.map(async (id) => {
+        try {
+          const items = await fetchWithRetryAndTimeout(id);
+          
+          const filtered = items
+            .filter((it) => {
+              if (!it.publishedAt) return true;
+              const t = dayjs(it.publishedAt);
+              return t.isValid() ? t.isAfter(since) : true;
+            })
+            .slice(0, itemLimit);
+          
+          filtered.forEach(item => {
+            item.group = SOURCES[id].group || 'vietnam';
+          });
+          
+          return filtered;
+        } catch (e) {
+          console.error(`Source ${id} failed: ${e.message}`);
+          return [];
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults.flat());
+    }
+  }
+  // SERVER: Sequential fetching  
+  else {
+    for (const id of ids) {
       try {
-        const items = await fetchFromSource(id);
+        const items = await fetchWithRetryAndTimeout(id);
+        
         const filtered = items
           .filter((it) => {
             if (!it.publishedAt) return true;
             const t = dayjs(it.publishedAt);
             return t.isValid() ? t.isAfter(since) : true;
           })
-          .slice(0, limitPerSource);
+          .slice(0, itemLimit);
         
-        // Add group info to each item
         filtered.forEach(item => {
           item.group = SOURCES[id].group || 'vietnam';
         });
         
-        return filtered;
+        results.push(...filtered);
+        console.log(`✓ ${id}: Added ${filtered.length} items`);
+        
+        // Small delay on server
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
       } catch (e) {
         console.error(`Source ${id} failed: ${e.message}`);
-        return [];
       }
-    });
-    
-    const batchResults = await Promise.all(batchPromises);
-    results.push(...batchResults.flat());
+    }
   }
   
   // Deduplicate
   const seen = new Set();
   const deduped = [];
-  for (const it of results) {
+  for (const it of results.flat()) {
     if (!it.link || seen.has(it.link)) continue;
     seen.add(it.link);
     it.categories = (it.categories || []).map(x => String(x).trim()).filter(Boolean);
@@ -157,6 +346,7 @@ export async function fetchAll({
     return tb - ta;
   });
   
+  console.log(`Total fetched: ${deduped.length} unique items`);
   return deduped;
 }
 
