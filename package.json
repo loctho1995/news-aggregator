@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node server/index.js",
-    "start": "NODE_ENV=production node server/index.js"
+    "start": "node server/index.js",
+    "build": "echo 'No build required'"
   },
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
@@ -15,5 +16,8 @@
     "cors": "^2.8.5",
     "rss-parser": "^3.13.0",
     "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
