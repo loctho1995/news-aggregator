@@ -1,141 +1,189 @@
-import { contentSelectors, leadSelectors } from './selectors.js';
+// Content extraction logic
 
-export function extractFullContentWithParagraphs($) {
-  // Xóa các thành phần không cần thiết
-  $("script,style,noscript,iframe,.advertisement,.ads,.banner,.sidebar,.widget,.social-share,.related-news,.comment,.comments,footer,header,nav,.breadcrumb").remove();
-  
-  let paragraphs = [];
-  let fullContent = "";
-  let contentFound = false;
+import { CONTENT_SELECTORS, LEAD_SELECTORS, UNWANTED_SELECTORS } from './config.js';
 
-  // Phương pháp 1: Tìm theo selectors cụ thể
-  for (const [site, selectors] of Object.entries(contentSelectors)) {
-    if (contentFound) break;
+export class ContentExtractor {
+  constructor($) {
+    this.$ = $;
+    this.removeUnwanted();
+  }
+
+  removeUnwanted() {
+    this.$(UNWANTED_SELECTORS).remove();
+  }
+
+  extract() {
+    let paragraphs = [];
+    let contentFound = false;
+
+    // Try specific selectors
+    for (const [site, selectors] of Object.entries(CONTENT_SELECTORS)) {
+      if (contentFound) break;
+      
+      paragraphs = this.extractWithSelectors(selectors);
+      if (paragraphs.length > 2) {
+        contentFound = true;
+        break;
+      }
+    }
+
+    // Fallback to density analysis
+    if (!contentFound) {
+      paragraphs = this.extractByDensity(paragraphs);
+    }
+
+    // Add lead/summary
+    paragraphs = this.addLeadContent(paragraphs);
+
+    // Final fallback
+    if (paragraphs.length === 0) {
+      paragraphs = this.extractFromMeta();
+    }
+
+    const fullContent = paragraphs.join("\n\n");
     
+    return {
+      fullContent,
+      paragraphs,
+      paragraphCount: paragraphs.length
+    };
+  }
+
+  extractWithSelectors(selectors) {
+    const paragraphs = [];
+    const $ = this.$;
     const $contents = $(selectors.article);
     
-    for (let i = 0; i < $contents.length; i++) {
-      const $content = $($contents[i]);
-      const textContent = $content.find(selectors.paragraphs).add($content.filter(selectors.paragraphs));
+    $contents.each((i, content) => {
+      const $content = $(content);
+      const textContent = $content.find(selectors.paragraphs);
       
-      if (textContent.length > 0) {
-        textContent.each((j, el) => {
-          const text = $(el).text().trim();
-          
-          if (text && text.length > 20 && 
-              !text.includes("Xem thêm:") && 
-              !text.includes("Đọc thêm:") &&
-              !text.includes("TIN LIÊN QUAN") &&
-              !text.includes("Chia sẻ bài viết") &&
-              !text.includes("Bình luận")) {
-            
-            if (!paragraphs.some(p => p.includes(text) || text.includes(p))) {
-              paragraphs.push(text);
-            }
-          }
-        });
-        
-        if (paragraphs.length > 2) {
-          contentFound = true;
-          break;
+      textContent.each((j, el) => {
+        const text = $(el).text().trim();
+        if (this.isValidParagraph(text) && !this.isDuplicate(text, paragraphs)) {
+          paragraphs.push(text);
         }
-      }
-    }
-  }
-
-  // Phương pháp 2: Text density analysis
-  if (paragraphs.length < 3) {
-    paragraphs = extractByTextDensity($, paragraphs);
-  }
-
-  // Phương pháp 3: Lead/summary extraction
-  leadSelectors.forEach(selector => {
-    const lead = $(selector).text().trim();
-    if (lead && lead.length > 30) {
-      if (!paragraphs.some(p => p.includes(lead) || lead.includes(p))) {
-        paragraphs.unshift(lead);
-      }
-    }
-  });
-
-  fullContent = paragraphs.join("\n\n");
-
-  // Fallback với meta tags
-  if (!fullContent || fullContent.length < 100) {
-    fullContent = extractFromMetaTags($);
-    if (fullContent) {
-      paragraphs = fullContent.split("\n\n");
-    }
-  }
-
-  return {
-    fullContent: fullContent,
-    paragraphs: paragraphs,
-    paragraphCount: paragraphs.length
-  };
-}
-
-function extractByTextDensity($, existingParagraphs) {
-  const allParagraphs = [];
-  
-  $("p, div, section, article").each((i, el) => {
-    const $el = $(el);
-    const text = $el.clone().children().remove().end().text().trim();
+      });
+    });
     
-    if (text && text.length > 50) {
-      const childText = $el.find("p, div").text().trim();
+    return paragraphs;
+  }
+
+  extractByDensity(existingParagraphs) {
+    const $ = this.$;
+    const candidates = [];
+    
+    $("p, div, section, article").each((i, el) => {
+      const $el = $(el);
+      const text = $el.clone().children().remove().end().text().trim();
       
-      if (childText && childText.length > text.length * 0.5) {
-        $el.find("p").each((j, p) => {
-          const pText = $(p).text().trim();
-          if (pText && pText.length > 30) {
-            allParagraphs.push({
-              text: pText,
-              parent: $el.attr('class') || $el.attr('id') || 'unknown'
-            });
-          }
-        });
-      } else if (text.length > 50) {
-        allParagraphs.push({
-          text: text,
-          parent: $el.parent().attr('class') || $el.parent().attr('id') || 'unknown'
+      if (text && text.length > 50) {
+        candidates.push({
+          text,
+          parent: $el.parent().attr('class') || 'unknown',
+          score: this.calculateDensity($el, text)
         });
       }
+    });
+    
+    // Group by parent and select best group
+    const grouped = this.groupByParent(candidates);
+    const bestGroup = this.selectBestGroup(grouped);
+    
+    return this.mergeUnique(existingParagraphs, bestGroup);
+  }
+
+  addLeadContent(paragraphs) {
+    const $ = this.$;
+    
+    for (const selector of LEAD_SELECTORS) {
+      const lead = $(selector).text().trim();
+      if (lead && lead.length > 30 && !this.isDuplicate(lead, paragraphs)) {
+        paragraphs.unshift(lead);
+        break;
+      }
     }
-  });
-  
-  const groupedByParent = {};
-  allParagraphs.forEach(p => {
-    const key = p.parent;
-    if (!groupedByParent[key]) groupedByParent[key] = [];
-    groupedByParent[key].push(p.text);
-  });
-  
-  let maxGroup = [];
-  Object.values(groupedByParent).forEach(group => {
-    if (group.length > maxGroup.length) {
-      maxGroup = group;
-    }
-  });
-  
-  const result = [...existingParagraphs];
-  maxGroup.forEach(text => {
-    if (!result.some(p => p.includes(text) || text.includes(p))) {
-      result.push(text);
-    }
-  });
-  
-  return result;
+    
+    return paragraphs;
+  }
+
+  extractFromMeta() {
+    const $ = this.$;
+    const metaContent = [
+      $("meta[property='og:description']").attr("content"),
+      $("meta[name='description']").attr("content"),
+      $("meta[property='article:description']").attr("content")
+    ].filter(Boolean);
+    
+    return metaContent.length > 0 ? metaContent : ["Không thể trích xuất nội dung"];
+  }
+
+  isValidParagraph(text) {
+    if (!text || text.length < 20) return false;
+    
+    const unwantedPatterns = [
+      /Xem thêm:/i, /Đọc thêm:/i, /TIN LIÊN QUAN/i,
+      /Chia sẻ bài viết/i, /Bình luận/i
+    ];
+    
+    return !unwantedPatterns.some(pattern => pattern.test(text));
+  }
+
+  isDuplicate(text, paragraphs) {
+    return paragraphs.some(p => 
+      p.includes(text) || text.includes(p)
+    );
+  }
+
+  calculateDensity($el, text) {
+    const linkDensity = $el.find('a').text().length / (text.length || 1);
+    const childElements = $el.children().length;
+    
+    return text.length * (1 - linkDensity) - childElements * 10;
+  }
+
+  groupByParent(candidates) {
+    const grouped = {};
+    
+    candidates.forEach(c => {
+      if (!grouped[c.parent]) grouped[c.parent] = [];
+      grouped[c.parent].push(c.text);
+    });
+    
+    return grouped;
+  }
+
+  selectBestGroup(grouped) {
+    let bestGroup = [];
+    let maxScore = 0;
+    
+    Object.values(grouped).forEach(group => {
+      const score = group.reduce((sum, text) => sum + text.length, 0);
+      if (score > maxScore) {
+        maxScore = score;
+        bestGroup = group;
+      }
+    });
+    
+    return bestGroup;
+  }
+
+  mergeUnique(existing, newItems) {
+    const result = [...existing];
+    
+    newItems.forEach(text => {
+      if (!this.isDuplicate(text, result)) {
+        result.push(text);
+      }
+    });
+    
+    return result;
+  }
 }
 
-function extractFromMetaTags($) {
-  const ogDescription = $("meta[property='og:description']").attr("content") || "";
-  const metaDescription = $("meta[name='description']").attr("content") || "";
-  const articleDescription = $("meta[property='article:description']").attr("content") || "";
-  
-  return [ogDescription, metaDescription, articleDescription]
-    .filter(Boolean)
-    .join("\n\n");
+export function extractFullContentWithParagraphs($) {
+  const extractor = new ContentExtractor($);
+  return extractor.extract();
 }
 
 export function extractFullContent($) {

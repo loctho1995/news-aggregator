@@ -1,132 +1,152 @@
-// Functions cho việc tóm tắt
+// Paragraph summarization logic
 
-import { scoreSentence } from './scoring.js';
+import { SentenceScorer } from './scorer.js';
 
-export function summarizeParagraph(paragraph, targetRatio = 0.5) {
-  if (!paragraph || paragraph.length < 50) return paragraph;
-  
-  const sentences = paragraph.match(/[^.!?…]+[.!?…]+/g) || [paragraph];
-  
-  if (sentences.length === 1) {
-    return handleSingleSentence(paragraph, targetRatio);
+export class ParagraphSummarizer {
+  constructor(language = 'vi') {
+    this.scorer = new SentenceScorer(language);
   }
-  
-  const scoredSentences = sentences.map((sentence, index) => ({
-    sentence: sentence.trim(),
-    score: scoreSentence(sentence.trim(), index, sentences.length),
-    index,
-    length: sentence.trim().length
-  }));
-  
-  const validSentences = scoredSentences.filter(s => s.score > 0);
-  
-  if (validSentences.length === 0) {
-    return sentences[0].trim();
-  }
-  
-  return selectBestSentences(validSentences, paragraph.length * targetRatio, paragraph.length);
-}
 
-function handleSingleSentence(paragraph, targetRatio) {
-  if (paragraph.length > 200 && targetRatio < 0.5) {
-    const naturalBreaks = paragraph.split(/[,;]/);
-    if (naturalBreaks.length > 1) {
-      const targetLength = Math.floor(paragraph.length * targetRatio);
-      let result = '';
-      for (const part of naturalBreaks) {
-        if (result.length < targetLength) {
-          result += (result ? ',' : '') + part;
-        } else {
-          break;
+  summarizeParagraph(paragraph, targetRatio = 0.5) {
+    if (!paragraph || paragraph.length < 50) return paragraph;
+    
+    const sentences = this.splitSentences(paragraph);
+    
+    if (sentences.length === 1) {
+      return this.handleSingleSentence(paragraph, targetRatio);
+    }
+    
+    const scoredSentences = this.scorer.scoreMultiple(sentences);
+    const selectedSentences = this.selectBestSentences(
+      scoredSentences, 
+      paragraph.length * targetRatio
+    );
+    
+    return this.combineSentences(selectedSentences);
+  }
+
+  splitSentences(text) {
+    // Better sentence splitting for Vietnamese
+    const sentences = text.match(/[^.!?…]+[.!?…]+/g) || [text];
+    return sentences.map(s => s.trim());
+  }
+
+  handleSingleSentence(sentence, targetRatio) {
+    if (sentence.length <= 200 || targetRatio >= 0.8) {
+      return sentence;
+    }
+    
+    // Try natural break points
+    const breakPoints = [',', ';', ' và ', ' hoặc ', ' nhưng '];
+    const targetLength = Math.floor(sentence.length * targetRatio);
+    
+    for (const breakPoint of breakPoints) {
+      const parts = sentence.split(breakPoint);
+      if (parts.length > 1) {
+        let result = '';
+        for (const part of parts) {
+          if (result.length + part.length < targetLength) {
+            result += (result ? breakPoint : '') + part;
+          } else {
+            break;
+          }
+        }
+        if (result.length > 50) {
+          return result.trim() + '...';
         }
       }
-      if (result.length < paragraph.length - 10) {
-        return result.trim() + '...';
-      }
     }
+    
+    return sentence.substring(0, targetLength) + '...';
   }
-  return paragraph;
-}
 
-function selectBestSentences(validSentences, targetLength, originalLength) {
-  validSentences.sort((a, b) => b.score - a.score);
-  
-  let currentLength = 0;
-  const selectedSentences = [];
-  
-  for (const sentObj of validSentences) {
-    if (selectedSentences.length === 0) {
-      selectedSentences.push(sentObj);
-      currentLength += sentObj.length;
-      continue;
-    }
+  selectBestSentences(scoredSentences, targetLength) {
+    // Filter valid sentences
+    const valid = scoredSentences.filter(s => s.score > 0);
+    if (valid.length === 0) return [scoredSentences[0]];
     
-    if (currentLength < targetLength * 0.8) {
-      selectedSentences.push(sentObj);
-      currentLength += sentObj.length;
-    } else {
-      const nextOvershoot = (currentLength + sentObj.length) - targetLength;
-      if (nextOvershoot < targetLength * 0.2) {
-        selectedSentences.push(sentObj);
-        currentLength += sentObj.length;
+    // Sort by score
+    valid.sort((a, b) => b.score - a.score);
+    
+    // Select sentences
+    const selected = [];
+    let currentLength = 0;
+    
+    for (const sent of valid) {
+      if (currentLength < targetLength * 0.8) {
+        selected.push(sent);
+        currentLength += sent.length;
+      } else if (currentLength + sent.length < targetLength * 1.2) {
+        selected.push(sent);
+        currentLength += sent.length;
+      } else {
+        break;
       }
     }
-  }
-  
-  selectedSentences.sort((a, b) => a.index - b.index);
-  let result = selectedSentences.map(s => s.sentence).join(' ');
-  
-  if (result.length < 30) {
-    return validSentences[0].sentence;
-  }
-  
-  if (result.length > originalLength * 0.85 && targetLength / originalLength < 0.6) {
-    const topSentences = selectedSentences
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(1, Math.ceil(validSentences.length * (targetLength / originalLength))))
-      .sort((a, b) => a.index - b.index);
     
-    result = topSentences.map(s => s.sentence).join(' ');
+    // Restore original order
+    selected.sort((a, b) => a.index - b.index);
+    
+    return selected;
   }
-  
-  return result;
+
+  combineSentences(sentences) {
+    if (sentences.length === 0) return '';
+    return sentences.map(s => s.sentence).join(' ');
+  }
 }
 
 export function summarizeByParagraphs(paragraphs, summaryRatio = 0.7) {
-  if (!paragraphs || paragraphs.length === 0) return { summarizedParagraphs: [], summary: "" };
+  if (!paragraphs || paragraphs.length === 0) {
+    return { summarizedParagraphs: [], summary: "" };
+  }
   
-  const summarizedParagraphs = [];
+  const summarizer = new ParagraphSummarizer('vi');
   const adjustedRatio = getAdjustedRatio(summaryRatio);
+  const summarized = [];
   
   for (const paragraph of paragraphs) {
     if (paragraph && paragraph.trim()) {
-      const summarized = summarizeParagraph(paragraph, adjustedRatio);
-      
-      if (summarized && summarized.trim() && summarized.length > 20) {
-        summarizedParagraphs.push(summarized);
+      const result = summarizer.summarizeParagraph(paragraph, adjustedRatio);
+      if (result && result.length > 20) {
+        summarized.push(result);
       }
     }
   }
   
-  if (summaryRatio <= 0.4 && summarizedParagraphs.length > 5) {
-    return combineShortParagraphs(summarizedParagraphs, paragraphs.length);
+  // Combine short paragraphs if ratio is very low
+  if (summaryRatio <= 0.4 && summarized.length > 5) {
+    return combineShortParagraphs(summarized, paragraphs.length);
   }
   
   return {
-    summarizedParagraphs: summarizedParagraphs,
-    summary: summarizedParagraphs.join('\n\n'),
+    summarizedParagraphs: summarized,
+    summary: summarized.join('\n\n'),
     originalParagraphCount: paragraphs.length,
-    summarizedParagraphCount: summarizedParagraphs.length
+    summarizedParagraphCount: summarized.length
   };
 }
 
 function getAdjustedRatio(summaryRatio) {
-  if (summaryRatio <= 0.3) return 0.30;
-  if (summaryRatio <= 0.4) return 0.35;
-  if (summaryRatio <= 0.5) return 0.45;
-  if (summaryRatio <= 0.6) return 0.55;
-  if (summaryRatio <= 0.7) return 0.65;
-  if (summaryRatio <= 0.8) return 0.75;
+  // Create clear differences between levels
+  const ratioMap = {
+    0.3: 0.30,
+    0.4: 0.35,
+    0.5: 0.45,
+    0.6: 0.55,
+    0.7: 0.65,
+    0.8: 0.75,
+    1.0: 0.85
+  };
+  
+  const keys = Object.keys(ratioMap).map(Number).sort((a, b) => a - b);
+  
+  for (const key of keys) {
+    if (summaryRatio <= key) {
+      return ratioMap[key];
+    }
+  }
+  
   return 0.85;
 }
 
@@ -135,11 +155,7 @@ function combineShortParagraphs(paragraphs, originalCount) {
   let buffer = "";
   
   for (let i = 0; i < paragraphs.length; i++) {
-    if (buffer) {
-      buffer += " " + paragraphs[i];
-    } else {
-      buffer = paragraphs[i];
-    }
+    buffer = buffer ? buffer + " " + paragraphs[i] : paragraphs[i];
     
     if ((i + 1) % 2 === 0 || i === paragraphs.length - 1) {
       combined.push(buffer);

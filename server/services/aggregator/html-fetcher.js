@@ -1,7 +1,7 @@
 // server/services/aggregator/html-fetcher.js
 import * as cheerio from "cheerio";
 import { cleanText, toISO, deriveCategoriesFromURL } from "./utils.js";
-import { extractFullContent, createBulletPointSummary } from "./content-extractor.js";
+import { extractFullContent, createBulletPointSummary } from "./content-extractor/index.js";
 
 export async function fetchHTMLWithFullContent(source) {
   console.log(`Fetching HTML from ${source.name}...`);

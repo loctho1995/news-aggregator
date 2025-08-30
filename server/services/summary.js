@@ -3,7 +3,7 @@
 
 import * as cheerio from "cheerio";
 import { summaryCache, translationCache } from "../utils/cache.js";
-import { extractAndSummarizeContent } from "./aggregator/content-extractor.js";
+import { extractAndSummarizeContent } from "./aggregator/content-extractor/index.js";
 
 // Language detection
 const vietnamesePattern = /[ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i;

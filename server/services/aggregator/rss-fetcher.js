@@ -2,7 +2,7 @@
 import Parser from "rss-parser";
 import * as cheerio from "cheerio";
 import { cleanText, toISO, toArray, deriveCategoriesFromURL } from "./utils.js";
-import { extractFullContent, createBulletPointSummary } from "./content-extractor.js";
+import { extractFullContent, createBulletPointSummary } from "./content-extractor/index.js";
 import { isVietnamese, translateToVietnamese } from "./translator.js";
 
 const parser = new Parser({ 
