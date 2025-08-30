@@ -18,7 +18,7 @@ export function createCardElement(item) {
   
   const readStatusButton = readStatus ? 
     '<button class="read-status-btn px-2 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded transition-colors">✅ Đã đọc</button>' :
-    '<button class="read-status-btn px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">⚪ Chưa đọc</button>';
+    '<button class="read-status-btn px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">⚪ Bỏ qua</button>';
   
   // Format summary content with length limit
   const summaryContent = formatSummaryContent(item);

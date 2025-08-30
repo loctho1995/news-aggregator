@@ -41,7 +41,7 @@ export function toggleReadStatus(url) {
       
       const readStatusBtn = card.querySelector('.read-status-btn');
       if (readStatusBtn) {
-        readStatusBtn.innerHTML = '⚪ Chưa đọc';
+        readStatusBtn.innerHTML = '⚪ Bỏ qua';
         readStatusBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
         readStatusBtn.classList.add('bg-blue-600', 'hover:bg-blue-500');
       }
