@@ -1,10 +1,10 @@
 // server/services/aggregator/rss-fetcher.js
-// VERSION HOẠT ĐỘNG CHO CẢ LOCAL & SERVER
+// FIXED VERSION - Longer content for cards
 
 import Parser from "rss-parser";
 import * as cheerio from "cheerio";
 import { cleanText, toISO, toArray, deriveCategoriesFromURL } from "./utils.js";
-import { createBulletPointSummary } from "./content-extractor/index.js";
+import { createBulletPointSummary, extractFullContent } from "./content-extractor/index.js";
 import { isVietnamese, translateToVietnamese } from "./translator.js";
 
 // Check if running locally
@@ -12,12 +12,12 @@ const isLocal = process.env.NODE_ENV !== 'production' ||
                 process.env.LOCAL_DEV === 'true' ||
                 !process.env.PORT;
 
-// Parser configuration based on environment
+// Parser configuration
 const parser = new Parser({ 
-  timeout: isLocal ? 10000 : 15000, // Shorter timeout for local
+  timeout: isLocal ? 10000 : 15000,
   headers: { 
     "User-Agent": isLocal ? 
-      "VN News Aggregator/1.0" : // Simple UA for local
+      "VN News Aggregator/1.0" :
       "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
     "Accept": "application/rss+xml, application/xml, text/xml, */*"
   }
@@ -29,7 +29,7 @@ export async function fetchRSSWithFullContent(source, signal = null) {
   try {
     let feed = null;
     
-    // LOCAL: Direct fetch only (no proxy)
+    // LOCAL: Direct fetch only
     if (isLocal) {
       try {
         feed = await parser.parseURL(source.url);
@@ -46,7 +46,6 @@ export async function fetchRSSWithFullContent(source, signal = null) {
         console.log(`Direct fetch failed for ${source.name}, trying with proxy...`);
         
         try {
-          // Try with proxy only on server
           const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(source.url)}`;
           feed = await parser.parseURL(proxyUrl);
         } catch (proxyError) {
@@ -63,14 +62,13 @@ export async function fetchRSSWithFullContent(source, signal = null) {
     
     const items = [];
     const isInternational = source.group === 'internationaleconomics';
-    const maxItems = isLocal ? 10 : 8; // More items locally
+    const maxItems = isLocal ? 10 : 8;
     
     // Process items
     for (let i = 0; i < Math.min(feed.items.length, maxItems); i++) {
       const it = feed.items[i];
       
       try {
-        // Check if aborted
         if (signal && signal.aborted) {
           console.log(`Aborted processing for ${source.name}`);
           break;
@@ -78,9 +76,38 @@ export async function fetchRSSWithFullContent(source, signal = null) {
         
         let title = cleanText(it.title, 280);
         
-        // LOCAL: Try to fetch full content
+        // Try to get more content
         let fullContent = "";
-        if (isLocal && i < 5) { // Fetch full content for first 5 items locally
+        
+        // Get RSS content first
+        let rssContent = "";
+        
+        // Try multiple content fields for better coverage
+        if (it.contentEncoded) {
+          rssContent = it.contentEncoded;
+        } else if (it['content:encoded']) {
+          rssContent = it['content:encoded'];
+        } else if (it.content) {
+          rssContent = it.content;
+        } else if (it.contentSnippet) {
+          rssContent = it.contentSnippet;
+        } else if (it.summary) {
+          rssContent = it.summary;
+        } else if (it.description) {
+          rssContent = it.description;
+        }
+        
+        // Clean HTML if present
+        if (rssContent && rssContent.includes('<')) {
+          const $ = cheerio.load(rssContent);
+          // Remove images and scripts
+          $('img, script, style').remove();
+          // Get text content
+          rssContent = $.text();
+        }
+        
+        // LOCAL: Try to fetch full content for better summary
+        if (isLocal && i < 5) {
           try {
             const response = await fetch(it.link, {
               headers: { 
@@ -95,38 +122,52 @@ export async function fetchRSSWithFullContent(source, signal = null) {
               fullContent = extractFullContent($);
             }
           } catch (e) {
-            // Ignore fetch errors, use RSS content
+            // Use RSS content if fetch fails
+            console.log(`Could not fetch full content for ${it.link}`);
           }
         }
         
-        // Use full content if available, otherwise RSS content
-        let summary = fullContent || it.contentSnippet || it.content || it.summary || "";
+        // Use the longest content available
+        let finalContent = fullContent || rssContent || "";
         
-        // Clean HTML if present
-        if (!fullContent && summary && summary.includes('<')) {
-          const $ = cheerio.load(summary);
-          summary = $.text();
+        // IMPORTANT: Increase content length limits
+        finalContent = cleanText(finalContent, 1500); // Increased from 600 to 1500
+        
+        // Ensure we have meaningful content
+        if (finalContent.length < 100 && it.title) {
+          // If content too short, add title as content
+          finalContent = it.title + ". " + finalContent;
         }
         
-        summary = cleanText(summary, 600);
-        
-        // Translation handling
+        // Translation for international sources
         if (isInternational && title && !isVietnamese(title)) {
           if (isLocal) {
-            // Try translation locally
             try {
               title = await translateToVietnamese(title) || `[EN] ${title}`;
             } catch (e) {
               title = `[EN] ${title}`;
             }
           } else {
-            // Skip translation on server to save time
             title = `[EN] ${title}`;
           }
         }
         
-        // Create bullet summary
-        const bulletSummary = createBulletPointSummary(summary, 3, 400);
+        // Create bullet summary with MORE content
+        const bulletSummary = createBulletPointSummary(
+          finalContent, 
+          3,  // Keep 3 bullets
+          800 // INCREASED from 400 to 800 characters total
+        );
+        
+        // If bullets are too short, create from full content
+        if (bulletSummary.text.length < 200 && finalContent.length > 200) {
+          // Take first 500 chars as single summary
+          bulletSummary.text = finalContent.substring(0, 500) + "...";
+          bulletSummary.bullets = [
+            `• ${finalContent.substring(0, 250)}...`,
+            `• ${finalContent.substring(250, 450)}...`
+          ].filter(b => b.length > 10);
+        }
         
         const cats = toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean);
         const derived = cats.length ? cats : deriveCategoriesFromURL(it.link || "");
@@ -136,18 +177,17 @@ export async function fetchRSSWithFullContent(source, signal = null) {
           sourceName: source.name,
           title: title,
           link: it.link,
-          summary: bulletSummary.text,
-          bullets: bulletSummary.bullets,
-          fullContent: fullContent || summary,
+          summary: bulletSummary.text || finalContent.substring(0, 500), // Fallback summary
+          bullets: bulletSummary.bullets.length > 0 ? bulletSummary.bullets : [`• ${finalContent.substring(0, 400)}...`],
+          fullContent: fullContent || finalContent, // Store full content
           publishedAt: toISO(it.isoDate || it.pubDate),
-          image: it.enclosure?.url || null,
+          image: it.enclosure?.url || it.image?.url || null,
           categories: derived,
           translated: false
         });
         
       } catch (itemError) {
         console.error(`Error processing item from ${source.name}: ${itemError.message}`);
-        // Continue with next item
       }
     }
     

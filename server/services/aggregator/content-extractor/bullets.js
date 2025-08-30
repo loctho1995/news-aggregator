@@ -1,4 +1,5 @@
-// Bullet point creation logic
+// server/services/aggregator/content-extractor/bullets.js
+// FIXED VERSION - Longer bullets for cards
 
 import { SentenceScorer } from './scorer.js';
 
@@ -7,7 +8,7 @@ export class BulletCreator {
     this.scorer = new SentenceScorer(language);
   }
 
-  createBullets(text, maxBullets = 3, maxTotalLength = 400) {
+  createBullets(text, maxBullets = 3, maxTotalLength = 800) { // INCREASED from 400 to 800
     if (!text || text.length < 50) {
       return {
         bullets: [text || "Không có nội dung"],
@@ -26,9 +27,6 @@ export class BulletCreator {
   }
 
   extractSentences(text) {
-    // Không dùng regex trực tiếp vì nó sẽ cắt sai số tiếng Việt
-    // Phân tách thủ công và thông minh hơn
-    
     const sentences = [];
     let currentSentence = '';
     const chars = text.split('');
@@ -39,14 +37,12 @@ export class BulletCreator {
       
       // Kiểm tra nếu là dấu kết thúc câu
       if (['.', '!', '?', '…'].includes(char)) {
-        // Kiểm tra context xung quanh
         const beforeChar = i > 0 ? chars[i-1] : '';
         const afterChar = i < chars.length - 1 ? chars[i+1] : '';
         const after2Chars = i < chars.length - 2 ? chars[i+2] : '';
         
         // Nếu dấu chấm nằm giữa các số (format tiền VN: 1.000)
         if (char === '.' && /\d/.test(beforeChar) && /\d/.test(afterChar)) {
-          // Không cắt, tiếp tục thêm vào câu hiện tại
           continue;
         }
         
@@ -55,7 +51,7 @@ export class BulletCreator {
             (after2Chars && /[A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/.test(after2Chars))) {
           
           const trimmed = currentSentence.trim();
-          if (trimmed.length > 10) { // Chỉ lấy câu có độ dài hợp lý
+          if (trimmed.length > 10) {
             sentences.push(trimmed.replace(/^[-•●○■□▪▫◦‣⁃]\s*/, ''));
           }
           currentSentence = '';
@@ -72,14 +68,14 @@ export class BulletCreator {
   }
 
   selectBullets(scoredSentences, maxBullets, maxTotalLength) {
-    // Filter and sort
+    // Filter and sort - INCREASED max length per bullet
     const valid = scoredSentences
-      .filter(s => s.score > 0 && s.length > 20 && s.length < 180) // Reduced max length per bullet
+      .filter(s => s.score > 0 && s.length > 20 && s.length < 300) // Increased from 180 to 300
       .sort((a, b) => b.score - a.score);
     
     if (valid.length === 0) {
       const fallback = scoredSentences[0]?.sentence || "Không có nội dung tóm tắt";
-      return [this.truncateSentence(fallback, 120)]; // Shorter fallback
+      return [this.truncateSentence(fallback, 250)]; // Increased from 120 to 250
     }
     
     // Select diverse bullets with total length constraint
@@ -100,17 +96,17 @@ export class BulletCreator {
       if (!tooClose || sent.score > 10) {
         let bulletText = sent.sentence;
         
-        // Calculate max length for this bullet considering total limit
+        // Calculate max length for this bullet
         const avgBulletLength = maxTotalLength / maxBullets;
         const remainingSpace = maxTotalLength - currentTotalLength;
         const remainingBullets = maxBullets - bullets.length;
         const maxLengthForThisBullet = Math.min(
-          120, // Max per bullet
-          remainingSpace - (remainingBullets - 1) * 40 // Reserve space for remaining bullets
+          250, // Increased max per bullet from 120 to 250
+          remainingSpace - (remainingBullets - 1) * 60 // Reserve min space
         );
         
         // Truncate if necessary
-        if (bulletText.length > maxLengthForThisBullet && maxLengthForThisBullet > 40) {
+        if (bulletText.length > maxLengthForThisBullet && maxLengthForThisBullet > 60) {
           bulletText = this.truncateSentence(bulletText, maxLengthForThisBullet);
         }
         
@@ -121,9 +117,9 @@ export class BulletCreator {
           currentTotalLength += bulletText.length;
           
           if (bullets.length >= maxBullets) break;
-        } else if (bullets.length === 0 && maxTotalLength > 80) {
-          // If this is the first bullet and we have reasonable space, force add a truncated version
-          const forcedLength = Math.min(maxTotalLength - 20, 100);
+        } else if (bullets.length === 0 && maxTotalLength > 100) {
+          // If first bullet and have reasonable space, force add truncated
+          const forcedLength = Math.min(maxTotalLength - 20, 200);
           const forcedBullet = this.truncateSentence(bulletText, forcedLength);
           bullets.push(forcedBullet);
           break;
@@ -134,7 +130,7 @@ export class BulletCreator {
     return bullets;
   }
 
-  truncateSentence(sentence, maxLength = 120) {
+  truncateSentence(sentence, maxLength = 250) { // Increased from 120 to 250
     if (sentence.length <= maxLength) return sentence;
     
     const cutPoints = [',', ';', ' và ', ' hoặc ', ' nhưng ', ' do ', ' vì '];
@@ -159,14 +155,14 @@ export class BulletCreator {
   }
 }
 
-// Enhanced bullet point summary function with stricter limits
-export function createBulletPointSummary(text, maxBullets = 3, maxTotalLength = 400) {
+// Enhanced bullet point summary function with longer content
+export function createBulletPointSummary(text, maxBullets = 3, maxTotalLength = 800) { // INCREASED default
   const creator = new BulletCreator('vi');
   return creator.createBullets(text, maxBullets, maxTotalLength);
 }
 
-// Adjusted smart summary for shorter output
-export function createSmartSummary(fullText, maxLength = 200) {
+// Smart summary for longer output
+export function createSmartSummary(fullText, maxLength = 500) { // Increased from 200 to 500
   if (!fullText || fullText.length < 50) return fullText || "";
   
   const scorer = new SentenceScorer('vi');
@@ -176,26 +172,26 @@ export function createSmartSummary(fullText, maxLength = 200) {
   // Sort by score
   scored.sort((a, b) => b.score - a.score);
   
-  // Build summary with stricter length control
+  // Build summary with longer length
   let summary = "";
   const used = new Set();
   
   for (const sent of scored) {
-    const truncatedSent = sent.length > 100 ? 
-      sent.sentence.substring(0, 97) + '...' : 
+    const truncatedSent = sent.length > 200 ? 
+      sent.sentence.substring(0, 197) + '...' : 
       sent.sentence;
     
     if (summary.length + truncatedSent.length <= maxLength) {
       summary = summary ? summary + " " + truncatedSent : truncatedSent;
       used.add(sent.index);
     } else if (summary.length < maxLength * 0.7) {
-      // Add partial sentence if we haven't reached minimum length
+      // Add partial sentence if haven't reached minimum
       const remaining = maxLength - summary.length - 3;
-      if (remaining > 30) {
+      if (remaining > 50) {
         const words = sent.sentence.split(' ');
-        const wordsToFit = Math.floor(remaining / 6); // Estimate ~6 chars per word
+        const wordsToFit = Math.floor(remaining / 7); // Estimate chars per word
         
-        if (wordsToFit > 2) {
+        if (wordsToFit > 3) {
           const partial = words.slice(0, wordsToFit).join(' ');
           summary += " " + partial + "...";
           break;
@@ -206,7 +202,7 @@ export function createSmartSummary(fullText, maxLength = 200) {
   }
   
   // Fallback if summary is too short
-  if (summary.length < 50 && sentences.length > 0) {
+  if (summary.length < 100 && sentences.length > 0) {
     const firstSentence = sentences[0];
     if (firstSentence.length > maxLength) {
       summary = firstSentence.substring(0, maxLength - 3) + '...';

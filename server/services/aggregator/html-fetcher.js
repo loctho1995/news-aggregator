@@ -1,26 +1,29 @@
 // server/services/aggregator/html-fetcher.js
-// OPTIMIZED FOR TIMEOUT ISSUES - Skip HTML fetching for problematic sources
+// FIXED VERSION - Longer content for cards
 
 import * as cheerio from "cheerio";
 import { cleanText, toISO, deriveCategoriesFromURL } from "./utils.js";
 import { createBulletPointSummary } from "./content-extractor/index.js";
 
-// List of sources that often timeout
-const SKIP_HTML_SOURCES = ['bnews', 'brandsvietnam', 'vietnamfinance', 'fireant'];
+// Check environment
+const isLocal = process.env.NODE_ENV !== 'production' || 
+                process.env.LOCAL_DEV === 'true';
+
+// Skip these sources only on server
+const SKIP_HTML_SOURCES = isLocal ? [] : ['bnews', 'brandsvietnam', 'vietnamfinance', 'fireant'];
 
 export async function fetchHTMLWithFullContent(source, signal = null) {
   console.log(`Fetching HTML from ${source.name}...`);
   
-  // Skip known problematic sources
-  if (SKIP_HTML_SOURCES.includes(source.id)) {
-    console.log(`⚠️ Skipping ${source.name} (known timeout issues)`);
+  // Skip problematic sources on server only
+  if (!isLocal && SKIP_HTML_SOURCES.includes(source.id)) {
+    console.log(`⚠️ Skipping ${source.name} (known timeout issues on server)`);
     return [];
   }
   
   try {
-    // Fetch with extended timeout
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout
+    const timeout = setTimeout(() => controller.abort(), isLocal ? 10000 : 20000);
     
     const res = await fetch(source.url, { 
       headers: { 
@@ -47,83 +50,147 @@ export async function fetchHTMLWithFullContent(source, signal = null) {
     const items = [];
     const host = (new URL(source.url)).hostname;
     
-    // Find article links more efficiently
-    const selectors = [
-      'article h2 a',
-      'article h3 a', 
-      '.article-item a',
-      '.news-item a',
-      '.list-news a',
-      'h2.title a',
-      'h3.title a'
+    // Enhanced selectors for better content extraction
+    const articleSelectors = [
+      'article',
+      '.article-item',
+      '.news-item', 
+      '.story-item',
+      '.list-news li',
+      '.content-item',
+      '.post-item',
+      '.entry'
     ];
     
-    const links = new Set();
+    const processedLinks = new Set();
+    const maxLinks = isLocal ? 10 : 5; // More items locally
     
-    for (const selector of selectors) {
-      $(selector).each((i, el) => {
-        if (links.size >= 5) return false; // Stop after 5 links
-        
-        const href = $(el).attr("href");
-        const text = $(el).text().trim();
-        
-        if (href && text && text.length > 20) {
-          const absoluteUrl = href.startsWith('http') ? href : 
-                            href.startsWith('/') ? `https://${host}${href}` : 
-                            `${source.url}/${href}`;
-          
-          if (absoluteUrl.includes(host)) {
-            links.add({
-              url: absoluteUrl,
-              title: text
-            });
-          }
-        }
-      });
+    // Try to find articles with more content
+    for (const selector of articleSelectors) {
+      if (items.length >= maxLinks) break;
       
-      if (links.size >= 5) break;
-    }
-    
-    // Process found links
-    for (const linkData of links) {
-      try {
-        // Don't fetch full article content to save time
-        // Just use the title and create summary from it
-        const title = cleanText(linkData.title, 280);
+      $(selector).each((i, elem) => {
+        if (items.length >= maxLinks) return false;
         
-        // Try to find description/summary on the listing page
-        const linkEl = $(`a[href="${linkData.url}"]`).first();
+        const $elem = $(elem);
+        
+        // Find link
+        const $link = $elem.find('a[href]').first();
+        if (!$link.length) return;
+        
+        const href = $link.attr('href');
+        if (!href || processedLinks.has(href)) return;
+        
+        const absoluteUrl = href.startsWith('http') ? href : 
+                          href.startsWith('/') ? `https://${host}${href}` : 
+                          `${source.url}/${href}`;
+        
+        if (!absoluteUrl.includes(host)) return;
+        processedLinks.add(href);
+        
+        // Extract title (try multiple selectors)
+        let title = $elem.find('h2, h3, h4, .title, .headline').first().text().trim() ||
+                   $link.text().trim() ||
+                   $link.attr('title') ||
+                   "";
+        
+        if (!title || title.length < 10) return;
+        
+        // Extract summary/description (ENHANCED)
         let summary = "";
         
-        // Look for summary in common patterns
-        const parent = linkEl.closest('article, .article-item, .news-item');
-        if (parent.length) {
-          summary = parent.find('.summary, .description, .desc, .sapo, p').first().text() || "";
+        // Try multiple summary selectors
+        const summarySelectors = [
+          '.summary',
+          '.description', 
+          '.desc',
+          '.sapo',
+          '.excerpt',
+          '.intro',
+          '.lead',
+          '.abstract',
+          'p'
+        ];
+        
+        for (const sumSelector of summarySelectors) {
+          if (summary) break;
+          const $summary = $elem.find(sumSelector).first();
+          if ($summary.length) {
+            summary = $summary.text().trim();
+          }
         }
         
+        // If no summary in article element, try to find it near the link
         if (!summary) {
-          summary = title; // Use title as summary if nothing found
+          // Check siblings
+          const $parent = $link.parent();
+          summary = $parent.find('p, .desc, .summary').text().trim() ||
+                   $parent.siblings('p, .desc, .summary').first().text().trim() ||
+                   $parent.parent().find('p, .desc, .summary').first().text().trim();
         }
         
-        summary = cleanText(summary, 500);
-        const bulletSummary = createBulletPointSummary(summary, 3, 400);
+        // If still no summary, use any text content in the article
+        if (!summary || summary.length < 50) {
+          // Get all text from article element
+          const allText = $elem.text().replace(/\s+/g, ' ').trim();
+          // Remove title from text
+          summary = allText.replace(title, '').trim();
+        }
+        
+        // Clean and ensure good length
+        title = cleanText(title, 280);
+        summary = cleanText(summary, 1200); // INCREASED from 500 to 1200
+        
+        // If summary still too short, combine with title
+        if (summary.length < 100) {
+          summary = title + ". " + summary;
+        }
+        
+        // Create bullet summary with MORE content
+        const bulletSummary = createBulletPointSummary(
+          summary, 
+          3,  // 3 bullets
+          800 // INCREASED from 400 to 800 chars
+        );
+        
+        // Ensure bullets have content
+        if (bulletSummary.bullets.length === 0 || bulletSummary.text.length < 100) {
+          // Create bullets from summary chunks
+          const chunkSize = Math.min(300, Math.floor(summary.length / 3));
+          bulletSummary.bullets = [];
+          
+          for (let i = 0; i < Math.min(3, Math.floor(summary.length / chunkSize)); i++) {
+            const chunk = summary.substring(i * chunkSize, (i + 1) * chunkSize);
+            if (chunk.trim()) {
+              bulletSummary.bullets.push(`• ${chunk.trim()}${chunk.length === chunkSize ? '...' : ''}`);
+            }
+          }
+          
+          bulletSummary.text = summary.substring(0, 600);
+        }
+        
+        // Extract image if available
+        let image = $elem.find('img').first().attr('src') ||
+                   $elem.find('img').first().attr('data-src') ||
+                   null;
+        
+        if (image && !image.startsWith('http')) {
+          image = `https://${host}${image.startsWith('/') ? '' : '/'}${image}`;
+        }
         
         items.push({
           sourceId: source.id,
           sourceName: source.name,
           title: title,
-          link: linkData.url,
-          summary: bulletSummary.text,
-          bullets: bulletSummary.bullets,
-          fullContent: summary,
+          link: absoluteUrl,
+          summary: bulletSummary.text || summary.substring(0, 600),
+          bullets: bulletSummary.bullets.length > 0 ? bulletSummary.bullets : [`• ${summary.substring(0, 500)}...`],
+          fullContent: summary, // Store full extracted content
           publishedAt: toISO(new Date()),
-          image: null,
-          categories: deriveCategoriesFromURL(linkData.url)
+          image: image,
+          categories: deriveCategoriesFromURL(absoluteUrl)
         });
-        
-      } catch (e) {
-        console.error(`Error processing link from ${source.name}: ${e.message}`);
-      }
+      });
     }
     
     console.log(`✓ ${source.name}: Extracted ${items.length} items`);
@@ -131,7 +198,7 @@ export async function fetchHTMLWithFullContent(source, signal = null) {
     
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.error(`✗ ${source.name} timeout after 20s`);
+      console.error(`✗ ${source.name} timeout after ${isLocal ? '10s' : '20s'}`);
     } else {
       console.error(`✗ HTML fetch failed for ${source.name}: ${error.message}`);
     }
