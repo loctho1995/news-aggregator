@@ -1,4 +1,3 @@
-// server/services/aggregator/html-fetcher.js
 import * as cheerio from "cheerio";
 import { cleanText, toISO, deriveCategoriesFromURL } from "./utils.js";
 import { extractFullContent, createBulletPointSummary } from "./content-extractor/index.js";
@@ -45,8 +44,12 @@ export async function fetchHTMLWithFullContent(source) {
       
       const fullContent = extractFullContent($article);
       
-      // Tạo bullet point summary thay vì paragraph
-      const bulletSummary = createBulletPointSummary(fullContent, 3);
+      // Tạo bullet point summary với giới hạn chặt chẽ
+      const bulletSummary = createBulletPointSummary(
+        fullContent, 
+        3, // Max 3 bullets
+        400 // Max 400 characters total
+      );
       
       const image = $article("meta[property='og:image']").attr("content") || 
                    $article("img").first().attr("src");

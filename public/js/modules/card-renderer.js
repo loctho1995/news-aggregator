@@ -20,7 +20,7 @@ export function createCardElement(item) {
     '<button class="read-status-btn px-2 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded transition-colors">✅ Đã đọc</button>' :
     '<button class="read-status-btn px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors">⚪ Chưa đọc</button>';
   
-  // Format summary content
+  // Format summary content with length limit
   const summaryContent = formatSummaryContent(item);
   
   card.innerHTML = `
@@ -60,28 +60,87 @@ export function createCardElement(item) {
   return card;
 }
 
+// Utility function to truncate text at word boundary
+function truncateAtWordBoundary(text, maxLength) {
+  if (!text || text.length <= maxLength) return text;
+  
+  // Find last space within the limit
+  const truncated = text.substring(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  
+  // If we found a space and it's not too close to the beginning
+  if (lastSpace > maxLength * 0.8) {
+    return truncated.substring(0, lastSpace) + '...';
+  }
+  
+  // Otherwise, just cut at the limit
+  return truncated + '...';
+}
+
+// Calculate total content length (text only, no HTML)
+function calculateContentLength(content) {
+  // Remove HTML tags and calculate text length
+  const textContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return textContent.length;
+}
+
 function formatSummaryContent(item) {
+  const MAX_CONTENT_LENGTH = 550;
+  
   if (item.bullets && Array.isArray(item.bullets) && item.bullets.length > 0) {
+    // Process bullets with length limit
+    const processedBullets = [];
+    let totalLength = 0;
+    
+    for (const bullet of item.bullets) {
+      const cleanBullet = bullet.replace(/^[•▸◦‣⁃]\s*/, '');
+      
+      // Estimate the length contribution of this bullet (including HTML)
+      const bulletTextLength = cleanBullet.length + 2; // +2 for bullet point and space
+      
+      if (totalLength + bulletTextLength <= MAX_CONTENT_LENGTH) {
+        processedBullets.push(cleanBullet);
+        totalLength += bulletTextLength;
+      } else {
+        // If we can fit a truncated version of this bullet
+        const remainingLength = MAX_CONTENT_LENGTH - totalLength - 3; // -3 for "..."
+        if (remainingLength > 50) { // Only add if meaningful content can fit
+          const truncatedBullet = truncateAtWordBoundary(cleanBullet, remainingLength);
+          processedBullets.push(truncatedBullet);
+        }
+        break;
+      }
+    }
+    
+    // If no bullets fit or we have very short content, fallback to summary
+    if (processedBullets.length === 0 || totalLength < 100) {
+      return formatFallbackSummary(item.summary || "Không có tóm tắt.", MAX_CONTENT_LENGTH);
+    }
+    
     return `
       <ul class="text-base text-gray-700 space-y-2 list-none pl-0">
-        ${item.bullets.map(bullet => {
-          const cleanBullet = bullet.replace(/^[•▸◦‣⁃]\s*/, '');
-          return `
-            <li class="flex items-start gap-2">
-              <span class="text-gray-500 mt-0.5 flex-shrink-0 no-select">•</span>
-              <span class="leading-relaxed flex-1">${cleanBullet}</span>
-            </li>
-          `;
-        }).join('')}
+        ${processedBullets.map(bullet => `
+          <li class="flex items-start gap-2">
+            <span class="text-gray-500 mt-0.5 flex-shrink-0 no-select">•</span>
+            <span class="leading-relaxed flex-1">${bullet}</span>
+          </li>
+        `).join('')}
       </ul>
     `;
   } else {
-    return `
-      <p class="text-base text-gray-700 line-clamp-7 leading-relaxed">
-        ${item.summary || "Không có tóm tắt."}
-      </p>
-    `;
+    // Handle regular summary
+    return formatFallbackSummary(item.summary || "Không có tóm tắt.", MAX_CONTENT_LENGTH);
   }
+}
+
+function formatFallbackSummary(summary, maxLength) {
+  const truncatedSummary = truncateAtWordBoundary(summary, maxLength);
+  
+  return `
+    <p class="text-base text-gray-700 line-clamp-7 leading-relaxed">
+      ${truncatedSummary}
+    </p>
+  `;
 }
 
 function attachCardEventListeners(card, item) {

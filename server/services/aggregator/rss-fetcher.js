@@ -1,4 +1,3 @@
-// server/services/aggregator/rss-fetcher.js
 import Parser from "rss-parser";
 import * as cheerio from "cheerio";
 import { cleanText, toISO, toArray, deriveCategoriesFromURL } from "./utils.js";
@@ -40,10 +39,11 @@ export async function fetchRSSWithFullContent(source) {
         title = await translateToVietnamese(title) || title;
       }
       
-      // Tạo bullet point summary cho card (3-4 bullets)
+      // Tạo bullet point summary cho card với giới hạn chặt chẽ hơn
       let bulletSummary = createBulletPointSummary(
         fullContent || it.contentSnippet || it.content || "", 
-        3 // Số bullets cho card
+        3, // Số bullets cho card
+        400 // Max total length for all bullets combined
       );
       
       // Dịch summary nếu cần
@@ -58,6 +58,7 @@ export async function fetchRSSWithFullContent(source) {
           }
         }
         bulletSummary.bullets = translatedBullets;
+        bulletSummary.text = translatedBullets.map(b => b.replace(/^• /, '')).join('. ');
       }
       
       const cats = toArray(it.categories || it.category).map(c => String(c).trim()).filter(Boolean);
@@ -83,7 +84,8 @@ export async function fetchRSSWithFullContent(source) {
       let title = cleanText(it.title, 280);
       let bulletSummary = createBulletPointSummary(
         it.contentSnippet || it.content || it.summary || "", 
-        3
+        3, // Max bullets
+        400 // Max total length
       );
       
       if (isInternational) {
@@ -101,6 +103,7 @@ export async function fetchRSSWithFullContent(source) {
             }
           }
           bulletSummary.bullets = translatedBullets;
+          bulletSummary.text = translatedBullets.map(b => b.replace(/^• /, '')).join('. ');
         }
       }
       
