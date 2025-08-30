@@ -1,5 +1,5 @@
 // server/services/summary.js
-// FIXED VERSION - Better headers và fallback handling
+// FIXED VERSION - Specific for Vietnamese news sites
 
 import * as cheerio from "cheerio";
 import { summaryCache, translationCache } from "../utils/cache.js";
@@ -18,143 +18,188 @@ async function translateText(text, targetLang = "vi") {
   const cached = translationCache.get(cacheKey);
   if (cached) return cached;
 
-  const translationMethods = [
-    // MyMemory (free, rate-limited)
-    async () => {
-      const encoded = encodeURIComponent(text);
-      const url = `https://api.mymemory.translated.net/get?q=${encoded}&langpair=auto|${targetLang}`;
-      const resp = await fetch(url, { 
-        headers: { 'User-Agent': 'VN-News-Aggregator/1.0' }, 
-        signal: AbortSignal.timeout(8000) 
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const out = data?.responseData?.translatedText;
-        if (out && !String(out).includes("MYMEMORY WARNING")) return out;
-      }
-      return null;
-    }
-  ];
-
-  for (const method of translationMethods) {
-    try {
-      const out = await method();
-      if (out) {
+  try {
+    const encoded = encodeURIComponent(text);
+    const url = `https://api.mymemory.translated.net/get?q=${encoded}&langpair=auto|${targetLang}`;
+    const resp = await fetch(url, { 
+      headers: { 'User-Agent': 'VN-News-Aggregator/1.0' }, 
+      signal: AbortSignal.timeout(8000) 
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      const out = data?.responseData?.translatedText;
+      if (out && !String(out).includes("MYMEMORY WARNING")) {
         translationCache.set(cacheKey, out);
         return out;
       }
-    } catch (_) { /* ignore */ }
-  }
+    }
+  } catch (_) { /* ignore */ }
+  
   return text; // fallback to original
 }
 
-// Enhanced fetch with multiple strategies
-async function fetchWithFallback(url) {
+// Enhanced fetch with proper headers for Vietnamese sites
+async function fetchWithProperHeaders(url) {
   const strategies = [
-    // Strategy 1: Direct fetch with desktop headers
+    // Strategy 1: Standard Vietnamese news site headers
     async () => {
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
           'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
           'Accept-Encoding': 'gzip, deflate, br',
-          'DNT': '1',
           'Connection': 'keep-alive',
           'Upgrade-Insecure-Requests': '1',
           'Sec-Fetch-Dest': 'document',
           'Sec-Fetch-Mode': 'navigate',
           'Sec-Fetch-Site': 'none',
-          'Cache-Control': 'max-age=0'
+          'Sec-Fetch-User': '?1',
+          'Cache-Control': 'max-age=0',
+          'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"'
         },
         redirect: 'follow',
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(12000)
       });
       
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.text();
     },
     
-    // Strategy 2: Mobile user agent (sometimes less restricted)
+    // Strategy 2: Mobile headers (often less restricted)
     async () => {
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'vi-VN,vi;q=0.9'
+          'Accept-Language': 'vi-VN,vi;q=0.9',
+          'Accept-Encoding': 'gzip, deflate',
+          'Connection': 'keep-alive'
         },
         redirect: 'follow',
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(10000)
       });
       
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.text();
     },
     
-    // Strategy 3: Use web archive (archive.org)
+    // Strategy 3: Googlebot (some sites allow)
     async () => {
-      const archiveUrl = `https://web.archive.org/web/2/${url}`;
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'vi,en;q=0.8',
+          'From': 'googlebot(at)googlebot.com'
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.text();
+    },
+    
+    // Strategy 4: CORS Proxy services
+    async () => {
+      const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+      ];
+      
+      for (const proxyUrl of proxies) {
+        try {
+          const response = await fetch(proxyUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            signal: AbortSignal.timeout(15000)
+          });
+          
+          if (response.ok) {
+            const html = await response.text();
+            if (html && html.length > 1000) {
+              return html;
+            }
+          }
+        } catch (e) {
+          console.log(`Proxy ${proxyUrl} failed:`, e.message);
+          continue;
+        }
+      }
+      throw new Error('All proxies failed');
+    },
+    
+    // Strategy 5: Archive services
+    async () => {
+      // Try archive.is
+      const archiveUrl = `https://archive.is/newest/${url}`;
       const response = await fetch(archiveUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; VN-News-Bot/1.0)'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         },
         signal: AbortSignal.timeout(12000)
       });
       
-      if (!response.ok) throw new Error('Archive fetch failed');
-      return await response.text();
-    },
-    
-    // Strategy 4: Use Google Cache (as last resort)
-    async () => {
-      const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`;
-      const response = await fetch(cacheUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        signal: AbortSignal.timeout(10000)
-      });
-      
-      if (!response.ok) throw new Error('Cache fetch failed');
-      return await response.text();
+      if (response.ok) {
+        return await response.text();
+      }
+      throw new Error('Archive fetch failed');
     }
   ];
 
   // Try each strategy
+  let lastError = null;
   for (let i = 0; i < strategies.length; i++) {
     try {
       console.log(`Trying fetch strategy ${i + 1} for ${url}`);
       const html = await strategies[i]();
       
-      // Check if we got blocked content
-      if (html.includes('unusual traffic') || 
-          html.includes('Captcha') || 
-          html.includes('Access Denied') ||
-          html.length < 500) {
-        console.log(`Strategy ${i + 1} got blocked/captcha, trying next...`);
+      // Validate we got real content
+      if (html && html.length > 500) {
+        // Check for blocking messages
+        if (html.includes('unusual traffic') || 
+            html.includes('Captcha') || 
+            html.includes('Access Denied') ||
+            html.includes('403 Forbidden') ||
+            html.includes('406 Not Acceptable')) {
+          console.log(`Strategy ${i + 1} got blocked, trying next...`);
+          lastError = new Error('Blocked by website');
+          continue;
+        }
+        
+        console.log(`Strategy ${i + 1} successful`);
+        return html;
+      } else {
+        console.log(`Strategy ${i + 1} returned empty/short content`);
         continue;
       }
-      
-      console.log(`Strategy ${i + 1} successful`);
-      return html;
     } catch (error) {
-      console.log(`Strategy ${i + 1} failed: ${error.message}`);
-      continue;
+      console.log(`Strategy ${i + 1} failed:`, error.message);
+      lastError = error;
+      
+      // Small delay between attempts to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
   
-  throw new Error('All fetch strategies failed');
+  throw lastError || new Error('All fetch strategies failed');
 }
 
-// Main summarization function với better error handling
+// Main summarization function
 export async function summarizeUrl({ url, percent = 70, fallbackSummary = "" }) {
   const raw = String(url || "").trim();
   if (!raw) throw new Error("Missing url");
   
   // Validate URL
+  let parsedUrl;
   try {
-    const u = new URL(raw);
-    if (!/^https?:$/.test(u.protocol)) throw new Error("Only http/https allowed");
+    parsedUrl = new URL(raw);
+    if (!/^https?:$/.test(parsedUrl.protocol)) throw new Error("Only http/https allowed");
   } catch (e) {
     throw new Error("Invalid URL");
   }
@@ -167,23 +212,32 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "" }) 
   let title = "";
   
   try {
-    // Use enhanced fetch with fallback strategies
-    html = await fetchWithFallback(raw);
+    // Fetch with enhanced strategies
+    html = await fetchWithProperHeaders(raw);
+    
+    if (!html || html.length < 500) {
+      throw new Error("Empty or insufficient content received");
+    }
     
     const $ = cheerio.load(html);
     
-    // Remove Google-specific elements if present
-    $('.g-recaptcha, #captcha, .captcha-container').remove();
-    $('script').remove();
+    // Enhanced title extraction for Vietnamese sites
+    title = $("meta[property='og:title']").attr("content") || 
+            $("meta[name='title']").attr("content") ||
+            $("title").text() || 
+            $("h1.title-detail").text() || // VnExpress specific
+            $("h1.article-title").text() || // Other VN sites
+            $("h1").first().text() || 
+            "";
     
-    title = ($("meta[property='og:title']").attr("content") || 
-             $("title").text() || 
-             $("h1").first().text() || 
-             "").trim();
+    title = title.trim();
     
-    // Clean title from error messages
-    if (title.includes('Access Denied') || title.includes('Error')) {
-      title = "Bài viết không có tiêu đề";
+    // Clean title if contains error messages
+    if (title.includes('Access Denied') || 
+        title.includes('Error') || 
+        title.includes('404') ||
+        !title) {
+      title = "Bài viết từ " + parsedUrl.hostname;
     }
     
     // Extract and summarize content
@@ -196,23 +250,44 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "" }) 
       stats
     } = extractAndSummarizeContent($, percent);
 
-    // Check if we got meaningful content
+    // Validate extracted content
     if (!fullContent || fullContent.length < 100) {
-      // Return fallback content if provided
+      // Try to get at least meta description
+      const metaDescription = $("meta[property='og:description']").attr("content") ||
+                             $("meta[name='description']").attr("content") ||
+                             "";
+      
+      if (metaDescription) {
+        return {
+          url: raw,
+          title: title || "Không có tiêu đề",
+          site: parsedUrl.hostname,
+          bullets: [`• ${metaDescription}`],
+          paragraphs: [metaDescription],
+          fullSummary: metaDescription,
+          percentage: 100,
+          requestedPercent: percent,
+          originalLength: metaDescription.length,
+          summaryLength: metaDescription.length,
+          fallback: true,
+          message: "Sử dụng mô tả meta do không trích xuất được nội dung đầy đủ"
+        };
+      }
+      
+      // Use fallback if provided
       if (fallbackSummary) {
         return {
           url: raw,
-          title: title || "Không thể tải nội dung",
-          site: new URL(raw).hostname,
-          bullets: ["• " + fallbackSummary],
+          title: title || "Không có tiêu đề",
+          site: parsedUrl.hostname,
+          bullets: [`• ${fallbackSummary}`],
           paragraphs: [fallbackSummary],
           fullSummary: fallbackSummary,
           percentage: 100,
           requestedPercent: percent,
           originalLength: fallbackSummary.length,
           summaryLength: fallbackSummary.length,
-          error: "partial",
-          message: "Sử dụng nội dung dự phòng"
+          fallback: true
         };
       }
       
@@ -220,7 +295,7 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "" }) 
     }
 
     // Check if international source
-    const site = new URL(raw).hostname;
+    const site = parsedUrl.hostname;
     const isInternational = /(wsj\.com|ft\.com|bloomberg\.com|economist\.com|reuters\.com|cnbc\.com|marketwatch\.com)/i.test(site);
     
     let finalTitle = title;
@@ -238,7 +313,7 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "" }) 
       
       if (detectLanguage(summary) !== "vi") {
         const translatedParagraphs = [];
-        for (const paragraph of summarizedParagraphs.slice(0, 5)) { // Limit translation
+        for (const paragraph of summarizedParagraphs.slice(0, 5)) {
           const translatedPara = await translateText(paragraph);
           translatedParagraphs.push(translatedPara);
         }
@@ -269,20 +344,22 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "" }) 
     return data;
     
   } catch (error) {
-    console.error(`Summary error for ${raw}: ${error.message}`);
+    console.error(`Summary error for ${raw}:`, error.message);
     
-    // Return graceful fallback
+    // Return graceful fallback with useful info
     return {
       url: raw,
       title: title || "Không thể tải nội dung",
-      site: new URL(raw).hostname,
+      site: parsedUrl.hostname,
       bullets: fallbackSummary ? 
-        ["• " + fallbackSummary] : 
-        ["• Không thể tải nội dung từ trang web", 
-         "• Trang web có thể đang bảo trì hoặc yêu cầu xác thực",
-         "• Vui lòng click 'Đọc bài gốc' để xem trực tiếp"],
-      paragraphs: ["Không thể trích xuất nội dung. Vui lòng truy cập trực tiếp bài viết."],
-      fullSummary: fallbackSummary || "Không thể tóm tắt nội dung",
+        [`• ${fallbackSummary}`] : 
+        [
+          `• Không thể tải nội dung từ ${parsedUrl.hostname}`,
+          `• Lỗi: ${error.message}`,
+          `• Vui lòng click 'Đọc bài gốc' để xem trực tiếp trên trang web`
+        ],
+      paragraphs: [`Không thể trích xuất nội dung. Lỗi: ${error.message}`],
+      fullSummary: fallbackSummary || `Không thể tóm tắt. Lỗi: ${error.message}`,
       percentage: 0,
       requestedPercent: percent,
       error: true,
@@ -291,7 +368,7 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "" }) 
   }
 }
 
-// Optional AI endpoint (kept for compatibility)
+// AI endpoint for compatibility
 export async function aiSummarizeUrl({ url, language = "vi", targetLength = null, percent = 70 }) {
   const data = await summarizeUrl({ url, percent });
   return { ...data, ai: false };
