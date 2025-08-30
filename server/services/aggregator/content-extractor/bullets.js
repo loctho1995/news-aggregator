@@ -26,11 +26,49 @@ export class BulletCreator {
   }
 
   extractSentences(text) {
-    const sentences = text.match(/[^.!?…]+[.!?…]+/g) || 
-                     text.split(/[.!?]\s+/).filter(s => s.trim()) ||
-                     [text];
+    // Không dùng regex trực tiếp vì nó sẽ cắt sai số tiếng Việt
+    // Phân tách thủ công và thông minh hơn
     
-    return sentences.map(s => s.trim().replace(/^[-•●○■□▪▫◦‣⁃]\s*/, ''));
+    const sentences = [];
+    let currentSentence = '';
+    const chars = text.split('');
+    
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      currentSentence += char;
+      
+      // Kiểm tra nếu là dấu kết thúc câu
+      if (['.', '!', '?', '…'].includes(char)) {
+        // Kiểm tra context xung quanh
+        const beforeChar = i > 0 ? chars[i-1] : '';
+        const afterChar = i < chars.length - 1 ? chars[i+1] : '';
+        const after2Chars = i < chars.length - 2 ? chars[i+2] : '';
+        
+        // Nếu dấu chấm nằm giữa các số (format tiền VN: 1.000)
+        if (char === '.' && /\d/.test(beforeChar) && /\d/.test(afterChar)) {
+          // Không cắt, tiếp tục thêm vào câu hiện tại
+          continue;
+        }
+        
+        // Nếu sau dấu câu là khoảng trắng hoặc chữ hoa -> kết thúc câu
+        if (!afterChar || afterChar === ' ' || 
+            (after2Chars && /[A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/.test(after2Chars))) {
+          
+          const trimmed = currentSentence.trim();
+          if (trimmed.length > 10) { // Chỉ lấy câu có độ dài hợp lý
+            sentences.push(trimmed.replace(/^[-•●○■□▪▫◦‣⁃]\s*/, ''));
+          }
+          currentSentence = '';
+        }
+      }
+    }
+    
+    // Thêm phần còn lại nếu có
+    if (currentSentence.trim().length > 10) {
+      sentences.push(currentSentence.trim().replace(/^[-•●○■□▪▫◦‣⁃]\s*/, ''));
+    }
+    
+    return sentences;
   }
 
   selectBullets(scoredSentences, maxBullets, maxTotalLength) {

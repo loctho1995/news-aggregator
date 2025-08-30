@@ -26,9 +26,45 @@ export class ParagraphSummarizer {
   }
 
   splitSentences(text) {
-    // Better sentence splitting for Vietnamese
-    const sentences = text.match(/[^.!?…]+[.!?…]+/g) || [text];
-    return sentences.map(s => s.trim());
+    // Phân tách câu thông minh, không cắt số tiếng Việt
+    const sentences = [];
+    let currentSentence = '';
+    const chars = text.split('');
+    
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      currentSentence += char;
+      
+      // Kiểm tra dấu kết thúc câu
+      if (['.', '!', '?', '…'].includes(char)) {
+        const beforeChar = i > 0 ? chars[i-1] : '';
+        const afterChar = i < chars.length - 1 ? chars[i+1] : '';
+        
+        // Bỏ qua dấu chấm trong số (VN format: 1.000.000)
+        if (char === '.' && /\d/.test(beforeChar) && /\d/.test(afterChar)) {
+          continue;
+        }
+        
+        // Kiểm tra kết thúc câu thực sự
+        // Sau dấu câu phải là: kết thúc text, khoảng trắng, hoặc chữ hoa
+        if (!afterChar || /\s/.test(afterChar) || 
+            (i < chars.length - 2 && /[A-ZÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/.test(chars[i+2]))) {
+          
+          const trimmed = currentSentence.trim();
+          if (trimmed.length > 5) {
+            sentences.push(trimmed);
+          }
+          currentSentence = '';
+        }
+      }
+    }
+    
+    // Thêm câu cuối nếu có
+    if (currentSentence.trim().length > 5) {
+      sentences.push(currentSentence.trim());
+    }
+    
+    return sentences;
   }
 
   handleSingleSentence(sentence, targetRatio) {

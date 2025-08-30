@@ -39,10 +39,8 @@ export function deriveCategoriesFromURL(href) {
 export function createCardSummary(fullText, maxLength = 500) {
   if (!fullText || fullText.length < 50) return fullText || "";
   
-  // Nếu text ngắn hơn target, trả về nguyên bản
   if (fullText.length <= maxLength) return fullText;
   
-  // Nếu text chỉ hơn target một chút, cắt tại ranh giới từ
   if (fullText.length <= maxLength + 50) {
     const cutPoint = fullText.lastIndexOf(' ', maxLength);
     if (cutPoint > maxLength * 0.8) {
@@ -50,35 +48,59 @@ export function createCardSummary(fullText, maxLength = 500) {
     }
   }
   
-  // Tách câu - hỗ trợ nhiều kiểu ngắt câu
-  const sentences = fullText.match(/[^.!?;]+[.!?;]+/g) || 
-                   fullText.match(/[^\n]+/g) || 
-                   [fullText];
+  // Tách câu thông minh - không cắt số tiền
+  const sentences = [];
+  let currentSentence = '';
+  const chars = fullText.split('');
   
-  // Build summary từ các câu đầu
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i];
+    currentSentence += char;
+    
+    if (['.', '!', '?', ';', '…'].includes(char)) {
+      const beforeChar = i > 0 ? chars[i-1] : '';
+      const afterChar = i < chars.length - 1 ? chars[i+1] : '';
+      
+      // Không cắt nếu dấu chấm nằm giữa số
+      if (char === '.' && /\d/.test(beforeChar) && /\d/.test(afterChar)) {
+        continue;
+      }
+      
+      // Kết thúc câu nếu sau là space hoặc chữ hoa
+      if (!afterChar || /\s/.test(afterChar)) {
+        const trimmed = currentSentence.trim();
+        if (trimmed.length > 10) {
+          sentences.push(trimmed);
+        }
+        currentSentence = '';
+      }
+    }
+  }
+  
+  if (currentSentence.trim()) {
+    sentences.push(currentSentence.trim());
+  }
+  
+  // Build summary từ các câu
   let summary = "";
   const targetMin = 400;
   const targetMax = maxLength;
   
-  // Phương pháp 1: Lấy theo thứ tự câu
   for (let i = 0; i < sentences.length && summary.length < targetMin; i++) {
-    const sent = sentences[i].trim();
+    const sent = sentences[i];
     
-    // Bỏ qua câu rác
     if (sent.length < 10) continue;
     if (/^(Xem thêm|Đọc thêm|Chia sẻ|Bình luận)/i.test(sent)) continue;
     
-    // Kiểm tra nếu thêm câu này có vượt limit không
     const testLength = summary ? summary.length + sent.length + 1 : sent.length;
     
     if (testLength <= targetMax) {
       summary = summary ? summary + " " + sent : sent;
     } else if (summary.length < targetMin) {
-      // Nếu chưa đủ min, cắt câu này và thêm vào
       const remainingSpace = targetMax - summary.length - 4;
       if (remainingSpace > 50) {
         const words = sent.split(' ');
-        const wordsToTake = Math.floor(remainingSpace / 6); // ~6 ký tự/từ
+        const wordsToTake = Math.floor(remainingSpace / 6);
         
         if (wordsToTake > 3) {
           const partial = words.slice(0, wordsToTake).join(' ');
@@ -89,9 +111,8 @@ export function createCardSummary(fullText, maxLength = 500) {
     }
   }
   
-  // Nếu vẫn quá ngắn, lấy trực tiếp từ đầu text
-  if (summary.length < targetMin) {
-    // Lấy 450 ký tự đầu và cắt tại ranh giới từ
+  // Fallback nếu vẫn quá ngắn
+  if (summary.length < targetMin && fullText.length > targetMin) {
     const directCut = fullText.substring(0, 450);
     const lastSpace = directCut.lastIndexOf(' ');
     
@@ -102,7 +123,6 @@ export function createCardSummary(fullText, maxLength = 500) {
     }
   }
   
-  // Đảm bảo không vượt quá max
   if (summary.length > targetMax) {
     const cutPoint = summary.lastIndexOf(' ', targetMax - 4);
     if (cutPoint > targetMin) {
@@ -112,11 +132,7 @@ export function createCardSummary(fullText, maxLength = 500) {
     }
   }
   
-  // Làm sạch
-  summary = summary
-    .replace(/\s+/g, ' ')
-    .replace(/\.\.\.\./g, '...')
-    .trim();
+  summary = summary.replace(/\s+/g, ' ').replace(/\.\.\.\./g, '...').trim();
   
   return summary;
 }
