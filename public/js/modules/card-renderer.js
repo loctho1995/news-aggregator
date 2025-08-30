@@ -8,7 +8,7 @@ export function createCardElement(item) {
   const card = document.createElement('div');
   const readStatus = isRead(item.link);
   
-  card.className = `news-card bg-[#ecf0f1] border border-gray-300 rounded-2xl p-4 hover:border-gray-400 transition-colors min-h-[380px] ${readStatus ? "opacity-60 read" : ""}`;
+  card.className = `news-card bg-[#ecf0f1] border border-gray-300 rounded-2xl p-4 hover:border-gray-400 transition-colors min-h-[380px] flex flex-col ${readStatus ? "opacity-60 read" : ""}`;
   card.setAttribute('data-url', item.link);
   card.setAttribute('data-title', item.title || '');
   card.setAttribute('data-source', item.sourceName || '');
@@ -24,17 +24,17 @@ export function createCardElement(item) {
   const summaryContent = formatSummaryContent(item);
   
   card.innerHTML = `
-    <div class="clickable-content cursor-pointer hover:bg-gray-50 hover:bg-opacity-30 rounded-lg -m-2 p-2 transition-colors">
-      <h3 class="text-xl font-semibold text-gray-900 line-clamp-2 leading-snug mb-3 hover:text-emerald-600 transition-colors">
+    <div class="clickable-content cursor-pointer hover:bg-gray-50 hover:bg-opacity-30 rounded-lg -m-2 p-2 transition-colors flex-1 flex flex-col">
+      <h3 class="text-xl font-semibold text-gray-900 line-clamp-2 leading-snug mb-3 hover:text-emerald-600 transition-colors select-text">
         ${item.title || "Không có tiêu đề"}
       </h3>
       
-      <div class="flex-1 mb-auto">
+      <div class="flex-1 select-text">
         ${summaryContent}
       </div>
     </div>
     
-    <div class="mt-3">
+    <div class="mt-auto pt-3">
       <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
         <div class="flex items-center gap-2">
           <span class="font-medium text-emerald-600">${item.sourceName || "N/A"}</span>
@@ -54,7 +54,7 @@ export function createCardElement(item) {
     </div>
   `;
   
-  // Add event listeners
+  // Add event listeners với logic phân biệt click và select
   attachCardEventListeners(card, item);
   
   return card;
@@ -68,7 +68,7 @@ function formatSummaryContent(item) {
           const cleanBullet = bullet.replace(/^[•▸◦‣⁃]\s*/, '');
           return `
             <li class="flex items-start gap-2">
-              <span class="text-gray-500 mt-0.5 flex-shrink-0">•</span>
+              <span class="text-gray-500 mt-0.5 flex-shrink-0 no-select">•</span>
               <span class="leading-relaxed flex-1">${cleanBullet}</span>
             </li>
           `;
@@ -85,12 +85,63 @@ function formatSummaryContent(item) {
 }
 
 function attachCardEventListeners(card, item) {
-  // Click vào toàn bộ vùng content (title + description)
   const clickableContent = card.querySelector('.clickable-content');
-  clickableContent.addEventListener('click', (e) => {
-    // Ngăn không cho event bubble up
-    e.stopPropagation();
-    openSummaryModal(item, item.link);
+  
+  // Biến để track text selection
+  let isSelecting = false;
+  let mouseDownTime = 0;
+  let startX = 0;
+  let startY = 0;
+  
+  // Mouse down - bắt đầu track
+  clickableContent.addEventListener('mousedown', (e) => {
+    mouseDownTime = Date.now();
+    startX = e.clientX;
+    startY = e.clientY;
+    isSelecting = false;
+  });
+  
+  // Mouse move - detect nếu đang select text
+  clickableContent.addEventListener('mousemove', (e) => {
+    if (mouseDownTime > 0) {
+      // Nếu di chuyển chuột > 5px thì coi như đang select
+      const moveDistance = Math.sqrt(
+        Math.pow(e.clientX - startX, 2) + 
+        Math.pow(e.clientY - startY, 2)
+      );
+      
+      if (moveDistance > 5) {
+        isSelecting = true;
+      }
+    }
+  });
+  
+  // Mouse up - quyết định action
+  clickableContent.addEventListener('mouseup', (e) => {
+    const clickDuration = Date.now() - mouseDownTime;
+    const selection = window.getSelection();
+    const hasSelection = selection && selection.toString().trim().length > 0;
+    
+    // Reset tracking
+    mouseDownTime = 0;
+    
+    // Nếu có text được select hoặc đang trong quá trình select -> không mở modal
+    if (hasSelection || isSelecting) {
+      return;
+    }
+    
+    // Nếu click nhanh (< 200ms) và không di chuyển -> mở modal
+    if (clickDuration < 200 && !isSelecting) {
+      e.stopPropagation();
+      openSummaryModal(item, item.link);
+    }
+    
+    isSelecting = false;
+  });
+  
+  // Double click để select word
+  clickableContent.addEventListener('dblclick', (e) => {
+    e.stopPropagation(); // Không mở modal khi double click
   });
   
   // Click vào nút đọc/chưa đọc
