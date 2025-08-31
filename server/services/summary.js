@@ -1,5 +1,5 @@
 // server/services/summary.js
-// OPTIMIZED VERSION for faster mobile loading
+// OPTIMIZED VERSION - Keep requested percent for all devices
 
 import * as cheerio from "cheerio";
 import { summaryCache, translationCache } from "../utils/cache.js";
@@ -39,7 +39,7 @@ async function translateText(text, targetLang = "vi") {
 
 // OPTIMIZED fetch with mobile detection
 async function fetchWithMobileOptimization(url, isMobile = false) {
-  const timeout = isMobile ? 5000 : 10000; // 5s for mobile, 10s for desktop
+  const timeout = isMobile ? 6000 : 10000; // 6s for mobile, 10s for desktop
   
   // Try direct fetch first
   try {
@@ -93,10 +93,8 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
     (/mobile|android|iphone/i.test(req.headers['user-agent'] || '') ||
      req.headers['x-mobile'] === 'true');
   
-  // Adjust percent for mobile automatically
-  if (isMobile && percent > 50) {
-    percent = 50; // Cap at 50% for mobile
-  }
+  // KHÔNG TỰ ĐỘNG GIẢM PERCENT CHO MOBILE - giữ nguyên percent request
+  // Removed: if (isMobile && percent > 50) percent = 50;
   
   // Cache key includes mobile flag
   const cacheKey = `${raw}_${percent}_${isMobile ? 'm' : 'd'}`;
@@ -128,9 +126,9 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
     
     let result;
     
-    // ULTRA-LIGHT mode for mobile
-    if (isMobile) {
-      // Get meta description first
+    // Mobile mode - but still respect requested percent
+    if (isMobile && percent <= 40) {
+      // ULTRA-LIGHT mode only for very low percent on mobile
       const metaDesc = $("meta[property='og:description']").attr("content") || 
                       $("meta[name='description']").attr("content") || "";
       
@@ -176,7 +174,7 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
       };
       
     } else {
-      // DESKTOP: Full extraction
+      // NORMAL MODE: Full extraction with requested percent
       const extracted = extractAndSummarizeContent($, percent);
       
       // Check if international site
@@ -197,10 +195,10 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
         originalParagraphCount: extracted.stats.originalParagraphCount,
         summarizedParagraphCount: extracted.stats.summarizedParagraphCount,
         translated: needsTranslation,
-        mobile: false
+        mobile: isMobile
       };
       
-      // Translate if needed (desktop only)
+      // Translate if needed (both mobile and desktop)
       if (needsTranslation) {
         try {
           const translatedTitle = await translateText(title);
@@ -227,7 +225,7 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
     
     // Cache result
     summaryCache.set(cacheKey, result);
-    console.log(`Cached ${isMobile ? 'mobile' : 'desktop'} summary for: ${raw}`);
+    console.log(`Cached ${isMobile ? 'mobile' : 'desktop'} summary for: ${raw} at ${percent}%`);
     
     return result;
     

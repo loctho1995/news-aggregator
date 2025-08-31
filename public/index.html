@@ -126,6 +126,54 @@
         min-height: 0;
         overflow-y: auto;
       }
+      
+      /* Auto-sizing title - NO LINE CLAMP */
+      #modalTitle {
+        /* Remove line-clamp to show full text */
+        display: block;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        hyphens: auto;
+        
+        /* Default size */
+        font-size: 1.125rem; /* 18px */
+        line-height: 1.4;
+        
+        /* Transition for smooth resize */
+        transition: font-size 0.2s ease;
+      }
+      
+      /* Auto resize title based on length */
+      #modalTitle.title-long {
+        font-size: 1rem; /* 16px for long titles */
+      }
+      
+      #modalTitle.title-very-long {
+        font-size: 0.875rem; /* 14px for very long titles */
+      }
+      
+      #modalTitle.title-extra-long {
+        font-size: 0.75rem; /* 12px for extra long titles */
+      }
+      
+      /* Mobile specific title sizing */
+      @media (max-width: 640px) {
+        #modalTitle {
+          font-size: 1rem; /* Start smaller on mobile */
+        }
+        
+        #modalTitle.title-long {
+          font-size: 0.875rem;
+        }
+        
+        #modalTitle.title-very-long {
+          font-size: 0.75rem;
+        }
+        
+        #modalTitle.title-extra-long {
+          font-size: 0.625rem; /* 10px minimum */
+        }
+      }
     </style>
   </head>
   <body class="bg-[#343541] text-slate-100">
@@ -169,7 +217,8 @@
         <div class="modal-compact-header border-b border-gray-300">
           <!-- Title row với close button -->
           <div class="flex items-start gap-2 mb-2">
-            <h2 class="flex-1 text-lg font-semibold text-gray-900 line-clamp-2" id="modalTitle">Tóm tắt</h2>
+            <!-- Title auto-resize, no truncation -->
+            <h2 class="flex-1 font-semibold text-gray-900" id="modalTitle">Tóm tắt</h2>
             
             <!-- Enhanced Close Button for Mobile -->
             <button id="modalClose" class="close-btn-mobile flex-shrink-0">
@@ -231,5 +280,35 @@
     </footer>
 
     <script type="module" src="/public/js/app.js"></script>
+    
+    <!-- Auto-resize title script -->
+    <script>
+      // Function to auto-resize modal title based on length
+      function autoResizeModalTitle() {
+        const titleEl = document.getElementById('modalTitle');
+        if (!titleEl) return;
+        
+        const titleLength = titleEl.textContent.length;
+        
+        // Remove all size classes
+        titleEl.classList.remove('title-long', 'title-very-long', 'title-extra-long');
+        
+        // Add appropriate class based on length
+        if (titleLength > 150) {
+          titleEl.classList.add('title-extra-long');
+        } else if (titleLength > 100) {
+          titleEl.classList.add('title-very-long');
+        } else if (titleLength > 60) {
+          titleEl.classList.add('title-long');
+        }
+      }
+      
+      // Watch for title changes
+      const titleObserver = new MutationObserver(autoResizeModalTitle);
+      const titleEl = document.getElementById('modalTitle');
+      if (titleEl) {
+        titleObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
+      }
+    </script>
   </body>
 </html>

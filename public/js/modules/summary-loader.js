@@ -14,14 +14,8 @@ function isMobileDevice() {
 export function loadSummary(item, link) {
   const isMobile = isMobileDevice();
   
-  // Use lower percent for mobile by default for faster loading
-  let percent = elements.summaryPercent.value || "70";
-  
-  // Auto-adjust percent for mobile if it's the default value
-  if (isMobile && percent === "70") {
-    percent = "50"; // Lower default for mobile
-    elements.summaryPercent.value = "50"; // Update UI
-  }
+  // ALWAYS USE 70% DEFAULT (không auto-adjust cho mobile nữa)
+  const percent = elements.summaryPercent.value || "70";
   
   // Show loading with spinner for mobile
   if (isMobile) {
@@ -31,7 +25,7 @@ export function loadSummary(item, link) {
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <span class="text-lg">Đang tải nhanh ${percent}%...</span>
+        <span class="text-lg">Đang tải ${percent}%...</span>
       </div>
     `;
   } else {
@@ -46,7 +40,7 @@ export function loadSummary(item, link) {
   
   // Create AbortController for timeout
   const controller = new AbortController();
-  const timeoutDuration = isMobile ? 8000 : 15000; // 8s for mobile, 15s for desktop
+  const timeoutDuration = isMobile ? 10000 : 15000; // 10s for mobile (increased), 15s for desktop
   const timeoutId = setTimeout(() => {
     controller.abort();
   }, timeoutDuration);

@@ -1,4 +1,4 @@
-// Modal management
+// Modal management with auto-resize title
 // File: public/js/modules/modal.js
 
 import { elements } from './elements.js';
@@ -45,13 +45,36 @@ function restoreBodyScroll() {
   delete document.body.dataset.scrollY;
 }
 
+// Auto-resize title based on length
+function autoResizeTitle(title) {
+  if (!elements.modalTitle) return;
+  
+  const titleLength = title ? title.length : 0;
+  
+  // Remove all size classes
+  elements.modalTitle.classList.remove('title-long', 'title-very-long', 'title-extra-long');
+  
+  // Add appropriate class based on length
+  if (titleLength > 150) {
+    elements.modalTitle.classList.add('title-extra-long');
+  } else if (titleLength > 100) {
+    elements.modalTitle.classList.add('title-very-long');
+  } else if (titleLength > 60) {
+    elements.modalTitle.classList.add('title-long');
+  }
+}
+
 export function openSummaryModal(item, link) {
   updateState({ 
     currentModalLink: link,
     currentItem: item 
   });
   
-  elements.modalTitle.textContent = item?.title || "Tóm tắt";
+  // Set title and auto-resize
+  const title = item?.title || "Tóm tắt";
+  elements.modalTitle.textContent = title;
+  autoResizeTitle(title);
+  
   elements.modalSource.textContent = item?.sourceName ? `Nguồn: ${item.sourceName}` : "";
   elements.modalOpenLink.href = link;
 
@@ -74,6 +97,11 @@ export function closeModal() {
   
   // RESTORE BODY SCROLL
   restoreBodyScroll();
+  
+  // Reset title size classes
+  if (elements.modalTitle) {
+    elements.modalTitle.classList.remove('title-long', 'title-very-long', 'title-extra-long');
+  }
   
   elements.modal.classList.add("hidden");
   elements.modal.classList.remove("flex");
