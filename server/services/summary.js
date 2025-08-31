@@ -558,3 +558,182 @@ export async function aiSummarizeUrl({ url, language = "vi", targetLength = null
   const data = await summarizeUrl({ url, percent, req });
   return { ...data, ai: false };
 }
+
+export async function summarizeUrlWithProgress({ 
+  url, 
+  percent = 70, 
+  fallbackSummary = "", 
+  req = null,
+  onProgress = null 
+}) {
+  const raw = String(url || "").trim();
+  if (!raw) throw new Error("Missing url");
+  
+  // Check cache first
+  const isMobile = req && req.headers && 
+    (/mobile|android|iphone/i.test(req.headers['user-agent'] || '') ||
+     req.headers['x-mobile'] === 'true');
+  
+  const cache = isMobile ? mobileSummaryCache : summaryCache;
+  const cacheKey = `${raw}_${percent}_${isMobile ? 'm' : 'd'}`;
+  const cached = cache.get(cacheKey);
+  
+  if (cached) {
+    if (onProgress) {
+      onProgress({ stage: 'cache', percent: 100, message: 'Loaded from cache' });
+    }
+    return cached;
+  }
+  
+  // Progress stages
+  const stages = [
+    { name: 'connecting', weight: 10, message: 'Đang kết nối...' },
+    { name: 'fetching', weight: 30, message: 'Đang tải nội dung...' },
+    { name: 'parsing', weight: 20, message: 'Đang phân tích HTML...' },
+    { name: 'extracting', weight: 20, message: 'Đang trích xuất nội dung...' },
+    { name: 'summarizing', weight: 15, message: 'Đang tóm tắt...' },
+    { name: 'finalizing', weight: 5, message: 'Hoàn tất...' }
+  ];
+  
+  let currentProgress = 0;
+  const updateProgress = (stageName, stageProgress = 0) => {
+    const stageIndex = stages.findIndex(s => s.name === stageName);
+    if (stageIndex === -1) return;
+    
+    // Calculate cumulative progress
+    let totalProgress = 0;
+    for (let i = 0; i < stageIndex; i++) {
+      totalProgress += stages[i].weight;
+    }
+    totalProgress += stages[stageIndex].weight * stageProgress;
+    
+    currentProgress = Math.min(95, totalProgress);
+    
+    if (onProgress) {
+      onProgress({
+        stage: stageName,
+        percent: currentProgress,
+        message: stages[stageIndex].message
+      });
+    }
+  };
+  
+  try {
+    let parsedUrl = new URL(raw);
+    
+    // Stage 1: Connecting
+    updateProgress('connecting', 0.5);
+    
+    // Stage 2: Fetching
+    updateProgress('fetching', 0);
+    
+    // Fetch with progress simulation
+    const html = await fetchWithProgressTracking(raw, isMobile, (fetchProgress) => {
+      updateProgress('fetching', fetchProgress / 100);
+    });
+    
+    if (!html || html.length < 100) {
+      throw new Error("Could not fetch meaningful content");
+    }
+    
+    // Stage 3: Parsing
+    updateProgress('parsing', 0);
+    const $ = cheerio.load(html);
+    updateProgress('parsing', 1);
+    
+    // Stage 4: Extracting
+    updateProgress('extracting', 0);
+    
+    const title = $("meta[property='og:title']").attr("content") || 
+                 $("title").text() || "Bài viết";
+    
+    updateProgress('extracting', 0.3);
+    
+    const metaDesc = $("meta[property='og:description']").attr("content") || "";
+    
+    updateProgress('extracting', 0.5);
+    
+    // Extract and summarize content
+    const extracted = extractAndSummarizeContent($, percent);
+    
+    updateProgress('extracting', 1);
+    
+    // Stage 5: Summarizing
+    updateProgress('summarizing', 0);
+    
+    // Process content
+    let result = {
+      url: raw,
+      title: title.trim(),
+      site: parsedUrl.hostname,
+      bullets: extracted.bullets || [`• ${metaDesc || title}`],
+      paragraphs: extracted.summarizedParagraphs || [metaDesc || title],
+      fullSummary: extracted.summary || metaDesc || title,
+      percentage: extracted.stats?.compressionRatio || percent,
+      requestedPercent: percent,
+      originalLength: extracted.stats?.originalLength || html.length,
+      summaryLength: extracted.stats?.summaryLength || (extracted.summary || metaDesc).length,
+      mobile: isMobile
+    };
+    
+    updateProgress('summarizing', 1);
+    
+    // Stage 6: Finalizing
+    updateProgress('finalizing', 0.5);
+    
+    // Cache result
+    cache.set(cacheKey, result);
+    
+    updateProgress('finalizing', 1);
+    
+    if (onProgress) {
+      onProgress({ stage: 'complete', percent: 100, message: 'Hoàn tất!' });
+    }
+    
+    return result;
+    
+  } catch (error) {
+    if (onProgress) {
+      onProgress({ 
+        stage: 'error', 
+        percent: currentProgress, 
+        message: 'Lỗi: ' + error.message,
+        error: true 
+      });
+    }
+    throw error;
+  }
+}
+
+// Helper function for fetch with progress
+async function fetchWithProgressTracking(url, isMobile, onProgress) {
+  const timeout = isMobile ? 12000 : 15000;
+  
+  // Simulate progress during fetch
+  const progressInterval = setInterval(() => {
+    onProgress(Math.min(90, (onProgress.current || 0) + 10));
+    onProgress.current = (onProgress.current || 0) + 10;
+  }, 500);
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      signal: AbortSignal.timeout(timeout)
+    });
+    
+    clearInterval(progressInterval);
+    onProgress(100);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    return await response.text();
+  } catch (error) {
+    clearInterval(progressInterval);
+    throw error;
+  }
+}

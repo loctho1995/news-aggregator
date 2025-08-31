@@ -1,58 +1,58 @@
 // server/routes/summary.js
-// Updated to pass request object for mobile detection
+// Enhanced with SSE progress streaming
 
 import express from "express";
-import { summarizeUrl, aiSummarizeUrl } from "../services/summary.js";
+import { summarizeUrl, aiSummarizeUrl, summarizeUrlWithProgress } from "../services/summary.js";
 
 const router = express.Router();
 
+// New endpoint for progress streaming
+router.get("/summary-stream", async (req, res) => {
+  const url = String(req.query.url || "");
+  const percent = parseInt(req.query.percent || "70", 10);
+  const fallback = String(req.query.fallback || "");
+
+  // Setup SSE
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  try {
+    await summarizeUrlWithProgress({
+      url,
+      percent,
+      fallbackSummary: fallback,
+      req,
+      onProgress: (progress) => {
+        res.write(`data: ${JSON.stringify(progress)}\n\n`);
+      }
+    });
+    
+    res.write(`data: [DONE]\n\n`);
+    res.end();
+  } catch (e) {
+    res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Original endpoint (keep for backward compatibility)
 router.get("/summary", async (req, res) => {
   const url = String(req.query.url || "");
   const percent = parseInt(req.query.percent || "70", 10);
   const fallback = String(req.query.fallback || "");
 
   try {
-    // Pass req object for mobile detection
     const data = await summarizeUrl({ 
       url, 
       percent, 
       fallbackSummary: fallback,
-      req // Pass full request object for headers
+      req
     });
     
-    // Set cache headers for mobile
-    if (data.mobile) {
-      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour cache for mobile
-    } else {
-      res.setHeader('Cache-Control', 'public, max-age=1800'); // 30 min for desktop
-    }
-    
-    res.json(data);
-  } catch (e) {
-    console.error("Summary error:", e);
-    res.status(500).json({ 
-      error: e.message || "Summary failed",
-      fallback: fallback || null
-    });
-  }
-});
-
-router.get("/ai-summary", async (req, res) => {
-  const url = String(req.query.url || "");
-  const language = String(req.query.language || "vi");
-  const targetLength = req.query.targetLength ? parseInt(req.query.targetLength, 10) : null;
-  const percent = parseInt(req.query.percent || "70", 10);
-
-  try {
-    const data = await aiSummarizeUrl({ 
-      url, 
-      language, 
-      targetLength, 
-      percent,
-      req // Pass request object
-    });
-    
-    // Set cache headers
     if (data.mobile) {
       res.setHeader('Cache-Control', 'public, max-age=3600');
     } else {
@@ -61,9 +61,10 @@ router.get("/ai-summary", async (req, res) => {
     
     res.json(data);
   } catch (e) {
-    console.error("AI Summary error:", e);
+    console.error("Summary error:", e);
     res.status(500).json({ 
-      error: e.message || "AI Summary failed" 
+      error: e.message || "Summary failed",
+      fallback: fallback || null
     });
   }
 });
