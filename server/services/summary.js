@@ -1,8 +1,8 @@
 // server/services/summary.js
-// FIXED VERSION - Better error handling and retry logic
+// ENHANCED VERSION - Better mobile support and VnExpress handling
 
 import * as cheerio from "cheerio";
-import { summaryCache, translationCache } from "../utils/cache.js";
+import { summaryCache, translationCache, mobileSummaryCache } from "../utils/cache.js";
 import { extractAndSummarizeContent } from "./aggregator/content-extractor/index.js";
 
 // Language detection
@@ -37,49 +37,74 @@ async function translateText(text, targetLang = "vi") {
   return text;
 }
 
-// ENHANCED fetch with multiple strategies and better error handling
+// Check if VnExpress URL
+function isVnExpress(url) {
+  return url.includes('vnexpress.net');
+}
+
+// ENHANCED fetch with better VnExpress support
 async function fetchWithRetryStrategies(url, isMobile = false) {
+  const isVnEx = isVnExpress(url);
+  
+  // Longer timeouts for mobile and VnExpress
+  const baseTimeout = isMobile ? 12000 : 15000;
+  const vnexpressTimeout = isMobile ? 15000 : 20000;
+  const timeout = isVnEx ? vnexpressTimeout : baseTimeout;
+  
   const strategies = [
-    // Strategy 1: Direct fetch with standard headers
+    // Strategy 1: Direct fetch with VnExpress-friendly headers
     {
-      name: 'Direct Standard',
-      timeout: isMobile ? 8000 : 12000,
+      name: 'Direct VnExpress',
+      timeout: timeout,
       fetch: async () => {
         const response = await fetch(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'User-Agent': isMobile ? 
+              'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' :
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br',
             'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
+            'Pragma': 'no-cache',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Upgrade-Insecure-Requests': '1',
+            'Referer': isVnEx ? 'https://vnexpress.net/' : url
           },
           redirect: 'follow',
-          signal: AbortSignal.timeout(isMobile ? 8000 : 12000)
+          signal: AbortSignal.timeout(timeout)
         });
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
         
-        return await response.text();
+        const html = await response.text();
+        
+        // Quick validation for VnExpress
+        if (isVnEx && !html.includes('vnexpress')) {
+          throw new Error('Invalid VnExpress response');
+        }
+        
+        return html;
       }
     },
     
-    // Strategy 2: Mobile User-Agent
+    // Strategy 2: Mobile User-Agent with simpler headers
     {
-      name: 'Mobile UA',
-      timeout: isMobile ? 7000 : 10000,
+      name: 'Simple Mobile',
+      timeout: timeout - 2000,
       fetch: async () => {
         const response = await fetch(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'vi-VN,vi;q=0.9',
-            'Accept-Encoding': 'gzip, deflate'
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            'Accept': 'text/html,*/*',
+            'Accept-Language': 'vi-VN,vi;q=0.9'
           },
           redirect: 'follow',
-          signal: AbortSignal.timeout(isMobile ? 7000 : 10000)
+          signal: AbortSignal.timeout(timeout - 2000)
         });
         
         if (!response.ok) {
@@ -90,62 +115,47 @@ async function fetchWithRetryStrategies(url, isMobile = false) {
       }
     },
     
-    // Strategy 3: AllOrigins Proxy
+    // Strategy 3: AllOrigins Proxy (better for VnExpress)
     {
       name: 'AllOrigins Proxy',
-      timeout: isMobile ? 10000 : 15000,
+      timeout: timeout + 3000,
       fetch: async () => {
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
         const response = await fetch(proxyUrl, {
-          signal: AbortSignal.timeout(isMobile ? 10000 : 15000)
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          },
+          signal: AbortSignal.timeout(timeout + 3000)
         });
         
         if (!response.ok) {
           throw new Error(`Proxy HTTP ${response.status}`);
         }
         
-        return await response.text();
-      }
-    },
-    
-    // Strategy 4: CorsProxy.io
-    {
-      name: 'CorsProxy',
-      timeout: isMobile ? 10000 : 15000,
-      fetch: async () => {
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; News Aggregator/1.0)'
-          },
-          signal: AbortSignal.timeout(isMobile ? 10000 : 15000)
-        });
+        const html = await response.text();
         
-        if (!response.ok) {
-          throw new Error(`CorsProxy HTTP ${response.status}`);
+        // Validate content
+        if (html.length < 1000) {
+          throw new Error('Response too short');
         }
         
-        return await response.text();
+        return html;
       }
     },
     
-    // Strategy 5: Googlebot UA (some sites allow)
+    // Strategy 4: Alternative proxy
     {
-      name: 'Googlebot',
-      timeout: 8000,
+      name: 'Proxy Alternative',
+      timeout: timeout + 2000,
       fetch: async () => {
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'vi,en;q=0.8'
-          },
-          redirect: 'follow',
-          signal: AbortSignal.timeout(8000)
+        // Try cors-anywhere alternative
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl, {
+          signal: AbortSignal.timeout(timeout + 2000)
         });
         
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(`Alternative proxy HTTP ${response.status}`);
         }
         
         return await response.text();
@@ -154,44 +164,93 @@ async function fetchWithRetryStrategies(url, isMobile = false) {
   ];
 
   // Try each strategy with delay between attempts
+  let lastError = null;
+  
   for (let i = 0; i < strategies.length; i++) {
     const strategy = strategies[i];
     
     try {
-      console.log(`Trying strategy ${i + 1}/${strategies.length}: ${strategy.name}`);
+      console.log(`[${isMobile ? 'Mobile' : 'Desktop'}] Trying strategy ${i + 1}/${strategies.length}: ${strategy.name} for ${isVnEx ? 'VnExpress' : 'site'}`);
       
       const html = await strategy.fetch();
       
       // Validate we got real content
-      if (html && html.length > 500) {
+      if (html && html.length > 1000) {
         // Check for blocking patterns
-        if (html.includes('cloudflare') || 
-            html.includes('cf-browser-verification') ||
+        if (html.includes('cf-browser-verification') ||
             html.includes('Just a moment') ||
-            html.includes('Access denied') ||
-            html.includes('403 Forbidden')) {
+            (html.includes('403') && html.includes('Forbidden')) ||
+            html.includes('Access Denied')) {
           console.log(`Strategy ${strategy.name} was blocked`);
+          lastError = new Error('Blocked by security');
           continue;
+        }
+        
+        // For VnExpress, check for article content
+        if (isVnEx) {
+          const hasContent = html.includes('fck_detail') || 
+                           html.includes('Normal') || 
+                           html.includes('article-content') ||
+                           html.includes('description');
+          
+          if (!hasContent) {
+            console.log(`Strategy ${strategy.name} - No VnExpress content found`);
+            lastError = new Error('No article content');
+            continue;
+          }
         }
         
         console.log(`✓ Strategy ${strategy.name} successful`);
         return html;
       } else {
         console.log(`Strategy ${strategy.name} returned insufficient content`);
+        lastError = new Error('Insufficient content');
         continue;
       }
       
     } catch (error) {
       console.log(`✗ Strategy ${strategy.name} failed: ${error.message}`);
+      lastError = error;
       
       // Add delay between retries to avoid rate limiting
       if (i < strategies.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, isMobile ? 500 : 1000));
       }
     }
   }
   
-  throw new Error('All fetch strategies failed');
+  throw lastError || new Error('All fetch strategies failed');
+}
+
+// Special extractor for VnExpress
+function extractVnExpressContent($) {
+  const paragraphs = [];
+  
+  // Try lead/description first
+  const lead = $('.sidebar-1 .description, h2.description, .description').first().text().trim();
+  if (lead && lead.length > 30) {
+    paragraphs.push(lead);
+  }
+  
+  // Main content paragraphs
+  $('.fck_detail p.Normal, article.fck p.Normal, .content-detail p').each((i, el) => {
+    const text = $(el).text().trim();
+    if (text && text.length > 20 && !text.includes('Xem thêm:')) {
+      paragraphs.push(text);
+    }
+  });
+  
+  // Fallback to any p tags in article
+  if (paragraphs.length < 3) {
+    $('article p, .article-content p').each((i, el) => {
+      const text = $(el).text().trim();
+      if (text && text.length > 30 && !paragraphs.includes(text)) {
+        paragraphs.push(text);
+      }
+    });
+  }
+  
+  return paragraphs.join('\n\n');
 }
 
 // MAIN summarizeUrl with better error handling
@@ -202,11 +261,16 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
   // Check if mobile from headers
   const isMobile = req && req.headers && 
     (/mobile|android|iphone/i.test(req.headers['user-agent'] || '') ||
-     req.headers['x-mobile'] === 'true');
+     req.headers['x-mobile'] === 'true' ||
+     req.headers['x-client-type'] === 'mobile');
   
-  // Cache key includes mobile flag and percent
-  const cacheKey = `${raw}_${percent}_${isMobile ? 'm' : 'd'}`;
-  const cached = summaryCache.get(cacheKey);
+  const isVnEx = isVnExpress(raw);
+  
+  // Use mobile cache for mobile requests
+  const cache = isMobile ? mobileSummaryCache : summaryCache;
+  const cacheKey = `${raw}_${percent}_${isMobile ? 'm' : 'd'}${isVnEx ? '_vn' : ''}`;
+  const cached = cache.get(cacheKey);
+  
   if (cached) {
     console.log(`Cache hit for ${isMobile ? 'mobile' : 'desktop'}: ${raw}`);
     return { cached: true, ...cached };
@@ -223,135 +287,210 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
 
   try {
     // Fetch with enhanced retry strategies
-    console.log(`Fetching content from: ${raw}`);
+    console.log(`Fetching content from: ${raw} (${isMobile ? 'Mobile' : 'Desktop'})`);
     const html = await fetchWithRetryStrategies(raw, isMobile);
     
     if (!html || html.length < 100) {
       throw new Error("Could not fetch meaningful content");
     }
     
-    const $ = cheerio.load(html);
+    const $ = cheerio.load(html, {
+      decodeEntities: true,
+      normalizeWhitespace: true
+    });
+    
+    // Remove unwanted elements
+    $('script, style, noscript, iframe, .advertisement, .ads, .social-share').remove();
     
     // Extract title with multiple fallbacks
     const title = $("meta[property='og:title']").attr("content") || 
                  $("meta[name='title']").attr("content") ||
                  $("title").text() || 
-                 $("h1.title-detail").text() || // VnExpress specific
+                 $("h1.title-detail, h1.title-page").first().text() || // VnExpress specific
                  $("h1.article-title").text() || 
                  $("h1").first().text() || 
                  "Bài viết";
     
     // Extract meta description as fallback
     const metaDesc = $("meta[property='og:description']").attr("content") || 
-                    $("meta[name='description']").attr("content") || "";
+                    $("meta[name='description']").attr("content") || 
+                    $('.sidebar-1 .description').text() || // VnExpress
+                    "";
     
     let result;
     
-    // Try to extract and summarize content
-    try {
-      const extracted = extractAndSummarizeContent($, percent);
-      
-      // Check if we got meaningful extraction
-      if (!extracted.summary || extracted.summary.length < 50) {
-        throw new Error("Extraction failed");
-      }
-      
-      // Check if international site
-      const isInternational = /(wsj|ft|bloomberg|economist|reuters|cnbc|marketwatch)/i.test(parsedUrl.hostname);
-      let needsTranslation = isInternational && detectLanguage(extracted.summary) !== "vi";
-      
-      result = {
-        url: raw,
-        title: title.trim(),
-        site: parsedUrl.hostname,
-        bullets: extracted.bullets && extracted.bullets.length > 0 ? 
-                extracted.bullets : 
-                [metaDesc ? `• ${metaDesc}` : `• ${title}`],
-        paragraphs: extracted.summarizedParagraphs && extracted.summarizedParagraphs.length > 0 ?
-                   extracted.summarizedParagraphs :
-                   [metaDesc || title],
-        fullSummary: extracted.summary || metaDesc || title,
-        percentage: extracted.stats?.compressionRatio || percent,
-        requestedPercent: percent,
-        originalLength: extracted.stats?.originalLength || html.length,
-        summaryLength: extracted.stats?.summaryLength || (extracted.summary || metaDesc).length,
-        originalParagraphCount: extracted.stats?.originalParagraphCount || 1,
-        summarizedParagraphCount: extracted.stats?.summarizedParagraphCount || 1,
-        translated: needsTranslation,
-        mobile: isMobile
-      };
-      
-      // Translate if needed
-      if (needsTranslation) {
-        try {
-          const translatedTitle = await translateText(title);
-          if (translatedTitle !== title) {
-            result.title = translatedTitle;
-          }
+    // Special handling for VnExpress
+    if (isVnEx) {
+      try {
+        console.log('Using VnExpress special extractor');
+        const vnContent = extractVnExpressContent($);
+        
+        if (vnContent && vnContent.length > 100) {
+          // Create summary from VnExpress content
+          const paragraphs = vnContent.split('\n\n').filter(p => p.trim().length > 20);
+          const targetParagraphs = Math.ceil(paragraphs.length * (percent / 100));
+          const selectedParagraphs = paragraphs.slice(0, Math.max(1, targetParagraphs));
           
-          // Translate first 3 bullets
-          const translatedBullets = [];
-          for (let i = 0; i < Math.min(3, result.bullets.length); i++) {
-            const translated = await translateText(result.bullets[i].replace('• ', ''));
-            translatedBullets.push(`• ${translated}`);
-          }
-          if (translatedBullets.length > 0) {
-            result.bullets = translatedBullets;
-            result.paragraphs = translatedBullets.map(b => b.replace('• ', ''));
-            result.fullSummary = translatedBullets.join(' ');
-          }
-        } catch (e) {
-          console.log('Translation failed, using original');
+          // Create bullets
+          const bullets = selectedParagraphs.slice(0, 5).map(p => {
+            const trimmed = p.length > 200 ? p.substring(0, 197) + '...' : p;
+            return `• ${trimmed}`;
+          });
+          
+          result = {
+            url: raw,
+            title: title.trim(),
+            site: parsedUrl.hostname,
+            bullets: bullets.length > 0 ? bullets : [`• ${metaDesc || title}`],
+            paragraphs: selectedParagraphs,
+            fullSummary: selectedParagraphs.join(' '),
+            percentage: percent,
+            requestedPercent: percent,
+            originalLength: vnContent.length,
+            summaryLength: selectedParagraphs.join(' ').length,
+            mobile: isMobile,
+            vnexpress: true
+          };
+        } else {
+          throw new Error('VnExpress extraction failed');
         }
+      } catch (vnError) {
+        console.log('VnExpress extraction failed, using standard method:', vnError.message);
+        // Fall through to standard extraction
       }
-      
-    } catch (extractError) {
-      console.log('Extraction failed, using fallback mode:', extractError.message);
-      
-      // FALLBACK MODE: Use meta description and basic content
-      const paragraphs = [];
-      $("p").slice(0, 5).each((i, el) => {
-        const text = $(el).text().trim();
-        if (text.length > 50 && text.length < 500) {
-          paragraphs.push(text);
-        }
-      });
-      
-      const fallbackContent = metaDesc + " " + paragraphs.join(" ");
-      const contentToUse = fallbackContent.substring(0, 1500);
-      
-      // Create bullets from content
-      const sentences = contentToUse.split(/[.!?]+/).filter(s => s.trim().length > 30);
-      const bullets = [];
-      
-      for (let i = 0; i < Math.min(5, sentences.length); i++) {
-        bullets.push(`• ${sentences[i].trim()}`);
-      }
-      
-      // If still no bullets, use meta or title
-      if (bullets.length === 0) {
-        bullets.push(metaDesc ? `• ${metaDesc}` : `• ${title}`);
-      }
-      
-      result = {
-        url: raw,
-        title: title.trim(),
-        site: parsedUrl.hostname,
-        bullets: bullets,
-        paragraphs: bullets.map(b => b.replace('• ', '')),
-        fullSummary: contentToUse || metaDesc || title,
-        percentage: percent,
-        requestedPercent: percent,
-        originalLength: html.length,
-        summaryLength: contentToUse.length,
-        mobile: isMobile,
-        fallbackMode: true
-      };
     }
     
-    // Cache successful result
-    summaryCache.set(cacheKey, result);
-    console.log(`✓ Cached summary for: ${raw} at ${percent}%`);
+    // Standard extraction if not VnExpress or VnExpress failed
+    if (!result) {
+      try {
+        const extracted = extractAndSummarizeContent($, percent);
+        
+        // Check if we got meaningful extraction
+        if (!extracted.summary || extracted.summary.length < 50) {
+          throw new Error("Extraction failed");
+        }
+        
+        // Check if international site
+        const isInternational = /(wsj|ft|bloomberg|economist|reuters|cnbc|marketwatch)/i.test(parsedUrl.hostname);
+        let needsTranslation = isInternational && detectLanguage(extracted.summary) !== "vi";
+        
+        result = {
+          url: raw,
+          title: title.trim(),
+          site: parsedUrl.hostname,
+          bullets: extracted.bullets && extracted.bullets.length > 0 ? 
+                  extracted.bullets : 
+                  [metaDesc ? `• ${metaDesc}` : `• ${title}`],
+          paragraphs: extracted.summarizedParagraphs && extracted.summarizedParagraphs.length > 0 ?
+                     extracted.summarizedParagraphs :
+                     [metaDesc || title],
+          fullSummary: extracted.summary || metaDesc || title,
+          percentage: extracted.stats?.compressionRatio || percent,
+          requestedPercent: percent,
+          originalLength: extracted.stats?.originalLength || html.length,
+          summaryLength: extracted.stats?.summaryLength || (extracted.summary || metaDesc).length,
+          originalParagraphCount: extracted.stats?.originalParagraphCount || 1,
+          summarizedParagraphCount: extracted.stats?.summarizedParagraphCount || 1,
+          translated: needsTranslation,
+          mobile: isMobile
+        };
+        
+        // Translate if needed
+        if (needsTranslation && !isMobile) { // Skip translation on mobile for speed
+          try {
+            const translatedTitle = await translateText(title);
+            if (translatedTitle !== title) {
+              result.title = translatedTitle;
+            }
+            
+            // Translate first 3 bullets
+            const translatedBullets = [];
+            for (let i = 0; i < Math.min(3, result.bullets.length); i++) {
+              const translated = await translateText(result.bullets[i].replace('• ', ''));
+              translatedBullets.push(`• ${translated}`);
+            }
+            if (translatedBullets.length > 0) {
+              result.bullets = translatedBullets;
+              result.paragraphs = translatedBullets.map(b => b.replace('• ', ''));
+              result.fullSummary = translatedBullets.join(' ');
+            }
+          } catch (e) {
+            console.log('Translation failed, using original');
+          }
+        }
+        
+      } catch (extractError) {
+        console.log('Standard extraction failed, using fallback mode:', extractError.message);
+        
+        // FALLBACK MODE: Use meta description and basic content
+        const paragraphs = [];
+        
+        // Try to get any paragraphs
+        $("p").slice(0, 10).each((i, el) => {
+          const text = $(el).text().trim();
+          if (text.length > 50 && text.length < 1000 && !text.includes('Xem thêm')) {
+            paragraphs.push(text);
+          }
+        });
+        
+        // If still no content, try divs with text
+        if (paragraphs.length < 3) {
+          $("div").slice(0, 20).each((i, el) => {
+            const $el = $(el);
+            // Only get divs with direct text content
+            const text = $el.clone().children().remove().end().text().trim();
+            if (text.length > 100 && text.length < 1000 && !paragraphs.some(p => p.includes(text))) {
+              paragraphs.push(text);
+            }
+          });
+        }
+        
+        const fallbackContent = (metaDesc ? metaDesc + " " : "") + paragraphs.join(" ");
+        const contentToUse = fallbackContent.substring(0, 2000);
+        
+        // Create bullets from content
+        const sentences = contentToUse.split(/[.!?]+/).filter(s => s.trim().length > 30);
+        const bullets = [];
+        
+        for (let i = 0; i < Math.min(5, sentences.length); i++) {
+          const sentence = sentences[i].trim();
+          if (sentence.length > 250) {
+            bullets.push(`• ${sentence.substring(0, 247)}...`);
+          } else {
+            bullets.push(`• ${sentence}`);
+          }
+        }
+        
+        // If still no bullets, use meta or title
+        if (bullets.length === 0) {
+          if (metaDesc) {
+            bullets.push(`• ${metaDesc.substring(0, 300)}`);
+          } else {
+            bullets.push(`• ${title}`);
+          }
+        }
+        
+        result = {
+          url: raw,
+          title: title.trim(),
+          site: parsedUrl.hostname,
+          bullets: bullets,
+          paragraphs: bullets.map(b => b.replace('• ', '')),
+          fullSummary: contentToUse || metaDesc || title,
+          percentage: percent,
+          requestedPercent: percent,
+          originalLength: html.length,
+          summaryLength: contentToUse.length,
+          mobile: isMobile,
+          fallbackMode: true
+        };
+      }
+    }
+    
+    // Cache successful result with appropriate TTL
+    const cacheTTL = isMobile ? 60 * 60 * 1000 : 30 * 60 * 1000; // 1h for mobile, 30m for desktop
+    cache.setWithTTL(cacheKey, result, cacheTTL);
+    console.log(`✓ Cached summary for: ${raw} at ${percent}% (${isMobile ? 'mobile' : 'desktop'})`);
     
     return result;
     
@@ -359,22 +498,36 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
     console.error(`Summary error for ${raw}:`, error.message);
     
     // Return a more helpful fallback
-    if (fallbackSummary || req?.query?.fallback) {
-      const fallback = fallbackSummary || req.query.fallback || "Không thể tải nội dung";
+    const fallback = fallbackSummary || req?.query?.fallback || "";
+    
+    if (fallback) {
+      // Use fallback content if available
+      const fallbackBullets = [];
+      const fallbackSentences = fallback.split(/[.!?]+/).filter(s => s.trim().length > 20);
+      
+      for (let i = 0; i < Math.min(3, fallbackSentences.length); i++) {
+        fallbackBullets.push(`• ${fallbackSentences[i].trim()}`);
+      }
+      
+      if (fallbackBullets.length === 0) {
+        fallbackBullets.push(`• ${fallback.substring(0, 300)}`);
+      }
       
       return {
         url: raw,
-        title: "Tóm tắt từ bản lưu",
+        title: title || "Tóm tắt từ bản lưu",
         site: parsedUrl.hostname,
-        bullets: [`• ${fallback.substring(0, 300)}`],
-        paragraphs: [fallback],
+        bullets: fallbackBullets,
+        paragraphs: fallbackBullets.map(b => b.replace('• ', '')),
         fullSummary: fallback,
         percentage: 100,
         requestedPercent: percent,
         fallback: true,
         mobile: isMobile,
         error: error.message,
-        errorDetails: "Không thể kết nối đến trang web. Có thể do trang web chặn bot hoặc lỗi mạng."
+        errorDetails: isVnEx ? 
+          "VnExpress có thể đang bảo trì hoặc chặn truy cập. Đang hiển thị nội dung có sẵn." :
+          "Không thể kết nối đến trang web. Đang hiển thị nội dung có sẵn."
       };
     }
     
@@ -385,16 +538,17 @@ export async function summarizeUrl({ url, percent = 70, fallbackSummary = "", re
       site: parsedUrl.hostname,
       bullets: [
         `• Không thể kết nối đến ${parsedUrl.hostname}`,
-        `• Vui lòng thử lại sau hoặc truy cập trực tiếp`,
-        `• Lỗi: ${error.message}`
+        `• ${isVnEx ? 'VnExpress có thể đang bảo trì hoặc cập nhật hệ thống' : 'Vui lòng thử lại sau'}`,
+        `• Bạn có thể truy cập trực tiếp vào link bài báo`
       ],
-      paragraphs: [`Không thể tải nội dung từ ${parsedUrl.hostname}. ${error.message}`],
-      fullSummary: `Lỗi tải nội dung: ${error.message}`,
+      paragraphs: [`Lỗi tải nội dung từ ${parsedUrl.hostname}. ${error.message}`],
+      fullSummary: `Lỗi: ${error.message}`,
       percentage: 0,
       requestedPercent: percent,
       fallback: true,
       mobile: isMobile,
-      error: error.message
+      error: error.message,
+      errorCode: isVnEx ? 'VNEXPRESS_ERROR' : 'FETCH_ERROR'
     };
   }
 }
