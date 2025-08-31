@@ -1,4 +1,4 @@
-// Summary loading logic with mobile optimizations
+// Summary loading logic with better error handling
 // File: public/js/modules/summary-loader.js
 
 import { elements } from './elements.js';
@@ -14,8 +14,11 @@ function isMobileDevice() {
 export function loadSummary(item, link) {
   const isMobile = isMobileDevice();
   
-  // ALWAYS USE 70% DEFAULT (không auto-adjust cho mobile nữa)
+  // Always use 70% default
   const percent = elements.summaryPercent.value || "70";
+  
+  // Pass fallback summary if available
+  const fallbackParam = item.summary ? `&fallback=${encodeURIComponent(item.summary)}` : '';
   
   // Show loading with spinner for mobile
   if (isMobile) {
@@ -36,11 +39,11 @@ export function loadSummary(item, link) {
   elements.summaryList.classList.add("hidden");
   elements.summaryStats.classList.add("hidden");
   
-  const url = `/api/summary?url=${encodeURIComponent(link)}&percent=${percent}`;
+  const url = `/api/summary?url=${encodeURIComponent(link)}&percent=${percent}${fallbackParam}`;
   
   // Create AbortController for timeout
   const controller = new AbortController();
-  const timeoutDuration = isMobile ? 10000 : 15000; // 10s for mobile (increased), 15s for desktop
+  const timeoutDuration = isMobile ? 15000 : 20000; // Increased: 15s for mobile, 20s for desktop
   const timeoutId = setTimeout(() => {
     controller.abort();
   }, timeoutDuration);
@@ -48,15 +51,20 @@ export function loadSummary(item, link) {
   fetch(url, { 
     signal: controller.signal,
     headers: {
-      'X-Mobile': isMobile ? 'true' : 'false', // Help server identify mobile
+      'X-Mobile': isMobile ? 'true' : 'false',
       'X-Client-Type': isMobile ? 'mobile' : 'desktop'
     }
   })
     .then(async (r) => {
       clearTimeout(timeoutId);
       const j = await r.json();
-      if (j.error) throw new Error(j.error);
       
+      // Even if there's an error flag, still show content if available
+      if (j.error && !j.bullets && !j.fullSummary) {
+        throw new Error(j.error);
+      }
+      
+      // Show content even if it's fallback
       updateModalWithSummary(j, item, isMobile);
       
       if (elements.summaryArea) elements.summaryArea.scrollTop = 0;
@@ -65,11 +73,11 @@ export function loadSummary(item, link) {
       clearTimeout(timeoutId);
       console.error('Summary error:', err);
       
-      // Better error handling for mobile
+      // Always show something useful
       if (err.name === 'AbortError') {
-        showMobileTimeoutFallback(item, isMobile);
+        showTimeoutFallback(item, isMobile);
       } else {
-        showFallbackSummary(item, isMobile);
+        showErrorFallback(item, isMobile, err.message);
       }
       
       if (elements.summaryArea) elements.summaryArea.scrollTop = 0;
@@ -77,20 +85,35 @@ export function loadSummary(item, link) {
 }
 
 function updateModalWithSummary(data, item, isMobile = false) {
-  // Update source info (compact format)
+  // Update source info
   if (data.percentage !== undefined) {
     const percentColor = data.percentage > 70 ? "text-orange-600" : 
                        data.percentage > 40 ? "text-yellow-600" : "text-emerald-600";
     const sizeInfo = data.originalLength && !isMobile ? ` (${data.summaryLength}/${data.originalLength} ký tự)` : "";
     const translatedText = data.translated ? ` • 🌐 Đã dịch` : "";
+    const fallbackText = data.fallback ? ` • ⚠️ Tóm tắt từ bản lưu` : "";
     
     elements.modalSource.innerHTML = `
       <span>Nguồn: ${item.sourceName || ""}</span>
       <span class="${percentColor} ml-2">${data.percentage}%${sizeInfo}</span>
       ${translatedText}
+      ${fallbackText}
     `;
   } else {
     elements.modalSource.textContent = `Nguồn: ${item.sourceName || ""}`;
+  }
+  
+  // Show error notice if present but still has content
+  if (data.error && data.bullets) {
+    const errorNotice = `
+      <div class="mb-3 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 text-sm">
+        <p class="font-bold">⚠️ Lưu ý</p>
+        <p>Không thể tải nội dung mới nhất. Đang hiển thị tóm tắt có sẵn.</p>
+      </div>
+    `;
+    elements.summaryList.innerHTML = errorNotice;
+  } else {
+    elements.summaryList.innerHTML = '';
   }
   
   // Render content
@@ -101,7 +124,7 @@ function updateModalWithSummary(data, item, isMobile = false) {
     isMobile
   });
   
-  elements.summaryList.innerHTML = html;
+  elements.summaryList.innerHTML += html;
   elements.summaryLoading.classList.add("hidden");
   elements.summaryList.classList.remove("hidden");
   
@@ -157,11 +180,11 @@ function renderBulletSummary(bullets, animationClass) {
   `).join('');
 }
 
-// Special timeout fallback for mobile
-function showMobileTimeoutFallback(item, isMobile) {
+// Timeout fallback
+function showTimeoutFallback(item, isMobile) {
   const retryMessage = isMobile ? 
-    "Kết nối mạng di động chậm. Vui lòng thử lại." :
-    "Không thể tải tóm tắt do timeout.";
+    "Kết nối mạng chậm. Đang thử lại..." :
+    "Tải nội dung mất nhiều thời gian...";
   
   const html = `
     <div class="text-center py-8">
@@ -173,14 +196,19 @@ function showMobileTimeoutFallback(item, isMobile) {
       
       ${item.summary ? `
         <div class="text-left bg-white/50 rounded-lg p-4 mb-4">
-          <p class="text-sm text-gray-600 mb-2">Tóm tắt có sẵn:</p>
+          <p class="text-sm text-gray-600 mb-2">📄 Tóm tắt có sẵn:</p>
           <p class="text-gray-800">${item.summary}</p>
         </div>
       ` : ''}
       
-      <button onclick="window.retryLoadSummary()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg">
-        Thử lại
-      </button>
+      <div class="flex gap-2 justify-center">
+        <button onclick="window.retryLoadSummary()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg">
+          🔄 Thử lại
+        </button>
+        <a href="${item.link}" target="_blank" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg">
+          📖 Đọc trực tiếp
+        </a>
+      </div>
     </div>
   `;
   
@@ -196,21 +224,71 @@ function showMobileTimeoutFallback(item, isMobile) {
   };
 }
 
-function showFallbackSummary(item, isMobile = false) {
-  const html = renderSummaryContent({
-    paragraphs: null,
-    bullets: [],
-    fallbackText: item.summary || "Không thể tải tóm tắt.",
-    isMobile
-  });
+// Error fallback with more helpful message
+function showErrorFallback(item, isMobile, errorMessage) {
+  const html = `
+    <div class="space-y-4">
+      <!-- Error notice -->
+      <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+        <div class="flex items-start">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">Không thể tải nội dung</h3>
+            <p class="mt-1 text-sm text-red-700">
+              Website có thể đang bảo trì hoặc chặn truy cập tự động.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Available summary if exists -->
+      ${item.summary ? `
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-sm font-semibold text-gray-600 mb-2">📋 Tóm tắt có sẵn:</p>
+          <p class="text-gray-800 leading-relaxed">${item.summary}</p>
+        </div>
+      ` : `
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-gray-600">Không có tóm tắt sẵn có.</p>
+        </div>
+      `}
+      
+      <!-- Action buttons -->
+      <div class="flex gap-2 justify-center pt-4">
+        <button onclick="window.retryLoadSummary()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Thử lại
+        </button>
+        <a href="${item.link}" target="_blank" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+          Đọc bài gốc
+        </a>
+      </div>
+      
+      <!-- Technical details (collapsible) -->
+      <details class="text-xs text-gray-500 mt-4">
+        <summary class="cursor-pointer hover:text-gray-700">Chi tiết lỗi</summary>
+        <p class="mt-2 font-mono bg-gray-100 p-2 rounded">${errorMessage || 'Unknown error'}</p>
+      </details>
+    </div>
+  `;
   
   elements.summaryList.innerHTML = html;
   elements.summaryLoading.classList.add("hidden");
   elements.summaryList.classList.remove("hidden");
   
-  if (ttsSupported() && !isMobile) {
-    elements.btnSpeak.classList.remove("hidden");
-    elements.btnStopSpeak.classList.remove("hidden");
-    if (elements.ttsRateBox) elements.ttsRateBox.classList.remove("hidden");
-  }
+  // Make retry function available
+  window.retryLoadSummary = () => {
+    if (state.currentItem && state.currentModalLink) {
+      loadSummary(state.currentItem, state.currentModalLink);
+    }
+  };
 }
