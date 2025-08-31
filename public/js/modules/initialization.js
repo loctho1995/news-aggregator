@@ -106,6 +106,65 @@ function addCustomStyles() {
         border-top: 1px solid rgba(0, 0, 0, 0.05);
       }
       
+      /* ===== Title Auto-Sizing Styles ===== */
+      
+      /* Title styles for auto-sizing */
+      .clickable-content h3 {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+        hyphens: auto;
+        -webkit-hyphens: auto;
+        -moz-hyphens: auto;
+        -ms-hyphens: auto;
+        display: block;
+        width: 100%;
+        min-height: 1.5em;
+        transition: color 0.2s ease, font-size 0.2s ease;
+      }
+      
+      /* Smooth transition for title resizing */
+      .news-card h3 {
+        animation: fadeInTitle 0.3s ease-out;
+      }
+      
+      @keyframes fadeInTitle {
+        from {
+          opacity: 0;
+          transform: translateY(-5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      /* Ensure proper line heights for different sizes */
+      .news-card h3.text-xs {
+        line-height: 1.25;
+        min-height: 2.5em;
+      }
+      
+      .news-card h3.text-sm {
+        line-height: 1.375;
+        min-height: 2.2em;
+      }
+      
+      .news-card h3.text-base {
+        line-height: 1.5;
+        min-height: 2em;
+      }
+      
+      .news-card h3.text-lg {
+        line-height: 1.5;
+        min-height: 1.8em;
+      }
+      
+      .news-card h3.text-xl {
+        line-height: 1.5;
+        min-height: 1.6em;
+      }
+      
       /* ===== Text Selection Styles ===== */
       
       /* Cho phép select text trong content area */
@@ -292,6 +351,27 @@ function addCustomStyles() {
           min-height: 360px;
         }
         
+        /* Smaller font sizes on mobile */
+        .news-card h3.text-xs {
+          font-size: 0.625rem; /* 10px */
+        }
+        
+        .news-card h3.text-sm {
+          font-size: 0.75rem; /* 12px */
+        }
+        
+        .news-card h3.text-base {
+          font-size: 0.875rem; /* 14px */
+        }
+        
+        .news-card h3.text-lg {
+          font-size: 1rem; /* 16px */
+        }
+        
+        .news-card h3.text-xl {
+          font-size: 1.125rem; /* 18px */
+        }
+        
         #summaryList > div {
           padding: 10px;
           margin-bottom: 10px;
@@ -375,6 +455,19 @@ function addCustomStyles() {
       
       .transition-smooth {
         transition: all 0.3s ease;
+      }
+      
+      /* ===== Word Break for Vietnamese ===== */
+      .break-words {
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+      
+      .hyphens-auto {
+        hyphens: auto;
+        -webkit-hyphens: auto;
+        -moz-hyphens: auto;
+        -ms-hyphens: auto;
       }
     `;
     document.head.appendChild(style);

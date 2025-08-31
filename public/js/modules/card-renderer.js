@@ -4,6 +4,25 @@ import { timeAgo } from './utils.js';
 import { isRead, toggleReadStatus, markRead } from './read-status.js';
 import { openSummaryModal } from './modal.js';
 
+// Auto-resize title based on length
+function getTitleClass(title) {
+  if (!title) return 'text-xl';
+  
+  const length = title.length;
+  
+  if (length > 200) {
+    return 'text-xs leading-tight'; // 12px for very long titles
+  } else if (length > 150) {
+    return 'text-sm leading-snug'; // 14px for long titles  
+  } else if (length > 100) {
+    return 'text-base leading-snug'; // 16px for medium-long titles
+  } else if (length > 70) {
+    return 'text-lg leading-snug'; // 18px for medium titles
+  } else {
+    return 'text-xl leading-snug'; // 20px for short titles (default)
+  }
+}
+
 export function createCardElement(item) {
   const card = document.createElement('div');
   const readStatus = isRead(item.link);
@@ -23,9 +42,13 @@ export function createCardElement(item) {
   // Format summary content with length limit
   const summaryContent = formatSummaryContent(item);
   
+  // Get dynamic title class based on length
+  const titleClass = getTitleClass(item.title);
+  
+  // NO LINE-CLAMP - show full title with dynamic sizing
   card.innerHTML = `
     <div class="clickable-content cursor-pointer hover:bg-gray-50 hover:bg-opacity-30 rounded-lg -m-2 p-2 transition-colors flex-1 flex flex-col">
-      <h3 class="text-xl font-semibold text-gray-900 line-clamp-2 leading-snug mb-3 hover:text-emerald-600 transition-colors select-text">
+      <h3 class="${titleClass} font-semibold text-gray-900 mb-3 hover:text-emerald-600 transition-colors select-text break-words hyphens-auto">
         ${item.title || "Không có tiêu đề"}
       </h3>
       
