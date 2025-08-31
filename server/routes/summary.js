@@ -1,4 +1,6 @@
 // server/routes/summary.js
+// Updated to pass request object for mobile detection
+
 import express from "express";
 import { summarizeUrl, aiSummarizeUrl } from "../services/summary.js";
 
@@ -10,10 +12,28 @@ router.get("/summary", async (req, res) => {
   const fallback = String(req.query.fallback || "");
 
   try {
-    const data = await summarizeUrl({ url, percent, fallbackSummary: fallback });
+    // Pass req object for mobile detection
+    const data = await summarizeUrl({ 
+      url, 
+      percent, 
+      fallbackSummary: fallback,
+      req // Pass full request object for headers
+    });
+    
+    // Set cache headers for mobile
+    if (data.mobile) {
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour cache for mobile
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=1800'); // 30 min for desktop
+    }
+    
     res.json(data);
   } catch (e) {
-    res.status(500).json({ error: e.message || "Summary failed" });
+    console.error("Summary error:", e);
+    res.status(500).json({ 
+      error: e.message || "Summary failed",
+      fallback: fallback || null
+    });
   }
 });
 
@@ -24,10 +44,27 @@ router.get("/ai-summary", async (req, res) => {
   const percent = parseInt(req.query.percent || "70", 10);
 
   try {
-    const data = await aiSummarizeUrl({ url, language, targetLength, percent });
+    const data = await aiSummarizeUrl({ 
+      url, 
+      language, 
+      targetLength, 
+      percent,
+      req // Pass request object
+    });
+    
+    // Set cache headers
+    if (data.mobile) {
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=1800');
+    }
+    
     res.json(data);
   } catch (e) {
-    res.status(500).json({ error: e.message || "AI Summary failed" });
+    console.error("AI Summary error:", e);
+    res.status(500).json({ 
+      error: e.message || "AI Summary failed" 
+    });
   }
 });
 

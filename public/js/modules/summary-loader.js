@@ -3,6 +3,7 @@
 
 import { elements } from './elements.js';
 import { ttsSupported } from './tts.js';
+import { state } from './state.js';
 
 // Detect if mobile device
 function isMobileDevice() {
@@ -82,19 +83,20 @@ export function loadSummary(item, link) {
 }
 
 function updateModalWithSummary(data, item, isMobile = false) {
-  // Update source info
+  // Update source info (compact format)
   if (data.percentage !== undefined) {
     const percentColor = data.percentage > 70 ? "text-orange-600" : 
                        data.percentage > 40 ? "text-yellow-600" : "text-emerald-600";
-    const sizeInfo = data.originalLength ? ` (${data.summaryLength}/${data.originalLength} ký tự)` : "";
+    const sizeInfo = data.originalLength && !isMobile ? ` (${data.summaryLength}/${data.originalLength} ký tự)` : "";
     const translatedText = data.translated ? ` • 🌐 Đã dịch` : "";
     
     elements.modalSource.innerHTML = `
       <span>Nguồn: ${item.sourceName || ""}</span>
-      <span class="mx-2">•</span>
-      <span class="${percentColor}">Tóm tắt ${data.percentage}%${sizeInfo}</span>
+      <span class="${percentColor} ml-2">${data.percentage}%${sizeInfo}</span>
       ${translatedText}
     `;
+  } else {
+    elements.modalSource.textContent = `Nguồn: ${item.sourceName || ""}`;
   }
   
   // Render content
@@ -109,12 +111,12 @@ function updateModalWithSummary(data, item, isMobile = false) {
   elements.summaryLoading.classList.add("hidden");
   elements.summaryList.classList.remove("hidden");
   
-  // Show stats
-  elements.summaryStats.classList.remove("hidden");
-  
+  // Show stats (only if translated)
   if (data.translated) {
+    elements.summaryStats.classList.remove("hidden");
     elements.translatedBadge.style.display = 'flex';
   } else {
+    elements.summaryStats.classList.add("hidden");
     elements.translatedBadge.style.display = 'none';
   }
   
@@ -145,18 +147,18 @@ function renderSummaryContent({ bullets, paragraphs, fallbackText, isMobile }) {
 
 function renderParagraphSummary(paragraphs, animationClass) {
   return paragraphs.map((paragraph, index) => `
-    <div class="mb-4 p-4 bg-white/60 rounded-lg border-l-4 border-emerald-500 ${animationClass}" 
+    <div class="mb-3 p-3 bg-white/60 rounded-lg border-l-4 border-emerald-500 ${animationClass}" 
          style="animation-delay: ${index * 0.1}s">
-      <p class="text-gray-800 leading-relaxed text-lg">${paragraph}</p>
+      <p class="text-gray-800 leading-relaxed text-base sm:text-lg">${paragraph}</p>
     </div>
   `).join('');
 }
 
 function renderBulletSummary(bullets, animationClass) {
   return bullets.map((bullet, index) => `
-    <div class="mb-3 p-4 bg-white/50 rounded-lg border-l-4 border-emerald-500 ${animationClass}"
+    <div class="mb-2 p-3 bg-white/50 rounded-lg border-l-4 border-emerald-500 ${animationClass}"
          style="animation-delay: ${index * 0.1}s">
-      <p class="text-gray-800 leading-relaxed text-lg">${bullet}</p>
+      <p class="text-gray-800 leading-relaxed text-base sm:text-lg">${bullet}</p>
     </div>
   `).join('');
 }
@@ -182,7 +184,7 @@ function showMobileTimeoutFallback(item, isMobile) {
         </div>
       ` : ''}
       
-      <button onclick="window.loadSummary()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg">
+      <button onclick="window.retryLoadSummary()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg">
         Thử lại
       </button>
     </div>
@@ -192,8 +194,12 @@ function showMobileTimeoutFallback(item, isMobile) {
   elements.summaryLoading.classList.add("hidden");
   elements.summaryList.classList.remove("hidden");
   
-  // Make loadSummary available globally for the retry button
-  window.loadSummary = () => loadSummary(item, item.link);
+  // Make retry function available globally
+  window.retryLoadSummary = () => {
+    if (state.currentItem && state.currentModalLink) {
+      loadSummary(state.currentItem, state.currentModalLink);
+    }
+  };
 }
 
 function showFallbackSummary(item, isMobile = false) {

@@ -1,4 +1,5 @@
 // App initialization
+// File: public/js/modules/initialization.js
 
 import { elements } from './elements.js';
 import { state } from './state.js';
@@ -25,14 +26,15 @@ export function initializeEventHandlers() {
     }
   });
 
-  // Summary controls
-  elements.regenerateBtn?.addEventListener("click", () => {
+  // Summary controls - AUTO RELOAD ON PERCENT CHANGE
+  elements.summaryPercent?.addEventListener("change", () => {
     if (state.currentItem && state.currentModalLink) {
       loadSummary(state.currentItem, state.currentModalLink);
     }
   });
 
-  elements.summaryPercent?.addEventListener("change", () => {
+  // Hidden regenerate button (kept for compatibility but hidden in UI)
+  elements.regenerateBtn?.addEventListener("click", () => {
     if (state.currentItem && state.currentModalLink) {
       loadSummary(state.currentItem, state.currentModalLink);
     }
@@ -291,8 +293,8 @@ function addCustomStyles() {
         }
         
         #summaryList > div {
-          padding: 12px;
-          margin-bottom: 12px;
+          padding: 10px;
+          margin-bottom: 10px;
         }
       }
       
@@ -373,49 +375,6 @@ function addCustomStyles() {
       
       .transition-smooth {
         transition: all 0.3s ease;
-      }
-      
-      /* ===== Tooltip Styles (Optional) ===== */
-      
-      /* Tooltip hint cho desktop users */
-      @media (min-width: 1024px) {
-        .news-card {
-          position: relative;
-        }
-        
-        .news-card::before {
-          content: "💡 Tip: Click để xem chi tiết • Giữ chuột để chọn text";
-          position: absolute;
-          top: -30px;
-          left: 50%;
-          transform: translateX(-50%);
-          font-size: 11px;
-          color: #9ca3af;
-          background: rgba(255, 255, 255, 0.95);
-          padding: 4px 8px;
-          border-radius: 4px;
-          white-space: nowrap;
-          opacity: 0;
-          transition: opacity 0.3s;
-          pointer-events: none;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          z-index: 10;
-        }
-        
-        .news-card:hover::before {
-          opacity: 0;
-        }
-        
-        /* Show tooltip only on first card for new users */
-        .news-card:first-child:hover::before {
-          opacity: 1;
-          animation: fadeInOut 3s ease-in-out;
-        }
-        
-        @keyframes fadeInOut {
-          0%, 100% { opacity: 0; }
-          20%, 80% { opacity: 1; }
-        }
       }
     `;
     document.head.appendChild(style);

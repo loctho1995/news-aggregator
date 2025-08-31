@@ -113,6 +113,19 @@
         width: 100%;
         overflow: hidden;
       }
+      
+      /* Compact modal header for more content space */
+      .modal-compact-header {
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+      }
+      
+      /* Make summary area use more space */
+      #summaryArea {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
     </style>
   </head>
   <body class="bg-[#343541] text-slate-100">
@@ -147,71 +160,67 @@
       <div id="empty" class="hidden text-center text-slate-400 py-16">Không có bài phù hợp.</div>
     </main>
 
-    <!-- Modal: TÓM TẮT -->
+    <!-- Modal: TÓM TẮT (OPTIMIZED UI) -->
     <div id="modal" class="fixed inset-0 z-50 hidden overflow-y-auto p-4 sm:p-6 flex items-center justify-center">
       <div id="modalOverlay" class="absolute inset-0 bg-black/60"></div>
-      <div id="modalPanel" class="relative w-full max-w-3xl lg:max-w-4xl mx-auto bg-[#ecf0f1] text-gray-900 rounded-2xl shadow-xl p-5 pointer-events-auto border border-gray-300 h-[90vh] lg:h-[85vh] flex flex-col">
+      <div id="modalPanel" class="relative w-full max-w-3xl lg:max-w-4xl mx-auto bg-[#ecf0f1] text-gray-900 rounded-2xl shadow-xl p-4 pointer-events-auto border border-gray-300 h-[92vh] lg:h-[88vh] flex flex-col">
         
-        <!-- Header -->
-        <div class="mb-3 pb-3 border-b border-gray-300">
-          <div class="flex items-start gap-2">
-            <h2 class="flex-1 text-xl font-semibold text-gray-900" id="modalTitle">Tóm tắt</h2>
+        <!-- Compact Header -->
+        <div class="modal-compact-header border-b border-gray-300">
+          <!-- Title row với close button -->
+          <div class="flex items-start gap-2 mb-2">
+            <h2 class="flex-1 text-lg font-semibold text-gray-900 line-clamp-2" id="modalTitle">Tóm tắt</h2>
             
             <!-- Enhanced Close Button for Mobile -->
-            <button id="modalClose" class="close-btn-mobile">
+            <button id="modalClose" class="close-btn-mobile flex-shrink-0">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </button>
           </div>
-          <div class="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <p class="text-sm text-gray-600" id="modalSource"></p>
-            <div class="flex items-center gap-2">
-              <label class="text-sm text-gray-600 font-medium">Mức độ tóm tắt:</label>
-              <select id="summaryPercent" class="px-2 py-1 text-sm border border-gray-300 rounded-lg bg-white text-gray-700">
-                <option value="30">30% - Rất ngắn gọn</option>
-                <option value="40">40% - Ngắn gọn</option>
-                <option value="50">50% - Vừa phải</option>
-                <option value="60">60% - Chi tiết vừa</option>
-                <option value="70" selected>70% - Chi tiết</option>
-                <option value="80">80% - Rất chi tiết</option>
-              </select>
-              <button id="regenerateBtn" class="px-2 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg">🔄 Tạo lại</button>
-            </div>
+          
+          <!-- Source và Dropdown cùng hàng -->
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-sm text-gray-600 flex-shrink-0" id="modalSource">Nguồn:</p>
+            <select id="summaryPercent" class="px-2 py-1 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 ml-auto">
+              <option value="30">30%</option>
+              <option value="40">40%</option>
+              <option value="50">50%</option>
+              <option value="60">60%</option>
+              <option value="70" selected>70%</option>
+              <option value="80">80%</option>
+            </select>
+            <!-- Hidden regenerate button - still functional via change event -->
+            <button id="regenerateBtn" class="hidden"></button>
           </div>
         </div>
 
-        <!-- Nội dung tóm tắt -->
-        <div id="summaryArea" class="flex-1 overflow-y-auto pr-2 mb-3">
+        <!-- Nội dung tóm tắt (more space) -->
+        <div id="summaryArea" class="flex-1 overflow-y-auto pr-2 py-3">
           <div id="summaryLoading" class="text-lg text-gray-600">Đang tóm tắt…</div>
           <div id="summaryList" class="text-lg leading-relaxed text-gray-800"></div>
         </div>
 
-        <!-- Stats area (chỉ giữ badge dịch) -->
-        <div id="summaryStats" class="hidden mb-3 flex flex-wrap gap-4 text-sm text-gray-600 bg-gray-100 rounded-lg p-3">
+        <!-- Stats area (minimal) -->
+        <div id="summaryStats" class="hidden flex flex-wrap gap-4 text-xs text-gray-600 bg-gray-100 rounded-lg p-2 mb-2">
           <div class="flex items-center gap-1" id="translatedBadge" style="display: none;">
             <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
             <span>Đã dịch từ tiếng Anh</span>
           </div>
         </div>
 
-        <!-- Footer -->
-        <div class="border-t border-gray-300 pt-3">
-          <div class="flex items-end justify-between gap-2">
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center gap-2">
-                <button id="btnSpeak" class="px-3 py-1.5 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-sm text-gray-700 hidden">🔊 Đọc to</button>
-                <button id="btnStopSpeak" class="px-3 py-1.5 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-sm text-gray-700 hidden">Dừng</button>
-              </div>
+        <!-- Footer (compact) -->
+        <div class="border-t border-gray-300 pt-2">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <button id="btnSpeak" class="px-2 py-1 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-xs text-gray-700 hidden">🔊 Đọc</button>
+              <button id="btnStopSpeak" class="px-2 py-1 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-xs text-gray-700 hidden">⏸</button>
               <div id="ttsRateBox" class="hidden flex items-center gap-1">
-                <label for="rateRange" class="text-xs text-gray-600">Tốc độ</label>
-                <input id="rateRange" type="range" min="0.6" max="3.0" step="0.1" value="1.0" class="w-28 accent-emerald-500" aria-label="Tốc độ đọc">
+                <input id="rateRange" type="range" min="0.6" max="3.0" step="0.1" value="1.0" class="w-20 accent-emerald-500" aria-label="Tốc độ đọc">
                 <span id="rateLabel" class="text-xs text-gray-600">1.0x</span>
               </div>
             </div>
-            <div class="flex items-center gap-2">
-              <a id="modalOpenLink" href="#" target="_blank" rel="noopener" class="px-4 py-2 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">Đọc bài gốc ↗</a>
-            </div>
+            <a id="modalOpenLink" href="#" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">Đọc bài gốc ↗</a>
           </div>
         </div>
       </div>
