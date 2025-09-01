@@ -20,7 +20,7 @@ let canDrag = false;
 let isSwipingHorizontal = false;
 let swipeDirection = null;
 const SWIPE_LEFT_THRESHOLD = 100; // pixels needed to trigger left swipe
-const SWIPE_UP_THRESHOLD = 150; // pixels needed for up swipe
+const SWIPE_UP_THRESHOLD = 100; // pixels needed for up swipe
 const SWIPE_ANGLE_THRESHOLD = 30; // max angle deviation for horizontal swipe
 
 // Prevent body scroll when modal is open
@@ -162,6 +162,17 @@ function initSwipeHandlers() {
   // Get draggable areas
   const dragHandle = document.getElementById('dragHandle');
   const modalFooter = modalPanel.querySelector('.border-t.border-gray-300.pt-2');
+  // Create a dedicated drag zone to avoid hitting buttons/links in the footer
+let footerDragZone = null;
+if (modalFooter) {
+  footerDragZone = modalFooter.querySelector('.footer-drag-zone');
+  if (!footerDragZone) {
+    footerDragZone = document.createElement('div');
+    footerDragZone.className = 'footer-drag-zone';
+    // Insert as first child so it's on top of the footer but not covering the content below
+    modalFooter.insertBefore(footerDragZone, modalFooter.firstChild);
+  }
+}
   
   // TOUCH EVENTS FOR ENTIRE MODAL (for swipe detection)
   modalPanel.addEventListener('touchstart', handleModalTouchStart, { passive: false });
@@ -181,8 +192,9 @@ function initSwipeHandlers() {
   
   // Touch events for footer (existing)
   if (modalFooter) {
-    modalFooter.addEventListener('touchstart', handleFooterTouchStart, { passive: false });
-    modalFooter.addEventListener('mousedown', handleFooterMouseDown);
+    const _footerTarget = modalFooter.querySelector('.footer-drag-zone') || modalFooter;
+    _footerTarget.addEventListener('touchstart', handleFooterTouchStart, { passive: false });
+    _footerTarget.addEventListener('mousedown', handleFooterMouseDown);
     
     // Add visual indicator to footer on mobile
     if (!modalFooter.querySelector('.footer-drag-hint')) {
@@ -545,7 +557,7 @@ function finishDrag() {
   const swipeVelocity = Math.abs(swipeDistance);
   
   // Close if swiped enough
-  if (swipeDistance > 150 || (swipeDistance > 80 && swipeVelocity > 150)) {
+  if (swipeDistance > 120 || (swipeDistance > 80 && swipeVelocity > 120)) {
     modalPanel.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
     modalPanel.style.transform = 'translateY(-100%)';
     modalPanel.style.opacity = '0';
@@ -584,8 +596,9 @@ function cleanupSwipeHandlers() {
   }
   
   if (modalFooter) {
-    modalFooter.removeEventListener('touchstart', handleFooterTouchStart);
-    modalFooter.removeEventListener('mousedown', handleFooterMouseDown);
+    const _footerTarget = modalFooter.querySelector('.footer-drag-zone') || modalFooter;
+    _footerTarget.removeEventListener('touchstart', handleFooterTouchStart);
+    _footerTarget.removeEventListener('mousedown', handleFooterMouseDown);
   }
   
   document.removeEventListener('touchmove', handleGlobalTouchMove);

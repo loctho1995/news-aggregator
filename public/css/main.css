@@ -418,3 +418,20 @@ body.modal-open {
 #modalPanel.closing-left {
   animation: modalSwipeLeft 0.3s ease-out forwards;
 }
+
+/* --- Mobile footer drag zone to make swipe-up easier --- */
+#modalPanel .footer-drag-zone {
+  position: absolute;
+  top: -8px;            /* slightly above the footer content */
+  left: 0;
+  right: 0;
+  height: 32px;         /* comfortable finger target */
+  z-index: 2;           /* above footer background, below interactive controls */
+  touch-action: none;   /* avoid browser scroll taking over */
+}
+
+/* Ensure drag handle and panel don't get hijacked by native scrolling during gesture */
+#modalPanel, 
+#modalPanel .drag-handle {
+  touch-action: none;
+}
