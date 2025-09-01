@@ -7,6 +7,106 @@ import { markRead } from './read-status.js';
 import { loadSummary } from './summary-loader.js';
 import { resetTTS } from './tts.js';
 
+// === Context menu for summary paragraphs (translate / copy) ===
+
+// Inject highlight style once
+(function addLongPressStyles(){
+  if (document.getElementById('longpress-style')) return;
+  const st = document.createElement('style');
+  st.id = 'longpress-style';
+  st.textContent = `.pressed-highlight{ background: #FEF3C7; color: #111827; }`;
+  document.head.appendChild(st);
+})();
+
+let ctxMenuEl = null;
+function ensureContextMenu() {
+  if (ctxMenuEl) return ctxMenuEl;
+  ctxMenuEl = document.createElement('div');
+  ctxMenuEl.id = 'summaryContextMenu';
+  ctxMenuEl.className = 'fixed z-[9999] bg-white border border-gray-400 rounded-lg shadow-lg text-sm text-gray-900';
+  ctxMenuEl.style.display = 'none';
+  ctxMenuEl.innerHTML = `
+    <button data-action="translate" class="block w-full text-left px-3 py-2 hover:bg-gray-100">Dịch đoạn này</button>
+    <button data-action="copy" class="block w-full text-left px-3 py-2 hover:bg-gray-100">Copy đoạn văn</button>
+    <div id="ctxStatus" class="px-3 py-1 text-xs text-gray-500 border-t border-gray-200">&nbsp;</div>
+  `;
+  document.body.appendChild(ctxMenuEl);
+  // Hide when clicking elsewhere
+  document.addEventListener('click', () => { ctxMenuEl.style.display='none'; }, true);
+  return ctxMenuEl;
+}
+function showContextMenu(x, y, targetNode) {
+  const menu = ensureContextMenu();
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  menu.style.display = 'block';
+  // Attach handlers
+  menu.onclick = async (e) => {
+    const act = e.target?.dataset?.action;
+    if (!act) return;
+    e.stopPropagation();
+    const status = menu.querySelector('#ctxStatus');
+    const text = targetNode?.innerText || '';
+    if (act === 'copy') {
+      try { await navigator.clipboard.writeText(text); if (status) status.textContent='Đã copy'; } catch { if (status) status.textContent='Copy thất bại'; }
+      setTimeout(()=>{ menu.style.display='none'; if (status) status.textContent=''; targetNode?.classList.remove('pressed-highlight'); }, 600);
+      return;
+    }
+    if (act === 'translate') {
+      try {
+        if (status) status.textContent='Đang dịch…';
+        const { translateToVietnamese } = await import('./translator.js');
+        const translated = await translateToVietnamese(text);
+        if (translated) targetNode.innerText = translated;
+        if (status) status.textContent='Đã dịch';
+      } catch { if (status) status.textContent='Lỗi dịch'; }
+      setTimeout(()=>{ menu.style.display='none'; if (status) status.textContent=''; targetNode?.classList.remove('pressed-highlight'); }, 700);
+      return;
+    }
+  };
+}
+// Setup long-press detection on summaryList
+function setupSummaryLongPress() {
+  const container = elements.summaryList;
+  if (!container) return;
+
+  let pressTimer = null;
+  let pressedNode = null;
+
+  const start = (e) => {
+    const path = e.composedPath ? e.composedPath() : [];
+    let node = null;
+    for (const n of path) {
+      if (n && n.nodeType === 1 && (n.tagName==='P' || n.tagName==='LI' || (n.tagName==='SPAN' && n.innerText && n.innerText.length>0))) {
+        node = n; break;
+      }
+    }
+    if (!node) return;
+    pressedNode = node;
+    pressedNode.classList.add('pressed-highlight');
+
+    const pointX = (e.touches && e.touches[0]?.clientX) || e.clientX || 0;
+    const pointY = (e.touches && e.touches[0]?.clientY) || e.clientY || 0;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      showContextMenu(pointX, pointY, pressedNode);
+    }, 500);
+  };
+
+  const cancel = () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+    if (pressedNode) pressedNode.classList.remove('pressed-highlight');
+    pressedNode = null;
+  };
+
+  container.addEventListener('mousedown', start, true);
+  container.addEventListener('touchstart', start, { passive: true });
+  ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev=>container.addEventListener(ev, cancel, true));
+}
+// === End context menu section ===
+
+
 // Swipe handler variables
 let touchStartY = 0;
 let touchEndY = 0;
@@ -669,6 +769,7 @@ export function openSummaryModal(item, link) {
   // Initialize swipe handlers
   setTimeout(() => {
     initSwipeHandlers();
+    setupSummaryLongPress();
   }, 100);
 }
 
@@ -715,4 +816,18 @@ function resetModalUI() {
   elements.btnSpeak.classList.add("hidden");
   elements.btnStopSpeak.classList.add("hidden");
   if (elements.ttsRateBox) elements.ttsRateBox.classList.add("hidden");
+}
+
+// Copy link button
+const copyBtn = document.getElementById('modalCopyLink');
+if (copyBtn) {
+  copyBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const url = elements.modalOpenLink?.href || state.currentModalLink || '';
+    if (!url) return;
+    try { await navigator.clipboard.writeText(url); 
+      copyBtn.textContent = 'Đã copy!';
+      setTimeout(()=>{ copyBtn.textContent = 'Copy link'; }, 1200);
+    } catch {}
+  });
 }

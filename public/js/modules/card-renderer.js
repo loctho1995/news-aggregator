@@ -3,6 +3,7 @@
 import { timeAgo } from './utils.js';
 import { isRead, toggleReadStatus, markRead } from './read-status.js';
 import { openSummaryModal } from './modal.js';
+import { translateCardElement } from './translator.js';
 
 // Auto-resize title based on length
 function getTitleClass(title) {
@@ -82,6 +83,7 @@ export function createCardElement(item) {
       
       <div class="flex gap-2">
         ${readStatusButton}
+        <button class="translate-btn px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg">Dịch</button>
         <a href="${item.link}" target="_blank" rel="noopener" 
            class="article-link flex-1 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors text-center">
           Link bài báo
@@ -405,6 +407,35 @@ function attachCardEventListeners(card, item) {
   
   // Click vào nút đọc/chưa đọc
   const readStatusBtn = card.querySelector('.read-status-btn');
+  // Nút Dịch/Bản Gốc (toggle + cache)
+  const translateBtn = card.querySelector('.translate-btn');
+  if (translateBtn) {
+    // Set initial label
+    translateBtn.textContent = card.dataset.translated === "true" ? "Bản Gốc" : "Dịch";
+    translateBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const translated = card.dataset.translated === "true";
+      translateBtn.disabled = true;
+      const prev = translateBtn.textContent;
+      translateBtn.textContent = translated ? 'Đang hoàn nguyên...' : 'Đang dịch...';
+      try {
+        if (translated) {
+          // restore
+          await translateCardElement(card, { toggleOnly: true });
+          translateBtn.textContent = 'Dịch';
+        } else {
+          await translateCardElement(card);
+          translateBtn.textContent = 'Bản Gốc';
+        }
+      } catch (err) {
+        translateBtn.textContent = prev;
+        console.warn(err);
+      } finally {
+        translateBtn.disabled = false;
+      }
+    });
+  }
+
   readStatusBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleReadStatus(item.link);

@@ -3,7 +3,8 @@ import { elements } from './elements.js';
 import { state, updateState } from './state.js';
 import { addItemToGrid, renderItems } from './grid-manager.js';
 import { populateSourceSelect } from './filters.js';
-import { translateItemIfNeeded } from './translator.js';
+// import removed: auto-translate disabled
+
 
 let currentAbortController = null;
 let currentLoadToken = 0;
@@ -64,9 +65,9 @@ export async function loadNews(options = {}) {
 
     // process stream; on each item -> translate (if needed) -> push -> render incrementally
     const total = await processStreamResponse(response, myToken, async (rawItem) => {
-      const translated = await translateItemIfNeeded(rawItem);
-      state.items.push(translated);
-      addItemToGrid(translated);
+      const item = rawItem;
+      state.items.push(item);
+      addItemToGrid(item);
       liveCount++;
       if (elements.badge && myToken === currentLoadToken) {
         elements.badge.textContent = `Đang tải… ${groupText}${liveCount ? ` • ${liveCount} tin` : ""}`.trim();
