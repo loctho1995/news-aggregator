@@ -208,7 +208,8 @@ if (modalFooter) {
 
 // Handle modal touch start (NEW - for swipe left)
 function handleModalTouchStart(e) {
-  // Don't interfere with buttons, links, or scrollable content
+    if (e.target && (e.target.id === 'modalClose' || (e.target.closest && e.target.closest('#modalClose')))) { return; }
+// Don't interfere with buttons, links, or scrollable content
   if (e.target.closest('button') || 
       e.target.closest('a') || 
       e.target.closest('input') ||
@@ -409,7 +410,8 @@ function resetModalPosition() {
 
 // Handle drag handle touch start (EXISTING)
 function handleDragHandleTouchStart(e) {
-  const touch = e.touches[0];
+    if (e.target && (e.target.id === 'modalClose' || (e.target.closest && e.target.closest('#modalClose')))) { return; }
+const touch = e.touches[0];
   touchStartY = touch.clientY;
   isDragging = true;
   canDrag = true;
@@ -617,6 +619,19 @@ document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false }
 document.addEventListener('touchend', handleGlobalTouchEnd, { passive: false });
 document.addEventListener('mousemove', handleGlobalMouseMove);
 document.addEventListener('mouseup', handleGlobalMouseUp);
+
+// Strengthen close button interactions (capture phase) to avoid being eaten by drag handlers
+if (elements.modalClose) {
+  const _closeImmediate = (ev) => {
+    try { ev.stopPropagation(); } catch {}
+    try { ev.preventDefault(); } catch {}
+    closeModal();
+  };
+  // Use capture so this runs before other bubbling handlers
+  elements.modalClose.addEventListener('click', _closeImmediate, true);
+  elements.modalClose.addEventListener('touchend', _closeImmediate, { capture: true, passive: false });
+}
+
 
 export function openSummaryModal(item, link) {
   updateState({ 

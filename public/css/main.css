@@ -435,3 +435,11 @@ body.modal-open {
 #modalPanel .drag-handle {
   touch-action: none;
 }
+
+/* Ensure modal close button is always clickable */
+#modalClose {
+  position: relative;
+  z-index: 50;               /* above swipe indicators (30) */
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
