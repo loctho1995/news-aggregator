@@ -138,7 +138,7 @@ export function loadSummary(item, link) {
       const data = await response.json();
       // Translate modal content for international sources
       try {
-        if (item.group === 'internationaleconomics') {
+        if (['internationaleconomics','internationaltech'].includes(item.group)) {
           if (Array.isArray(data.bullets)) data.bullets = await translateMany(data.bullets);
           if (Array.isArray(data.paragraphs)) data.paragraphs = await translateMany(data.paragraphs);
           if (data.fullSummary) data.fullSummary = await translateToVietnamese(data.fullSummary);

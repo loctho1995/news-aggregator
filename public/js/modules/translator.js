@@ -23,7 +23,7 @@ export async function translateMany(arr) {
 
 export async function translateItemIfNeeded(item) {
   try {
-    if (!item || item.group !== "internationaleconomics") return item;
+    if (!item || !["internationaleconomics","internationaltech"].includes(item.group)) return item;
     const [title, description, summary, bullets] = await Promise.all([
       translateToVietnamese(item.title || ""),
       translateToVietnamese(item.description || ""),
