@@ -137,14 +137,14 @@ export function loadSummary(item, link) {
       
       const data = await response.json();
       // Translate modal content for international sources
-      try {
-        if (['internationaleconomics','internationaltech'].includes(item.group)) {
-          if (Array.isArray(data.bullets)) data.bullets = await translateMany(data.bullets);
-          if (Array.isArray(data.paragraphs)) data.paragraphs = await translateMany(data.paragraphs);
-          if (data.fullSummary) data.fullSummary = await translateToVietnamese(data.fullSummary);
-          if (data.fallbackText) data.fallbackText = await translateToVietnamese(data.fallbackText);
-        }
-      } catch (e) { console.warn('Translate modal content failed', e); }
+      // try {
+      //   if (['internationaleconomics','internationaltech'].includes(item.group)) {
+      //     if (Array.isArray(data.bullets)) data.bullets = await translateMany(data.bullets);
+      //     if (Array.isArray(data.paragraphs)) data.paragraphs = await translateMany(data.paragraphs);
+      //     if (data.fullSummary) data.fullSummary = await translateToVietnamese(data.fullSummary);
+      //     if (data.fallbackText) data.fallbackText = await translateToVietnamese(data.fallbackText);
+      //   }
+      // } catch (e) { console.warn('Translate modal content failed', e); }
       
       fetchCompleted = true;
       clearInterval(progressInterval);
