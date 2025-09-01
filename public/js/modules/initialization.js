@@ -40,6 +40,12 @@ export function initializeEventHandlers() {
     loadNews({ clear: true });
   });
 
+  // Auto reload when hours dropdown changes (replaces manual refresh on mobile)
+  elements.hours?.addEventListener("change", () => {
+    try { localStorage.setItem("hours", elements.hours.value); } catch {}
+    loadNews({ clear: true });
+  });
+
   // Keyboard ESC to close modal
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !elements.modal.classList.contains("hidden")) {

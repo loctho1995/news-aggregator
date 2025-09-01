@@ -1,128 +1,111 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="vi">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tổng hợp tin tức Việt Nam</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- App CSS Files -->
-    <link rel="stylesheet" href="/public/css/main.css">
-    <link rel="stylesheet" href="/public/css/dynamic.css">
-    
-    <link rel="icon" href="data:;base64,=" />
-  </head>
-  <body class="bg-[#343541] text-slate-100">
-    <header class="sticky top-0 z-10 bg-[#343541]/80 backdrop-blur border-b border-[#565869]">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-        <h1 class="text-xl sm:text-2xl font-bold">📰 Tổng hợp tin tức</h1>
-        <span id="badge" class="ml-auto text-xs px-2 py-1 rounded-full bg-[#40414f] text-slate-200 border border-[#565869]">Đang tải…</span>
-      </div>
-      <div class="max-w-6xl mx-auto px-4 pb-3 grid grid-cols-1 sm:grid-cols-4 gap-2">
-        <input id="search" class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring focus:ring-[#565869]" placeholder="Tìm theo tiêu đề/tóm tắt… (VD: bão, vàng miếng)" />
-        <select id="sourceSelect" class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100"></select>
-        <select id="groupSelect" class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100">
-          <option value="all">Tất cả nhóm tin</option>
-          <option value="vietnam">🇻🇳 Tin tức Việt Nam</option>
-          <option value="internationaleconomics">🌐 Kinh tế quốc tế</option>
-        
-      <option value="internationaltech" selected>🌐 Tech quốc tế</option>
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Tổng hợp tin tức Việt Nam</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- App CSS Files -->
+<link href="/public/css/main.css" rel="stylesheet"/>
+<link href="/public/css/dynamic.css" rel="stylesheet"/>
+<link href="data:;base64,=" rel="icon">
+</link></head>
+<body class="bg-[#343541] text-slate-100">
+<header class="sticky top-0 z-10 bg-[#343541]/80 backdrop-blur border-b border-[#565869]">
+<div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+<h1 class="text-xl sm:text-2xl font-bold">📰 Tổng hợp tin tức</h1>
+<span class="ml-auto text-xs px-2 py-1 rounded-full bg-[#40414f] text-slate-200 border border-[#565869]" id="badge">Đang tải…</span>
+</div>
+<div class="max-w-6xl mx-auto px-4 pb-3 grid grid-cols-1 sm:grid-cols-3 gap-2"><div class="flex items-center gap-2"><input class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring focus:ring-[#565869] flex-1" id="search" placeholder="Tìm theo tiêu đề/tóm tắt… (VD: bão, vàng miếng)"/><select class="flex-1 px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 w-auto" id="hours">
+<option value="6">6 giờ</option>
+<option value="12">12 giờ</option>
+<option selected="" value="24">24 giờ</option>
+<option value="48">48 giờ</option>
+<option value="72">72 giờ</option>
+</select></div>
+
+<select class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100" id="sourceSelect"></select>
+<select class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100" id="groupSelect">
+<option value="all">Tất cả nhóm tin</option>
+<option selected="" value="vietnam">🇻🇳 Tin tức Việt Nam</option>
+<option value="internationaleconomics">🌐 Kinh tế quốc tế</option>
+<option value="internationaltech">🌐 Tech quốc tế</option>
 </select>
-        <div class="flex gap-2">
-          <select id="hours" class="flex-1 px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100">
-            <option value="6">6 giờ</option>
-            <option value="12">12 giờ</option>
-            <option value="24" selected>24 giờ</option>
-            <option value="48">48 giờ</option>
-            <option value="72">72 giờ</option>
-          </select>
-          <button id="refreshBtn" class="px-3 py-2 rounded-xl border border-transparent bg-emerald-600 hover:bg-emerald-500 text-white">Làm mới</button>
-        </div>
-      </div>
-    </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-6">
-      <div id="grid"></div>
-      <div id="empty" class="hidden text-center text-slate-400 py-16">Không có bài phù hợp.</div>
-    </main>
-
-    <!-- Modal: TÓM TẮT (OPTIMIZED UI) -->
-    <div id="modal" class="fixed inset-0 z-50 hidden overflow-y-auto p-4 sm:p-6 flex items-center justify-center">
-      <div id="modalOverlay" class="absolute inset-0 bg-black/60"></div>
-      <div id="modalPanel" class="relative w-full max-w-3xl lg:max-w-4xl mx-auto bg-[#ecf0f1] text-gray-900 rounded-2xl shadow-xl p-4 pointer-events-auto border border-gray-300 h-[92vh] lg:h-[88vh] flex flex-col">
-        
-        <!-- Compact Header -->
-        <div class="modal-compact-header border-b border-gray-300">
-          <!-- Title row với close button -->
-          <div class="flex items-start gap-2 mb-2">
-            <!-- Title auto-resize, no truncation -->
-            <h2 class="flex-1 font-semibold text-gray-900" id="modalTitle">Tóm tắt</h2>
-            
-            <!-- Enhanced Close Button for Mobile -->
-            <button id="modalClose" class="close-btn-mobile flex-shrink-0">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-          
-          <!-- Source và Dropdown cùng hàng -->
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-sm text-gray-600 flex-shrink-0" id="modalSource">Nguồn:</p>
-            <select id="summaryPercent" class="px-2 py-1 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 ml-auto">
-              <option value="30">30%</option>
-              <option value="40">40%</option>
-              <option value="50">50%</option>
-              <option value="60">60%</option>
-              <option value="70" selected>70%</option>
-              <option value="80">80%</option>
-            </select>
-            <!-- Hidden regenerate button - still functional via change event -->
-            <button id="regenerateBtn" class="hidden"></button>
-          </div>
-        </div>
-
-        <!-- Nội dung tóm tắt (more space) -->
-        <div id="summaryArea" class="flex-1 overflow-y-auto pr-2 py-3">
-          <div id="summaryLoading" class="text-lg text-gray-600">Đang tóm tắt…</div>
-          <div id="summaryList" class="text-lg leading-relaxed text-gray-800"></div>
-        </div>
-
-        <!-- Stats area (minimal) -->
-        <div id="summaryStats" class="hidden flex flex-wrap gap-4 text-xs text-gray-600 bg-gray-100 rounded-lg p-2 mb-2">
-          <div class="flex items-center gap-1" id="translatedBadge" style="display: none;">
-            <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-            <span>Đã dịch từ tiếng Anh</span>
-          </div>
-        </div>
-
-        <!-- Footer (compact) -->
-        <div class="border-t border-gray-300 pt-2">
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <button id="btnSpeak" class="px-2 py-1 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-xs text-gray-700 hidden">🔊 Đọc</button>
-              <button id="btnStopSpeak" class="px-2 py-1 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-xs text-gray-700 hidden">⏸</button>
-              <div id="ttsRateBox" class="hidden flex items-center gap-1">
-                <input id="rateRange" type="range" min="0.6" max="3.0" step="0.1" value="1.0" class="w-20 accent-emerald-500" aria-label="Tốc độ đọc">
-                <span id="rateLabel" class="text-xs text-gray-600">1.0x</span>
-              </div>
-            </div>
-            <a id="modalOpenLink" href="#" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium">Đọc bài gốc ↗</a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <footer class="max-w-6xl mx-auto px-4 py-8 text-xs text-slate-400">
-      Nguồn công khai (RSS & HTML). Dùng cho mục đích cá nhân/phi lợi nhuận. © 2025
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-4 py-6">
+<div id="grid"></div>
+<div class="hidden text-center text-slate-400 py-16" id="empty">Không có bài phù hợp.</div>
+</main>
+<!-- Modal: TÓM TẮT (OPTIMIZED UI) -->
+<div class="fixed inset-0 z-50 hidden overflow-y-auto p-4 sm:p-6 flex items-center justify-center" id="modal">
+<div class="absolute inset-0 bg-black/60" id="modalOverlay"></div>
+<div class="relative w-full max-w-3xl lg:max-w-4xl mx-auto bg-[#ecf0f1] text-gray-900 rounded-2xl shadow-xl p-4 pointer-events-auto border border-gray-300 h-[92vh] lg:h-[88vh] flex flex-col" id="modalPanel">
+<!-- Compact Header -->
+<div class="modal-compact-header border-b border-gray-300">
+<!-- Title row với close button -->
+<div class="flex items-start gap-2 mb-2">
+<!-- Title auto-resize, no truncation -->
+<h2 class="flex-1 font-semibold text-gray-900" id="modalTitle">Tóm tắt</h2>
+<!-- Enhanced Close Button for Mobile -->
+<button class="close-btn-mobile flex-shrink-0" id="modalClose">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+<!-- Source và Dropdown cùng hàng -->
+<div class="flex items-center justify-between gap-2">
+<p class="text-sm text-gray-600 flex-shrink-0" id="modalSource">Nguồn:</p>
+<select class="px-2 py-1 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 ml-auto" id="summaryPercent">
+<option value="30">30%</option>
+<option value="40">40%</option>
+<option value="50">50%</option>
+<option value="60">60%</option>
+<option selected="" value="70">70%</option>
+<option value="80">80%</option>
+</select>
+<!-- Hidden regenerate button - still functional via change event -->
+<button class="hidden" id="regenerateBtn"></button>
+</div>
+</div>
+<!-- Nội dung tóm tắt (more space) -->
+<div class="flex-1 overflow-y-auto pr-2 py-3" id="summaryArea">
+<div class="text-lg text-gray-600" id="summaryLoading">Đang tóm tắt…</div>
+<div class="text-lg leading-relaxed text-gray-800" id="summaryList"></div>
+</div>
+<!-- Stats area (minimal) -->
+<div class="hidden flex flex-wrap gap-4 text-xs text-gray-600 bg-gray-100 rounded-lg p-2 mb-2" id="summaryStats">
+<div class="flex items-center gap-1" id="translatedBadge" style="display: none;">
+<span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+<span>Đã dịch từ tiếng Anh</span>
+</div>
+</div>
+<!-- Footer (compact) -->
+<div class="border-t border-gray-300 pt-2">
+<div class="flex items-center justify-between gap-2">
+<div class="flex items-center gap-2">
+<button class="px-2 py-1 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-xs text-gray-700 hidden" id="btnSpeak">🔊 Đọc</button>
+<button class="px-2 py-1 rounded-lg border border-gray-400 bg-white hover:bg-gray-100 text-xs text-gray-700 hidden" id="btnStopSpeak">⏸</button>
+<div class="hidden flex items-center gap-1" id="ttsRateBox">
+<input aria-label="Tốc độ đọc" class="w-20 accent-emerald-500" id="rateRange" max="3.0" min="0.6" step="0.1" type="range" value="1.0"/>
+<span class="text-xs text-gray-600" id="rateLabel">1.0x</span>
+</div>
+</div>
+<a class="px-3 py-1.5 rounded-lg border border-transparent bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium" href="#" id="modalOpenLink" rel="noopener" target="_blank">Đọc bài gốc ↗</a>
+</div>
+</div>
+</div>
+</div>
+<footer class="max-w-6xl mx-auto px-4 py-8 text-xs text-slate-400">
+      Nguồn công khai (RSS &amp; HTML). Dùng cho mục đích cá nhân/phi lợi nhuận. © 2025
     </footer>
-
-    <script type="module" src="/public/js/app.js"></script>
-    
-    <!-- Auto-resize title script (giữ lại vì cần runtime logic) -->
-    <script>
+<script src="/public/js/app.js" type="module"></script>
+<!-- Auto-resize title script (giữ lại vì cần runtime logic) -->
+<script>
       // Function to auto-resize modal title based on length
       function autoResizeModalTitle() {
         const titleEl = document.getElementById('modalTitle');
@@ -150,5 +133,5 @@
         titleObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
       }
     </script>
-  </body>
+</body>
 </html>
