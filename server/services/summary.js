@@ -160,8 +160,26 @@ async function fetchWithRetryStrategies(url, isMobile = false) {
         
         return await response.text();
       }
-    }
-  ];
+    },
+{
+  name: 'Jina Reader',
+  timeout: timeout + 5000,
+  fetch: async () => {
+    const proxyUrl = `https://r.jina.ai/http://${url.replace(/^https?:\/\//, '')}`;
+    const response = await fetch(proxyUrl, {
+      headers: { 'Accept': 'text/plain,text/markdown,*/*' },
+      signal: AbortSignal.timeout(timeout + 5000)
+    });
+    if (!response.ok) throw new Error(`Jina HTTP ${response.status}`);
+    const text = await response.text();
+    if (text.length < 500) throw new Error('Jina content too short');
+    const html = `<html><body><article>${
+      text.split(/\n{2,}/).map(p => `<p>${p.replace(/[<>]/g, '')}</p>`).join('')
+    }</article></body></html>`;
+    return html;
+  }
+}
+];
 
   // Try each strategy with delay between attempts
   let lastError = null;

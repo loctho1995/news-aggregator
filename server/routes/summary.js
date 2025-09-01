@@ -62,10 +62,8 @@ router.get("/summary", async (req, res) => {
     res.json(data);
   } catch (e) {
     console.error("Summary error:", e);
-    res.status(500).json({ 
-      error: e.message || "Summary failed",
-      fallback: fallback || null
-    });
+    if (fallback) { return res.status(200).json({ bullets: [], paragraphs: [], fullSummary: fallback, fallbackText: fallback, error: e.message }); }
+    res.status(500).json({ error: e.message || 'Summary failed', fallback: fallback || null });
   }
 });
 
