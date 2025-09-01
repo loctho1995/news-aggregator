@@ -1,10 +1,9 @@
-
-// News loading logic with live item count
-
+// public/js/modules/news-loader.js
 import { elements } from './elements.js';
 import { state, updateState } from './state.js';
 import { addItemToGrid, renderItems } from './grid-manager.js';
 import { populateSourceSelect } from './filters.js';
+import { translateItemIfNeeded } from './translator.js';
 
 let currentAbortController = null;
 let currentLoadToken = 0;
@@ -19,7 +18,7 @@ export function cancelCurrentLoad() {
 // Main loader
 export async function loadNews(options = {}) {
   if (state.loadingInProgress) {
-    // prevent overlapping logical loads; if we really want to force, cancel first
+    // if a load is in progress, cancel first
     cancelCurrentLoad();
   }
 
@@ -28,7 +27,7 @@ export async function loadNews(options = {}) {
   const groupValue = elements.groupSelect?.value || "all";
   const sourceValue = elements.sourceSelect?.value || "";
 
-  // Visual state
+  // Clear UI if requested
   if (shouldClear) {
     updateState({ items: [] });
     if (elements.grid) elements.grid.innerHTML = "";
@@ -36,8 +35,8 @@ export async function loadNews(options = {}) {
   }
 
   // Badge feedback (reset count to 0)
-  const groupText = groupValue === "all" 
-    ? "" 
+  const groupText = groupValue === "all"
+    ? ""
     : (elements.groupSelect?.options[elements.groupSelect.selectedIndex]?.text || groupValue);
   let liveCount = 0;
   if (elements.badge) {
@@ -63,32 +62,35 @@ export async function loadNews(options = {}) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    liveCount = await processStreamResponse(response, myToken, (count) => {
-      // update badge with live count
+    // process stream; on each item -> translate (if needed) -> push -> render incrementally
+    const total = await processStreamResponse(response, myToken, async (rawItem) => {
+      const translated = await translateItemIfNeeded(rawItem);
+      state.items.push(translated);
+      addItemToGrid(translated);
+      liveCount++;
       if (elements.badge && myToken === currentLoadToken) {
-        elements.badge.textContent = `Đang tải… ${groupText}${count ? ` • ${count} tin` : ""}`.trim();
+        elements.badge.textContent = `Đang tải… ${groupText}${liveCount ? ` • ${liveCount} tin` : ""}`.trim();
       }
     });
 
-    // Done: if nothing received, show empty
+    // If nothing received, show empty
     if (state.items.length === 0 && elements.empty) {
       elements.empty.classList.remove("hidden");
     }
 
-    // Rebuild source filter options from freshly loaded items
+    // Rebuild source filter options
     populateSourceSelect();
 
-    // Badge OK with final total
+    // Success badge
     if (elements.badge && myToken === currentLoadToken) {
-      const total = state.items.length;
-      elements.badge.textContent = `Đã tải xong • ${total} tin`;
+      const finalTotal = state.items.length;
+      elements.badge.textContent = `Đã tải xong • ${finalTotal} tin`;
       elements.badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-emerald-600 text-white border border-emerald-500";
     }
   } catch (error) {
     if (error?.name === "AbortError") return; // canceled is expected
     handleLoadError(error);
   } finally {
-    // Only clear flags if still the same token
     if (myToken === currentLoadToken) {
       updateState({ loadingInProgress: false });
       currentAbortController = null;
@@ -97,8 +99,9 @@ export async function loadNews(options = {}) {
 }
 
 // Stream processor with token guards
+// Calls onItem(item) for every parsed JSON line
 // Returns number of loaded items
-async function processStreamResponse(response, token, onProgress) {
+async function processStreamResponse(response, token, onItem) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -124,12 +127,8 @@ async function processStreamResponse(response, token, onProgress) {
           console.warn("Source failed:", item.sourceId, item.message);
           continue;
         }
-        state.items.push(item);
+        await onItem(item);
         itemCount++;
-        addItemToGrid(item);
-
-        // Progress callback (throttle is optional – simple immediate update here)
-        if (typeof onProgress === "function") onProgress(itemCount);
       } catch (e) {
         console.warn("Bad line:", trimmed.slice(0, 160));
       }
@@ -142,10 +141,8 @@ async function processStreamResponse(response, token, onProgress) {
     try {
       const item = JSON.parse(last);
       if (!item.error) {
-        state.items.push(item);
+        await onItem(item);
         itemCount++;
-        addItemToGrid(item);
-        if (typeof onProgress === "function") onProgress(itemCount);
       }
     } catch {}
   }
@@ -172,7 +169,6 @@ function handleLoadError(error) {
         </button>
       </div>
     `;
-    // Bind retry
     setTimeout(() => {
       document.getElementById("retryLoadBtn")?.addEventListener("click", () => {
         loadNews({ clear: true });

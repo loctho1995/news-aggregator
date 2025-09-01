@@ -1,15 +1,11 @@
-
-// UI init & event handlers (clean replacement)
-
+// public/js/modules/initialization.js
 import { elements } from './elements.js';
 import { loadNews, cancelCurrentLoad } from './news-loader.js';
 import { updateFiltersAndRender } from './filters.js';
 import { closeModal } from './modal.js';
 import { handleSpeak, handleStopSpeak, handleRateChange } from './tts.js';
 
-export function initializeUI() {
-  // any initial UI setup can stay here if needed
-}
+export function initializeUI() {}
 
 export function initializeEventHandlers() {
   // Search debounce
@@ -19,10 +15,10 @@ export function initializeEventHandlers() {
     searchTimeout = setTimeout(updateFiltersAndRender, 300);
   });
 
-  // Buttons
+  // Refresh button
   elements.refreshBtn?.addEventListener("click", () => loadNews({ clear: true }));
 
-  // Source change -> cancel + clear + reload (server-side filter via &sources=)
+  // Source change -> cancel + clear + reload
   elements.sourceSelect?.addEventListener("change", () => {
     try { localStorage.setItem('selectedSource', elements.sourceSelect.value); } catch {}
     cancelCurrentLoad();
@@ -32,11 +28,9 @@ export function initializeEventHandlers() {
   // Group change -> cancel + clear + reset source + reload
   elements.groupSelect?.addEventListener("change", () => {
     try { localStorage.setItem('selectedGroup', elements.groupSelect.value); } catch {}
-    // reset source & search
     elements.sourceSelect.value = "";
     elements.search.value = "";
     try { localStorage.removeItem('selectedSource'); } catch {}
-    // cancel in-flight, clear UI, scroll top, reload
     cancelCurrentLoad();
     const grid = document.getElementById("grid");
     const empty = document.getElementById("empty");

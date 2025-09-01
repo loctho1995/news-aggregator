@@ -9,6 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import newsRouter from "./routes/news.js";
+import translateRouter from "./routes/translate.js";
 import sourcesRouter from "./routes/sources.js";
 import summaryRouter from "./routes/summary.js";
 
@@ -31,6 +32,7 @@ app.get("/api/healthz", (req, res) => res.json({ ok: true }));
 // API routes
 app.use("/api", sourcesRouter);
 app.use("/api", newsRouter);
+app.use("/api", translateRouter);
 app.use("/api", summaryRouter);
 
 // Root -> serve index.html

@@ -1,12 +1,10 @@
-
-// Main app entry point (clean replacement)
-
+// public/js/app.js
 import { initializeUI, initializeEventHandlers } from './modules/initialization.js';
 import { loadNews } from './modules/news-loader.js';
 import { loadReadItems } from './modules/storage.js';
 
 document.addEventListener("DOMContentLoaded", () => {
-  // restore saved selection for better UX
+  // restore saved selection
   try {
     const g = localStorage.getItem("selectedGroup");
     if (g) {
@@ -25,6 +23,5 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeUI();
   initializeEventHandlers();
   loadReadItems();
-  // first load clears UI and fetches using current selects
   loadNews({ clear: true });
 });

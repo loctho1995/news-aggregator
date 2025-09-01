@@ -176,14 +176,6 @@ export const SOURCES = {
     url: "https://feeds.a.dj.com/rss/RSSOpinion.xml",
     homepage: "https://www.wsj.com",
   },
-  bloomberg: {
-    id: "bloomberg",
-    name: "Bloomberg",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://feeds.bloomberg.com/markets/news.rss",
-    homepage: "https://www.bloomberg.com",
-  },
   economist: {
     id: "economist",
     name: "The Economist",

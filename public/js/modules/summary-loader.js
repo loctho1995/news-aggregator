@@ -2,6 +2,7 @@
 // File: public/js/modules/summary-loader.js
 
 import { elements } from './elements.js';
+import { translateToVietnamese, translateMany } from './translator.js';
 import { ttsSupported } from './tts.js';
 import { state } from './state.js';
 
@@ -135,6 +136,15 @@ export function loadSummary(item, link) {
       }
       
       const data = await response.json();
+      // Translate modal content for international sources
+      try {
+        if (item.group === 'internationaleconomics') {
+          if (Array.isArray(data.bullets)) data.bullets = await translateMany(data.bullets);
+          if (Array.isArray(data.paragraphs)) data.paragraphs = await translateMany(data.paragraphs);
+          if (data.fullSummary) data.fullSummary = await translateToVietnamese(data.fullSummary);
+          if (data.fallbackText) data.fallbackText = await translateToVietnamese(data.fallbackText);
+        }
+      } catch (e) { console.warn('Translate modal content failed', e); }
       
       fetchCompleted = true;
       clearInterval(progressInterval);
