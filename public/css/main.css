@@ -1,0 +1,420 @@
+/* ===================================
+   MAIN STYLESHEET - News Aggregator
+   =================================== */
+
+/* ===== DRAG & SWIPE STYLES ===== */
+
+/* Drag handle at top */
+.drag-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 10;
+  padding-top: 8px;
+  background: transparent;
+}
+
+.drag-indicator {
+  width: 40px;
+  height: 4px;
+  background-color: #9ca3af;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.drag-handle:hover .drag-indicator,
+.dragging .drag-indicator {
+  background-color: #6b7280;
+  width: 60px;
+}
+
+/* Modal panel dragging state */
+#modalPanel.dragging {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Smooth transitions for modal */
+#modalPanel {
+  transform-origin: top center;
+  will-change: transform, opacity;
+}
+
+/* Footer drag hint styles */
+.footer-drag-hint {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.footer-drag-indicator {
+  width: 30px;
+  height: 3px;
+  background-color: #9ca3af;
+  border-radius: 1.5px;
+  transition: all 0.2s ease;
+}
+
+/* Active state when dragging from footer */
+.footer-drag-hint.active {
+  opacity: 1;
+}
+
+.footer-drag-hint.active .footer-drag-indicator {
+  width: 50px;
+  height: 4px;
+  background-color: #6b7280;
+}
+
+/* Mobile specific drag styles */
+@media (max-width: 768px) {
+  .drag-handle {
+    height: 40px;
+    padding-top: 12px;
+  }
+  
+  .drag-indicator {
+    width: 50px;
+    height: 5px;
+  }
+  
+  /* Show footer hint on mobile */
+  .footer-drag-hint {
+    opacity: 0.5;
+  }
+  
+  /* Make footer area more grabbable */
+  #modalPanel .border-t.border-gray-300.pt-2 {
+    padding-top: 12px;
+    padding-bottom: 8px;
+    position: relative;
+  }
+  
+  /* Visual hint for draggable area in footer */
+  #modalPanel .border-t.border-gray-300.pt-2::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 3px;
+    background-color: #d1d5db;
+    border-radius: 1.5px;
+  }
+}
+
+/* Don't show cursor on buttons/links */
+#modalPanel .border-t.border-gray-300.pt-2 button,
+#modalPanel .border-t.border-gray-300.pt-2 a {
+  cursor: pointer !important;
+}
+
+/* Overscroll behavior for better swipe */
+#summaryArea {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent accidental swipes when scrolling content */
+#summaryList {
+  pointer-events: auto;
+}
+
+/* Animation for swipe feedback */
+@keyframes swipeHint {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+.drag-handle:active .drag-indicator {
+  animation: swipeHint 0.5s ease;
+}
+
+/* IMPORTANT: Ensure header is NOT draggable */
+.modal-compact-header {
+  cursor: default !important;
+  user-select: auto !important;
+  -webkit-user-select: auto !important;
+  pointer-events: auto !important;
+}
+
+/* ===== BUTTON & TYPE STYLES ===== */
+
+.active-summary-type {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%) !important;
+  border-color: #6b7280 !important;
+  color: #374151 !important;
+  font-weight: 600;
+  box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.1);
+}
+
+.active-ai-type {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%) !important;
+  border-color: #8b5cf6 !important;
+  color: #6b21a8 !important;
+  font-weight: 600;
+  box-shadow: inset 0 2px 4px 0 rgb(139 92 246 / 0.1);
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes pulse { 
+  0%, 100% { opacity: 1; } 
+  50% { opacity: .5; } 
+}
+
+.animate-pulse { 
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; 
+}
+
+/* ===== GRID LAYOUT ===== */
+
+#grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
+  gap: 1rem; 
+}
+
+.news-card { 
+  min-height: 300px; 
+  display: flex; 
+  flex-direction: column; 
+}
+
+@media (max-width: 640px) {
+  #grid { grid-template-columns: 1fr; }
+  .news-card { min-height: 280px; }
+  .flex.items-end.justify-between { 
+    flex-direction: column; 
+    gap: 12px; 
+    align-items: stretch; 
+  }
+}
+
+@media (min-width: 1024px) {
+  #grid { grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); }
+  .news-card { min-height: 300px; }
+}
+
+/* ===== READ STATUS ===== */
+
+.read { 
+  transition: all .3s ease; 
+}
+
+.read-status-btn { 
+  transition: all .2s ease; 
+}
+
+.read-status-btn:hover { 
+  transform: scale(1.05); 
+}
+
+/* ===== CLOSE BUTTON MOBILE ===== */
+
+.close-btn-mobile {
+  /* Minimum 44x44px touch target as per accessibility guidelines */
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid #d1d5db;
+  color: #374151;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  touch-action: manipulation;
+}
+
+.close-btn-mobile:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.close-btn-mobile:active {
+  transform: scale(0.95);
+  background-color: #e5e7eb;
+}
+
+/* Desktop: can be smaller */
+@media (min-width: 768px) {
+  .close-btn-mobile {
+    min-width: 36px;
+    min-height: 36px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .close-btn-mobile svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Extra padding on mobile for easier tap */
+@media (max-width: 767px) {
+  #modalPanel {
+    padding: 12px;
+  }
+  
+  .close-btn-mobile {
+    position: relative;
+  }
+  
+  .close-btn-mobile::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+  }
+}
+
+/* ===== BODY SCROLL PREVENTION ===== */
+
+body.modal-open {
+  position: fixed;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ===== MODAL HEADER ===== */
+
+.modal-compact-header {
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+/* Make summary area use more space */
+#summaryArea {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ===== MODAL TITLE AUTO-SIZING ===== */
+
+#modalTitle {
+  display: block;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.4;
+  transition: font-size 0.2s ease;
+}
+
+/* Auto resize title based on length */
+#modalTitle.title-long {
+  font-size: 1rem; /* 16px for long titles */
+}
+
+#modalTitle.title-very-long {
+  font-size: 0.875rem; /* 14px for very long titles */
+}
+
+#modalTitle.title-extra-long {
+  font-size: 0.75rem; /* 12px for extra long titles */
+}
+
+/* Mobile specific title sizing */
+@media (max-width: 640px) {
+  #modalTitle {
+    font-size: 1rem; /* Start smaller on mobile */
+  }
+  
+  #modalTitle.title-long {
+    font-size: 0.875rem;
+  }
+  
+  #modalTitle.title-very-long {
+    font-size: 0.75rem;
+  }
+  
+  #modalTitle.title-extra-long {
+    font-size: 0.625rem; /* 10px minimum */
+  }
+}
+
+/* ===== MODAL SWIPE INDICATORS ===== */
+
+.modal-swipe-indicator {
+  position: absolute;
+  pointer-events: none;
+  z-index: 30;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Left swipe indicator */
+.modal-swipe-left-indicator {
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+}
+
+.modal-swipe-left-indicator .swipe-indicator-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.modal-swipe-left-indicator .swipe-indicator-bg {
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
+  border-radius: 50px;
+  opacity: 0.9;
+  filter: blur(20px);
+  transition: background-color 0.2s ease;
+}
+
+.swipe-indicator-bg.bg-blue-500 {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+}
+
+.swipe-indicator-bg.bg-blue-600 {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+}
+
+.swipe-indicator-bg.bg-red-600 {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+}
+
+@keyframes modalSwipeLeft {
+  to {
+    transform: translateX(-110%) rotate(-15deg) scale(0.9);
+    opacity: 0;
+  }
+}
+
+#modalPanel.closing-left {
+  animation: modalSwipeLeft 0.3s ease-out forwards;
+}
