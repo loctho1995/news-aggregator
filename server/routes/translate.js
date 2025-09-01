@@ -1,57 +1,148 @@
 // server/routes/translate.js
 import express from "express";
-
 const router = express.Router();
 
-// Simple in-memory cache to reduce duplicate translations
+// In-memory cache
 const cache = new Map();
-const MAX_CACHE = 500;
-
-function setCache(key, value) {
+const MAX_CACHE = 1000;
+function setCache(key, val) {
   if (cache.size >= MAX_CACHE) {
     const firstKey = cache.keys().next().value;
     cache.delete(firstKey);
   }
-  cache.set(key, value);
+  cache.set(key, val);
+}
+const getCache = (k) => cache.get(k);
+const hasCache = (k) => cache.has(k);
+
+// --- Helpers ---
+async function fetchWithTimeout(url, opts = {}, timeoutMs = 8000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, { ...opts, signal: ctrl.signal });
+    return resp;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
-router.post("/translate", async (req, res) => {
-  try {
-    const { text, target = "vi" } = req.body || {};
-    if (!text || typeof text !== "string") {
-      return res.status(400).json({ error: "Missing text" });
-    }
+async function tryTranslateOnce(text, target, endpoint) {
+  const q = encodeURIComponent(text || "");
+  const ua = { "User-Agent": "Mozilla/5.0 (Node; Aggregator)" };
 
-    const key = `${target}::${text.slice(0, 1000)}`; // cap key length
-    if (cache.has(key)) {
-      return res.json({ translatedText: cache.get(key), cached: true });
-    }
-
-    const url = new URL("https://translate.googleapis.com/translate_a/single");
-    url.searchParams.set("client", "gtx");
-    url.searchParams.set("sl", "auto");
-    url.searchParams.set("tl", target);
-    url.searchParams.set("dt", "t");
-    url.searchParams.set("q", text);
-
-    const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!resp.ok) {
-      return res.status(resp.status).json({ error: `Translate HTTP ${resp.status}` });
-    }
+  if (endpoint === "google_gtx") {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${target}&dt=t&q=${q}`;
+    const resp = await fetchWithTimeout(url, { headers: ua });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     const translated = Array.isArray(data) && Array.isArray(data[0])
-      ? data[0].map((seg) => (Array.isArray(seg) ? seg[0] : "")).join("")
+      ? data[0].map(seg => (Array.isArray(seg) ? seg[0] : "")).join("")
       : "";
+    return translated;
+  }
 
-    if (!translated) {
-      return res.status(502).json({ error: "Translate empty response" });
+  if (endpoint === "google_clients5") {
+    // A lightweight endpoint used by Chrome dictionary extension
+    const url = `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=${target}&q=${q}`;
+    const resp = await fetchWithTimeout(url, { headers: ua });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    // data may be an object with "sentences": [{trans:"..."}]
+    if (data && Array.isArray(data.sentences)) {
+      return data.sentences.map(s => s.trans || "").join("");
+    }
+    return "";
+  }
+
+  throw new Error("Unknown endpoint");
+}
+
+async function doTranslate(text, target) {
+  const endpoints = ["google_gtx", "google_clients5"];
+  let lastErr = null;
+  for (const ep of endpoints) {
+    // small retry loop per endpoint
+    for (let i = 0; i < 2; i++) {
+      try {
+        const out = await tryTranslateOnce(text, target, ep);
+        if (typeof out === "string") return out;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+  }
+  throw lastErr || new Error("All endpoints failed");
+}
+
+// --- Routes ---
+// GET /api/translate?q=...&target=vi
+router.get("/translate", async (req, res) => {
+  try {
+    const t = typeof req.query.q === "string" ? req.query.q : "";
+    const target = typeof req.query.target === "string" ? req.query.target : "vi";
+    const key = `${target}:${t}`;
+    if (hasCache(key)) return res.json({ translatedText: getCache(key) });
+    const out = await doTranslate(t, target);
+    setCache(key, out);
+    return res.json({ translatedText: out });
+  } catch (e) {
+    // Graceful fallback
+    return res.json({ translatedText: String(req.query.q || ""), fallback: true, error: String(e?.message || "fetch failed") });
+  }
+});
+
+// POST /api/translate  (accepts { text } or { texts: [] })
+router.post("/translate", async (req, res) => {
+  let { text, texts, target = "vi" } = req.body || {};
+  const hasText = typeof text !== "undefined";
+  const hasTexts = Array.isArray(texts);
+
+  try {
+    if (hasTexts) {
+      const clean = texts.map(t => (t == null) ? "" : String(t));
+      // Serve from cache or translate with retries
+      const results = [];
+      for (const t of clean) {
+        const key = `${target}:${t}`;
+        if (hasCache(key)) {
+          results.push(getCache(key));
+        } else {
+          try {
+            const out = await doTranslate(t, target);
+            setCache(key, out);
+            results.push(out);
+          } catch (e) {
+            // fallback per item: return original
+            results.push(t);
+          }
+        }
+      }
+      return res.json({ translatedTexts: results });
     }
 
-    setCache(key, translated);
-    res.json({ translatedText: translated });
+    // Single text (allow empty string)
+    const t = (text == null) ? "" : String(text);
+    const key = `${target}:${t}`;
+    if (hasCache(key)) return res.json({ translatedText: getCache(key) });
+
+    try {
+      const out = await doTranslate(t, target);
+      setCache(key, out);
+      return res.json({ translatedText: out });
+    } catch (e) {
+      // Graceful fallback
+      return res.json({ translatedText: t, fallback: true, error: String(e?.message || "fetch failed") });
+    }
   } catch (e) {
-    console.error("POST /api/translate failed:", e);
-    res.status(500).json({ error: e.message || "Internal error" });
+    // Never 500 to the client for translate; return original input
+    if (hasTexts) {
+      const clean = (texts || []).map(t => (t == null) ? "" : String(t));
+      return res.json({ translatedTexts: clean, fallback: true, error: String(e?.message || "fetch failed") });
+    } else {
+      const t = (text == null) ? "" : String(text);
+      return res.json({ translatedText: t, fallback: true, error: String(e?.message || "fetch failed") });
+    }
   }
 });
 
