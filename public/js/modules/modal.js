@@ -35,77 +35,209 @@ function ensureContextMenu() {
   document.addEventListener('click', () => { ctxMenuEl.style.display='none'; }, true);
   return ctxMenuEl;
 }
-function showContextMenu(x, y, targetNode) {
+
+// Enhanced context menu with "View Original" option
+function showContextMenuEnhanced(x, y, targetNode, originalTextMap) {
   const menu = ensureContextMenu();
-  menu.style.left = x + 'px';
-  menu.style.top = y + 'px';
+  
+  // Check if node has been translated
+  const isTranslated = targetNode.dataset.translated === 'true';
+  const currentText = targetNode.innerText || '';
+  
+  // Update menu options based on state
+  menu.innerHTML = `
+    ${isTranslated ? 
+      `<button data-action="original" class="block w-full text-left px-3 py-2 hover:bg-gray-100">Xem văn bản gốc</button>` :
+      `<button data-action="translate" class="block w-full text-left px-3 py-2 hover:bg-gray-100">Dịch đoạn này</button>`
+    }
+    <button data-action="copy" class="block w-full text-left px-3 py-2 hover:bg-gray-100">Copy đoạn văn</button>
+    <div id="ctxStatus" class="px-3 py-1 text-xs text-gray-500 border-t border-gray-200">&nbsp;</div>
+  `;
+  
+  // Position menu (adjust if near edges)
+  const menuWidth = 200;
+  const menuHeight = 100;
+  
+  let menuX = x;
+  let menuY = y;
+  
+  if (menuX + menuWidth > window.innerWidth) {
+    menuX = window.innerWidth - menuWidth - 10;
+  }
+  
+  if (menuY + menuHeight > window.innerHeight) {
+    menuY = y - menuHeight;
+  }
+  
+  menu.style.left = menuX + 'px';
+  menu.style.top = menuY + 'px';
   menu.style.display = 'block';
+  
   // Attach handlers
   menu.onclick = async (e) => {
     const act = e.target?.dataset?.action;
     if (!act) return;
     e.stopPropagation();
+    
     const status = menu.querySelector('#ctxStatus');
-    const text = targetNode?.innerText || '';
+    
     if (act === 'copy') {
-      try { await navigator.clipboard.writeText(text); if (status) status.textContent='Đã copy'; } catch { if (status) status.textContent='Copy thất bại'; }
-      setTimeout(()=>{ menu.style.display='none'; if (status) status.textContent=''; targetNode?.classList.remove('pressed-highlight'); }, 600);
+      try { 
+        await navigator.clipboard.writeText(currentText); 
+        if (status) status.textContent = 'Đã copy';
+      } catch { 
+        if (status) status.textContent = 'Copy thất bại';
+      }
+      setTimeout(() => {
+        menu.style.display = 'none';
+        if (status) status.textContent = '';
+        targetNode?.classList.remove('pressed-highlight');
+      }, 600);
       return;
     }
+    
     if (act === 'translate') {
       try {
-        if (status) status.textContent='Đang dịch…';
+        if (status) status.textContent = 'Đang dịch…';
+        
+        // Store original text before translating
+        if (!originalTextMap.has(targetNode)) {
+          originalTextMap.set(targetNode, currentText);
+        }
+        
         const { translateToVietnamese } = await import('./translator.js');
-        const translated = await translateToVietnamese(text);
-        if (translated) targetNode.innerText = translated;
-        if (status) status.textContent='Đã dịch';
-      } catch { if (status) status.textContent='Lỗi dịch'; }
-      setTimeout(()=>{ menu.style.display='none'; if (status) status.textContent=''; targetNode?.classList.remove('pressed-highlight'); }, 700);
+        const translated = await translateToVietnamese(currentText);
+        if (translated && translated !== currentText) {
+          targetNode.innerText = translated;
+          targetNode.dataset.translated = 'true';
+        }
+        if (status) status.textContent = 'Đã dịch';
+      } catch {
+        if (status) status.textContent = 'Lỗi dịch';
+      }
+      setTimeout(() => {
+        menu.style.display = 'none';
+        if (status) status.textContent = '';
+        targetNode?.classList.remove('pressed-highlight');
+      }, 700);
+      return;
+    }
+    
+    if (act === 'original') {
+      // Restore original text
+      const original = originalTextMap.get(targetNode);
+      if (original) {
+        targetNode.innerText = original;
+        targetNode.dataset.translated = 'false';
+        if (status) status.textContent = 'Đã khôi phục';
+      }
+      setTimeout(() => {
+        menu.style.display = 'none';
+        if (status) status.textContent = '';
+        targetNode?.classList.remove('pressed-highlight');
+      }, 600);
       return;
     }
   };
 }
-// Setup long-press detection on summaryList
+
+// Setup click/tap detection on summaryList
 function setupSummaryLongPress() {
   const container = elements.summaryList;
   if (!container) return;
 
-  let pressTimer = null;
-  let pressedNode = null;
+  let selectedNode = null;
+  let originalText = new Map();
+  
+  // Variables for tap detection
+  let tapStartTime = 0;
+  let tapStartX = 0;
+  let tapStartY = 0;
+  let isTapping = false;
 
-  const start = (e) => {
-    const path = e.composedPath ? e.composedPath() : [];
-    let node = null;
-    for (const n of path) {
-      if (n && n.nodeType === 1 && (n.tagName==='P' || n.tagName==='LI' || (n.tagName==='SPAN' && n.innerText && n.innerText.length>0))) {
-        node = n; break;
+  const handleTapStart = (e) => {
+    // Get coordinates
+    const point = e.touches ? e.touches[0] : e;
+    tapStartX = point.clientX;
+    tapStartY = point.clientY;
+    tapStartTime = Date.now();
+    isTapping = true;
+  };
+
+  const handleTapEnd = (e) => {
+    if (!isTapping) return;
+    
+    // Check if it was a quick tap (not a long press or drag)
+    const tapDuration = Date.now() - tapStartTime;
+    const point = e.changedTouches ? e.changedTouches[0] : e;
+    const moveX = Math.abs(point.clientX - tapStartX);
+    const moveY = Math.abs(point.clientY - tapStartY);
+    
+    // Only show menu if:
+    // - Tap was quick (< 300ms)
+    // - Finger didn't move much (< 10px)
+    if (tapDuration < 300 && moveX < 10 && moveY < 10) {
+      // Find the text element
+      const target = e.target;
+      let node = null;
+      
+      if (target.tagName === 'P' || target.tagName === 'LI' || 
+          (target.tagName === 'SPAN' && target.innerText && target.innerText.length > 0)) {
+        node = target;
+      } else if (target.parentElement) {
+        const parent = target.parentElement;
+        if (parent.tagName === 'P' || parent.tagName === 'LI') {
+          node = parent;
+        }
+      }
+      
+      if (node) {
+        // Remove previous highlight
+        if (selectedNode && selectedNode !== node) {
+          selectedNode.classList.remove('pressed-highlight');
+        }
+        
+        selectedNode = node;
+        selectedNode.classList.add('pressed-highlight');
+        
+        // Show context menu
+        showContextMenuEnhanced(point.clientX, point.clientY, selectedNode, originalText);
+        
+        e.preventDefault();
+        e.stopPropagation();
       }
     }
-    if (!node) return;
-    pressedNode = node;
-    pressedNode.classList.add('pressed-highlight');
-
-    const pointX = (e.touches && e.touches[0]?.clientX) || e.clientX || 0;
-    const pointY = (e.touches && e.touches[0]?.clientY) || e.clientY || 0;
-    clearTimeout(pressTimer);
-    pressTimer = setTimeout(() => {
-      showContextMenu(pointX, pointY, pressedNode);
-    }, 500);
+    
+    isTapping = false;
   };
 
-  const cancel = () => {
-    clearTimeout(pressTimer);
-    pressTimer = null;
-    if (pressedNode) pressedNode.classList.remove('pressed-highlight');
-    pressedNode = null;
-  };
-
-  container.addEventListener('mousedown', start, true);
-  container.addEventListener('touchstart', start, { passive: true });
-  ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev=>container.addEventListener(ev, cancel, true));
+  // Touch events
+  container.addEventListener('touchstart', handleTapStart, { passive: true });
+  container.addEventListener('touchend', handleTapEnd, { passive: false });
+  
+  // Mouse events (for desktop)
+  container.addEventListener('mousedown', handleTapStart);
+  container.addEventListener('mouseup', (e) => {
+    // Only handle left click
+    if (e.button === 0) {
+      handleTapEnd(e);
+    }
+  });
+  
+  // Hide menu when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#summaryContextMenu') && !e.target.closest('#summaryList')) {
+      const menu = document.getElementById('summaryContextMenu');
+      if (menu) menu.style.display = 'none';
+      if (selectedNode) {
+        selectedNode.classList.remove('pressed-highlight');
+        selectedNode = null;
+      }
+    }
+  }, true);
 }
-// === End context menu section ===
 
+// === End context menu section ===
 
 // Swipe handler variables
 let touchStartY = 0;
@@ -119,9 +251,9 @@ let canDrag = false;
 // New variables for swipe left detection
 let isSwipingHorizontal = false;
 let swipeDirection = null;
-const SWIPE_LEFT_THRESHOLD = 100; // pixels needed to trigger left swipe
-const SWIPE_UP_THRESHOLD = 100; // pixels needed for up swipe
-const SWIPE_ANGLE_THRESHOLD = 30; // max angle deviation for horizontal swipe
+const SWIPE_LEFT_THRESHOLD = 100;
+const SWIPE_UP_THRESHOLD = 100;
+const SWIPE_ANGLE_THRESHOLD = 30;
 
 // Prevent body scroll when modal is open
 function preventBodyScroll() {
@@ -172,10 +304,8 @@ function getSwipeAngle(deltaX, deltaY) {
 function addSwipeIndicators() {
   if (!modalPanel) return;
   
-  // Check if indicators already exist
   if (modalPanel.querySelector('.modal-swipe-indicator')) return;
   
-  // Add swipe left indicator
   const leftIndicator = document.createElement('div');
   leftIndicator.className = 'modal-swipe-indicator modal-swipe-left-indicator';
   leftIndicator.innerHTML = `
@@ -189,7 +319,6 @@ function addSwipeIndicators() {
   `;
   modalPanel.appendChild(leftIndicator);
   
-  // Add swipe up indicator (existing one)
   const upIndicator = document.createElement('div');
   upIndicator.className = 'modal-swipe-indicator modal-swipe-up-indicator';
   upIndicator.innerHTML = `
@@ -211,11 +340,9 @@ function updateSwipeIndicator(direction, progress) {
   const leftIndicator = modalPanel.querySelector('.modal-swipe-left-indicator');
   const upIndicator = modalPanel.querySelector('.modal-swipe-up-indicator');
   
-  // Hide all indicators first
   if (leftIndicator) leftIndicator.style.opacity = '0';
   if (upIndicator) upIndicator.style.opacity = '0';
   
-  // Show appropriate indicator based on direction
   if (direction === 'left' && leftIndicator) {
     leftIndicator.style.opacity = Math.min(1, progress);
     const bg = leftIndicator.querySelector('.swipe-indicator-bg');
@@ -248,10 +375,8 @@ function initSwipeHandlers() {
   modalPanel = elements.modalPanel;
   if (!modalPanel) return;
   
-  // Add swipe indicators
   addSwipeIndicators();
   
-  // Add drag handle indicator at top (existing)
   if (!document.getElementById('dragHandle')) {
     const dragHandle = document.createElement('div');
     dragHandle.id = 'dragHandle';
@@ -259,44 +384,37 @@ function initSwipeHandlers() {
     modalPanel.insertBefore(dragHandle, modalPanel.firstChild);
   }
   
-  // Get draggable areas
   const dragHandle = document.getElementById('dragHandle');
   const modalFooter = modalPanel.querySelector('.border-t.border-gray-300.pt-2');
-  // Create a dedicated drag zone to avoid hitting buttons/links in the footer
-let footerDragZone = null;
-if (modalFooter) {
-  footerDragZone = modalFooter.querySelector('.footer-drag-zone');
-  if (!footerDragZone) {
-    footerDragZone = document.createElement('div');
-    footerDragZone.className = 'footer-drag-zone';
-    // Insert as first child so it's on top of the footer but not covering the content below
-    modalFooter.insertBefore(footerDragZone, modalFooter.firstChild);
-  }
-}
   
-  // TOUCH EVENTS FOR ENTIRE MODAL (for swipe detection)
+  let footerDragZone = null;
+  if (modalFooter) {
+    footerDragZone = modalFooter.querySelector('.footer-drag-zone');
+    if (!footerDragZone) {
+      footerDragZone = document.createElement('div');
+      footerDragZone.className = 'footer-drag-zone';
+      modalFooter.insertBefore(footerDragZone, modalFooter.firstChild);
+    }
+  }
+  
   modalPanel.addEventListener('touchstart', handleModalTouchStart, { passive: false });
   modalPanel.addEventListener('touchmove', handleModalTouchMove, { passive: false });
   modalPanel.addEventListener('touchend', handleModalTouchEnd, { passive: false });
   
-  // Mouse events for desktop testing
   modalPanel.addEventListener('mousedown', handleModalMouseDown);
   modalPanel.addEventListener('mousemove', handleModalMouseMove);
   modalPanel.addEventListener('mouseup', handleModalMouseUp);
   
-  // Touch events for drag handle (existing)
   if (dragHandle) {
     dragHandle.addEventListener('touchstart', handleDragHandleTouchStart, { passive: false });
     dragHandle.addEventListener('mousedown', handleDragHandleMouseDown);
   }
   
-  // Touch events for footer (existing)
   if (modalFooter) {
     const _footerTarget = modalFooter.querySelector('.footer-drag-zone') || modalFooter;
     _footerTarget.addEventListener('touchstart', handleFooterTouchStart, { passive: false });
     _footerTarget.addEventListener('mousedown', handleFooterMouseDown);
     
-    // Add visual indicator to footer on mobile
     if (!modalFooter.querySelector('.footer-drag-hint')) {
       const footerHint = document.createElement('div');
       footerHint.className = 'footer-drag-hint';
@@ -306,10 +424,9 @@ if (modalFooter) {
   }
 }
 
-// Handle modal touch start (NEW - for swipe left)
+// Handle modal touch start
 function handleModalTouchStart(e) {
-    if (e.target && (e.target.id === 'modalClose' || (e.target.closest && e.target.closest('#modalClose')))) { return; }
-// Don't interfere with buttons, links, or scrollable content
+  if (e.target && (e.target.id === 'modalClose' || (e.target.closest && e.target.closest('#modalClose')))) { return; }
   if (e.target.closest('button') || 
       e.target.closest('a') || 
       e.target.closest('input') ||
@@ -327,11 +444,10 @@ function handleModalTouchStart(e) {
   swipeDirection = null;
 }
 
-// Handle modal touch move (ENHANCED - for both directions)
+// Handle modal touch move
 function handleModalTouchMove(e) {
   if (!touchStartX || !touchStartY) return;
   
-  // Don't track if interacting with content
   if (e.target.closest('#summaryArea') || 
       e.target.closest('button') || 
       e.target.closest('a')) {
@@ -346,29 +462,22 @@ function handleModalTouchMove(e) {
   const deltaY = touchStartY - touchEndY;
   const angle = getSwipeAngle(deltaX, deltaY);
   
-  // Determine swipe direction
   if (Math.abs(deltaX) > Math.abs(deltaY)) {
-    // Horizontal swipe
     if (deltaX > 20 && angle < SWIPE_ANGLE_THRESHOLD) {
-      // Swiping left
       swipeDirection = 'left';
       isSwipingHorizontal = true;
       e.preventDefault();
       
-      // Visual feedback
       const progress = Math.min(1, deltaX / SWIPE_LEFT_THRESHOLD);
       animateModalSwipe('left', -deltaX, progress);
       updateSwipeIndicator('left', progress);
     }
   } else {
-    // Vertical swipe
     if (deltaY > 20) {
-      // Swiping up
       swipeDirection = 'up';
       isSwipingHorizontal = false;
       e.preventDefault();
       
-      // Visual feedback
       const progress = Math.min(1, deltaY / SWIPE_UP_THRESHOLD);
       animateModalSwipe('up', -deltaY, progress);
       updateSwipeIndicator('up', progress);
@@ -376,26 +485,21 @@ function handleModalTouchMove(e) {
   }
 }
 
-// Handle modal touch end (ENHANCED)
+// Handle modal touch end
 function handleModalTouchEnd(e) {
   if (!touchStartX || !touchStartY) return;
   
   const deltaX = touchStartX - touchEndX;
   const deltaY = touchStartY - touchEndY;
   
-  // Check if swipe was sufficient
   if (swipeDirection === 'left' && deltaX > SWIPE_LEFT_THRESHOLD) {
-    // Close modal with left swipe animation
     animateModalClose('left');
   } else if (swipeDirection === 'up' && deltaY > SWIPE_UP_THRESHOLD) {
-    // Close modal with up swipe animation
     animateModalClose('up');
   } else {
-    // Reset modal position
     resetModalPosition();
   }
   
-  // Reset
   touchStartX = 0;
   touchStartY = 0;
   touchEndX = 0;
@@ -460,7 +564,6 @@ function animateModalSwipe(direction, delta, progress) {
   modalPanel.style.transition = 'none';
   
   if (direction === 'left') {
-    // Swipe left animation
     const translateX = Math.min(150, Math.abs(delta));
     const rotate = translateX * 0.05;
     const scale = 1 - (progress * 0.05);
@@ -468,7 +571,6 @@ function animateModalSwipe(direction, delta, progress) {
     modalPanel.style.transform = `translateX(${-translateX}px) rotate(${-rotate}deg) scale(${scale})`;
     modalPanel.style.opacity = 1 - (progress * 0.3);
   } else if (direction === 'up') {
-    // Swipe up animation (existing)
     const translateY = Math.min(200, Math.abs(delta));
     modalPanel.style.transform = `translateY(${-translateY}px)`;
     modalPanel.style.opacity = 1 - (progress * 0.5);
@@ -482,11 +584,9 @@ function animateModalClose(direction) {
   modalPanel.style.transition = 'all 0.3s ease-out';
   
   if (direction === 'left') {
-    // Swipe left close animation
     modalPanel.style.transform = 'translateX(-100%) rotate(-10deg) scale(0.9)';
     modalPanel.style.opacity = '0';
   } else if (direction === 'up') {
-    // Swipe up close animation
     modalPanel.style.transform = 'translateY(-100%)';
     modalPanel.style.opacity = '0';
   }
@@ -504,14 +604,13 @@ function resetModalPosition() {
   modalPanel.style.transform = '';
   modalPanel.style.opacity = '';
   
-  // Hide indicators
   updateSwipeIndicator(null, 0);
 }
 
-// Handle drag handle touch start (EXISTING)
+// Handle drag handle touch start
 function handleDragHandleTouchStart(e) {
-    if (e.target && (e.target.id === 'modalClose' || (e.target.closest && e.target.closest('#modalClose')))) { return; }
-const touch = e.touches[0];
+  if (e.target && (e.target.id === 'modalClose' || (e.target.closest && e.target.closest('#modalClose')))) { return; }
+  const touch = e.touches[0];
   touchStartY = touch.clientY;
   isDragging = true;
   canDrag = true;
@@ -521,7 +620,7 @@ const touch = e.touches[0];
   e.stopPropagation();
 }
 
-// Handle drag handle mouse down (EXISTING)
+// Handle drag handle mouse down
 function handleDragHandleMouseDown(e) {
   touchStartY = e.clientY;
   isDragging = true;
@@ -531,12 +630,11 @@ function handleDragHandleMouseDown(e) {
   e.preventDefault();
 }
 
-// Handle footer touch start (EXISTING)
+// Handle footer touch start
 function handleFooterTouchStart(e) {
   const touch = e.touches[0];
   const target = e.target;
   
-  // Don't drag if touching buttons or links
   if (target.closest('button') || 
       target.closest('a') || 
       target.closest('input') ||
@@ -550,7 +648,6 @@ function handleFooterTouchStart(e) {
   modalPanel.style.transition = 'none';
   modalPanel.classList.add('dragging');
   
-  // Visual feedback
   const footerHint = modalPanel.querySelector('.footer-drag-hint');
   if (footerHint) {
     footerHint.classList.add('active');
@@ -560,11 +657,10 @@ function handleFooterTouchStart(e) {
   e.stopPropagation();
 }
 
-// Handle footer mouse down (EXISTING)
+// Handle footer mouse down
 function handleFooterMouseDown(e) {
   const target = e.target;
   
-  // Don't drag if clicking buttons or links
   if (target.closest('button') || 
       target.closest('a') || 
       target.closest('input')) {
@@ -585,23 +681,20 @@ function handleFooterMouseDown(e) {
   e.preventDefault();
 }
 
-// Global touch move (EXISTING - for drag handle)
+// Global touch move
 function handleGlobalTouchMove(e) {
   if (!isDragging || !canDrag) return;
   
   const touch = e.touches[0];
   const deltaY = touchStartY - touch.clientY;
   
-  // Swiping up
   if (deltaY > 0) {
     const translateY = Math.min(0, -deltaY * 0.5);
     modalPanel.style.transform = `translateY(${translateY}px)`;
     const opacity = Math.max(0.3, 1 - (deltaY / 500));
     modalPanel.style.opacity = opacity;
     e.preventDefault();
-  } 
-  // Swiping down - add resistance
-  else if (deltaY < -10) {
+  } else if (deltaY < -10) {
     const translateY = Math.min(30, Math.abs(deltaY) * 0.1);
     modalPanel.style.transform = `translateY(${translateY}px)`;
     e.preventDefault();
@@ -610,7 +703,7 @@ function handleGlobalTouchMove(e) {
   touchEndY = touch.clientY;
 }
 
-// Global mouse move (EXISTING)
+// Global mouse move
 function handleGlobalMouseMove(e) {
   if (!isDragging || !canDrag) return;
   
@@ -629,27 +722,26 @@ function handleGlobalMouseMove(e) {
   touchEndY = e.clientY;
 }
 
-// Global touch end (EXISTING)
+// Global touch end
 function handleGlobalTouchEnd(e) {
   if (isDragging && canDrag) {
     finishDrag();
   }
 }
 
-// Global mouse up (EXISTING)
+// Global mouse up
 function handleGlobalMouseUp(e) {
   if (isDragging && canDrag) {
     finishDrag();
   }
 }
 
-// Finish drag (EXISTING)
+// Finish drag
 function finishDrag() {
   isDragging = false;
   canDrag = false;
   modalPanel.classList.remove('dragging');
   
-  // Remove footer feedback
   const footerHint = modalPanel.querySelector('.footer-drag-hint');
   if (footerHint) {
     footerHint.classList.remove('active');
@@ -658,7 +750,6 @@ function finishDrag() {
   const swipeDistance = touchStartY - touchEndY;
   const swipeVelocity = Math.abs(swipeDistance);
   
-  // Close if swiped enough
   if (swipeDistance > 120 || (swipeDistance > 80 && swipeVelocity > 120)) {
     modalPanel.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
     modalPanel.style.transform = 'translateY(-100%)';
@@ -668,7 +759,6 @@ function finishDrag() {
       closeModal();
     }, 300);
   } else {
-    // Snap back
     modalPanel.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
     modalPanel.style.transform = 'translateY(0)';
     modalPanel.style.opacity = '1';
@@ -720,18 +810,16 @@ document.addEventListener('touchend', handleGlobalTouchEnd, { passive: false });
 document.addEventListener('mousemove', handleGlobalMouseMove);
 document.addEventListener('mouseup', handleGlobalMouseUp);
 
-// Strengthen close button interactions (capture phase) to avoid being eaten by drag handlers
+// Strengthen close button interactions
 if (elements.modalClose) {
   const _closeImmediate = (ev) => {
     try { ev.stopPropagation(); } catch {}
     try { ev.preventDefault(); } catch {}
     closeModal();
   };
-  // Use capture so this runs before other bubbling handlers
   elements.modalClose.addEventListener('click', _closeImmediate, true);
   elements.modalClose.addEventListener('touchend', _closeImmediate, { capture: true, passive: false });
 }
-
 
 export function openSummaryModal(item, link) {
   updateState({ 
@@ -766,7 +854,6 @@ export function openSummaryModal(item, link) {
     elements.summaryArea.scrollTop = 0;
   }
   
-  // Initialize swipe handlers
   setTimeout(() => {
     initSwipeHandlers();
     setupSummaryLongPress();
@@ -777,10 +864,8 @@ export function closeModal() {
   resetTTS();
   restoreBodyScroll();
   
-  // Clean up
   cleanupSwipeHandlers();
   
-  // Remove swipe indicators
   const indicators = modalPanel?.querySelectorAll('.modal-swipe-indicator');
   if (indicators) {
     indicators.forEach(ind => ind.remove());
