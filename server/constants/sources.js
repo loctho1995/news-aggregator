@@ -9,6 +9,11 @@ export const SOURCE_GROUPS = {
     id: "internationaleconomics", 
     name: "Kinh tế quốc tế",
     description: "Tin tức kinh tế thế giới"
+  },
+  internationaltech: {
+    id: "internationaltech", 
+    name: "Tech quốc tế",
+    description: "Tin tức tech thế giới"
   }
 };
 
@@ -330,6 +335,151 @@ export const SOURCES = {
     type: "rss",
     url: "https://news.google.com/rss/search?q=site:tradingeconomics.com",
     homepage: "https://tradingeconomics.com/"
+  },
+  // ===== International Tech (Tech quốc tế) =====
+  techcrunch: {
+    id: "techcrunch",
+    name: "TechCrunch",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://techcrunch.com/feed/",
+    homepage: "https://techcrunch.com"
+  },
+  theverge: {
+    id: "theverge",
+    name: "The Verge",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.theverge.com/rss/index.xml",
+    homepage: "https://www.theverge.com"
+  },
+  wired: {
+    id: "wired",
+    name: "WIRED",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.wired.com/feed/rss",
+    homepage: "https://www.wired.com"
+  },
+  arstechnica: {
+    id: "arstechnica",
+    name: "Ars Technica",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://feeds.arstechnica.com/arstechnica/index",
+    homepage: "https://arstechnica.com"
+  },
+  gizmodo: {
+    id: "gizmodo",
+    name: "Gizmodo",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://gizmodo.com/rss",
+    homepage: "https://gizmodo.com"
+  },
+  bleepingcomputer: {
+    id: "bleepingcomputer",
+    name: "BleepingComputer",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.bleepingcomputer.com/feed/",
+    homepage: "https://www.bleepingcomputer.com"
+  },
+  slashdot: {
+    id: "slashdot",
+    name: "Slashdot",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://rss.slashdot.org/Slashdot/slashdotMain",
+    homepage: "https://slashdot.org"
+  },
+  bitai_blog: {
+    id: "bitai_blog",
+    name: "Bit.ai Blog",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://blog.bit.ai/feed/",
+    homepage: "https://blog.bit.ai"
+  },
+  technologymagazine: {
+    id: "technologymagazine",
+    name: "Technology Magazine",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:technologymagazine.com",
+    homepage: "https://technologymagazine.com"
+  },
+  thenextweb: {
+    id: "thenextweb",
+    name: "The Next Web",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://thenextweb.com/feed",
+    homepage: "https://thenextweb.com"
+  },
+  zdnet: {
+    id: "zdnet",
+    name: "ZDNET",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.zdnet.com/news/rss.xml",
+    homepage: "https://www.zdnet.com"
+  },
+  techradar: {
+    id: "techradar",
+    name: "TechRadar",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.techradar.com/feeds/rss",
+    homepage: "https://www.techradar.com/"
+  },
+  engadget: {
+    id: "engadget",
+    name: "Engadget",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.engadget.com/rss.xml",
+    homepage: "https://www.engadget.com"
+  },
+  mashable_sea: {
+    id: "mashable_sea",
+    name: "Mashable SEA",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:sea.mashable.com",
+    homepage: "https://sea.mashable.com"
+  },
+  theregister: {
+    id: "theregister",
+    name: "The Register",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.theregister.com/headlines.rss",
+    homepage: "https://www.theregister.com"
+  },
+  computerworld: {
+    id: "computerworld",
+    name: "Computerworld",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.computerworld.com/index.rss",
+    homepage: "https://www.computerworld.com"
+  },
+  geekwire: {
+    id: "geekwire",
+    name: "GeekWire",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.geekwire.com/feed/",
+    homepage: "https://www.geekwire.com"
+  },
+  techinasia: {
+    id: "techinasia",
+    name: "Tech in Asia",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.techinasia.com/feed",
+    homepage: "https://www.techinasia.com"
   }
 };
 
