@@ -326,6 +326,140 @@ function addCustomStyles() {
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
       }
       
+      /* ===== CARD SWIPE STYLES ===== */
+      
+      /* Swipeable card setup */
+      .swipeable-card {
+        position: relative;
+        touch-action: pan-y;
+        will-change: transform;
+      }
+      
+      /* Swipe indicator overlay */
+      .swipe-indicator {
+        pointer-events: none;
+        z-index: 20;
+      }
+      
+      .swipe-indicator-bg {
+        transition: background-color 0.2s ease;
+      }
+      
+      /* Swipe animation states */
+      .swipeable-card.swiping {
+        transition: none !important;
+      }
+      
+      .swipeable-card.swipe-complete {
+        animation: swipeAway 0.3s ease-out forwards;
+      }
+      
+      @keyframes swipeAway {
+        to {
+          transform: translateX(-120%) rotate(-10deg);
+          opacity: 0;
+        }
+      }
+      
+      /* Visual feedback during swipe */
+      .swipeable-card:active {
+        cursor: grabbing;
+      }
+      
+      /* Prevent interference with buttons/links */
+      .swipeable-card button,
+      .swipeable-card a {
+        touch-action: manipulation;
+        pointer-events: auto;
+        position: relative;
+        z-index: 10;
+      }
+      
+      /* Mobile optimizations for swipe */
+      @media (hover: none) and (pointer: coarse) {
+        .swipeable-card {
+          transition: box-shadow 0.2s ease;
+        }
+        
+        .swipeable-card:active {
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .read-status-btn {
+          min-height: 44px;
+          padding: 8px 12px;
+        }
+      }
+      
+      /* Desktop - disable swipe visual, only for touch */
+      @media (hover: hover) and (pointer: fine) {
+        .swipe-indicator {
+          display: none !important;
+        }
+      }
+      
+      /* Swipe hint animation */
+      @keyframes swipeHint {
+        0%, 100% {
+          transform: translateX(0);
+        }
+        50% {
+          transform: translateX(-20px);
+        }
+      }
+      
+      .swipe-hint {
+        animation: swipeHint 1.5s ease-in-out;
+      }
+      
+      /* Smooth return animation */
+      .swipeable-card.returning {
+        transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+                    opacity 0.3s ease-out !important;
+      }
+      
+      /* Success feedback */
+      .swipeable-card.swipe-success {
+        animation: successPulse 0.4s ease;
+      }
+      
+      @keyframes successPulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(0.98);
+          box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      
+      /* State change animation */
+      .swipeable-card.state-changing {
+        animation: stateChange 0.3s ease;
+      }
+      
+      @keyframes stateChange {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.02);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      
+      /* iOS rubber band effect prevention */
+      @supports (-webkit-touch-callout: none) {
+        .swipeable-card {
+          -webkit-overflow-scrolling: touch;
+        }
+      }
+      
       /* ===== Mobile Text Selection ===== */
       
       @media (hover: none) {

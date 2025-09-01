@@ -1,4 +1,4 @@
-// Card rendering functions
+// Card rendering functions with SWIPE support
 
 import { timeAgo } from './utils.js';
 import { isRead, toggleReadStatus, markRead } from './read-status.js';
@@ -45,8 +45,21 @@ export function createCardElement(item) {
   // Get dynamic title class based on length
   const titleClass = getTitleClass(item.title);
   
-  // NO LINE-CLAMP - show full title with dynamic sizing
+  // Add swipe indicator div
   card.innerHTML = `
+    <!-- Swipe indicator (hidden by default) -->
+    <div class="swipe-indicator absolute inset-0 pointer-events-none z-20 rounded-2xl opacity-0 transition-opacity duration-200">
+      <div class="swipe-indicator-bg absolute inset-0 rounded-2xl"></div>
+      <div class="swipe-indicator-icon absolute top-1/2 left-4 transform -translate-y-1/2 text-white">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+      <div class="swipe-indicator-text absolute top-1/2 left-16 transform -translate-y-1/2 text-white font-semibold">
+        Đánh dấu đã đọc
+      </div>
+    </div>
+    
     <div class="clickable-content cursor-pointer hover:bg-gray-50 hover:bg-opacity-30 rounded-lg -m-2 p-2 transition-colors flex-1 flex flex-col">
       <h3 class="${titleClass} font-semibold text-gray-900 mb-3 hover:text-emerald-600 transition-colors select-text break-words hyphens-auto">
         ${item.title || "Không có tiêu đề"}
@@ -77,7 +90,7 @@ export function createCardElement(item) {
     </div>
   `;
   
-  // Add event listeners với logic phân biệt click và select
+  // Add event listeners với logic phân biệt click, select và SWIPE
   attachCardEventListeners(card, item);
   
   return card;
@@ -169,12 +182,176 @@ function formatFallbackSummary(summary, maxLength) {
 function attachCardEventListeners(card, item) {
   const clickableContent = card.querySelector('.clickable-content');
   
-  // Biến để track text selection
+  // Biến để track text selection và swipe
   let isSelecting = false;
   let mouseDownTime = 0;
   let startX = 0;
   let startY = 0;
   
+  // SWIPE DETECTION VARIABLES
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let isSwiping = false;
+  let swipeThreshold = 80; // pixels needed to trigger swipe
+  let swipeAngleThreshold = 30; // degrees - max angle for horizontal swipe
+  
+  // Helper to calculate swipe angle
+  function getSwipeAngle(deltaX, deltaY) {
+    return Math.abs(Math.atan2(deltaY, deltaX) * 180 / Math.PI);
+  }
+  
+  // Helper to show swipe indicator
+  function showSwipeIndicator(progress) {
+    const indicator = card.querySelector('.swipe-indicator');
+    if (!indicator) return;
+    
+    // Calculate opacity based on progress (0 to 1)
+    const opacity = Math.min(1, progress);
+    indicator.style.opacity = opacity;
+    
+    // Change background color based on progress
+    const bg = indicator.querySelector('.swipe-indicator-bg');
+    if (bg) {
+      if (progress < 0.5) {
+        bg.className = 'swipe-indicator-bg absolute inset-0 rounded-2xl bg-blue-500';
+      } else if (progress < 1) {
+        bg.className = 'swipe-indicator-bg absolute inset-0 rounded-2xl bg-blue-600';
+      } else {
+        bg.className = 'swipe-indicator-bg absolute inset-0 rounded-2xl bg-green-600';
+      }
+    }
+  }
+  
+  // Helper to hide swipe indicator
+  function hideSwipeIndicator() {
+    const indicator = card.querySelector('.swipe-indicator');
+    if (indicator) {
+      indicator.style.opacity = '0';
+    }
+  }
+  
+  // Helper to animate card swipe
+  function animateCardSwipe(deltaX) {
+    // Limit the translation to prevent card from moving too far
+    const maxTranslate = 100;
+    const translateX = Math.min(Math.abs(deltaX), maxTranslate) * (deltaX < 0 ? -1 : 1);
+    
+    card.style.transition = 'none';
+    card.style.transform = `translateX(${translateX}px) rotate(${translateX * 0.02}deg)`;
+    card.style.opacity = `${1 - Math.abs(translateX) / 200}`;
+  }
+  
+  // Helper to reset card position
+  function resetCardPosition(animated = true) {
+    if (animated) {
+      card.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+    } else {
+      card.style.transition = 'none';
+    }
+    card.style.transform = '';
+    card.style.opacity = '';
+    hideSwipeIndicator();
+  }
+  
+  // TOUCH EVENTS FOR SWIPE
+  card.addEventListener('touchstart', (e) => {
+    // Don't interfere with buttons or links
+    if (e.target.closest('button') || e.target.closest('a')) {
+      return;
+    }
+    
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    isSwiping = false;
+    
+    // Also track for click detection
+    mouseDownTime = Date.now();
+    startX = touch.clientX;
+    startY = touch.clientY;
+    isSelecting = false;
+  }, { passive: true });
+  
+  card.addEventListener('touchmove', (e) => {
+    if (!touchStartX) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touchStartX - touch.clientX;
+    const deltaY = touchStartY - touch.clientY;
+    
+    // Calculate swipe angle
+    const angle = getSwipeAngle(deltaX, deltaY);
+    
+    // Check if this is a horizontal swipe (within angle threshold)
+    if (Math.abs(deltaX) > 10 && angle < swipeAngleThreshold) {
+      isSwiping = true;
+      
+      // Only handle left swipes
+      if (deltaX > 0) {
+        e.preventDefault(); // Prevent scrolling
+        
+        // Calculate progress (0 to 1)
+        const progress = Math.min(1, deltaX / swipeThreshold);
+        
+        // Show visual feedback
+        animateCardSwipe(-deltaX);
+        showSwipeIndicator(progress);
+      }
+    } else if (Math.abs(deltaY) > 10) {
+      // Vertical movement - likely scrolling
+      isSwiping = false;
+      resetCardPosition(false);
+    }
+  }, { passive: false });
+  
+  card.addEventListener('touchend', (e) => {
+    if (!touchStartX) return;
+    
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchStartX - touchEndX;
+    const deltaY = touchStartY - touchEndY;
+    
+    // Check if this was a swipe
+    if (isSwiping && deltaX > swipeThreshold) {
+      // Left swipe detected - toggle read status
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Animate completion
+      card.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+      card.style.transform = 'translateX(-100%) rotate(-5deg)';
+      card.style.opacity = '0';
+      
+      // Toggle read status after animation
+      setTimeout(() => {
+        toggleReadStatus(item.link);
+        resetCardPosition(false);
+      }, 300);
+    } else {
+      // Not a valid swipe - reset position
+      resetCardPosition(true);
+      
+      // Check if it was a tap (not swipe, not text selection)
+      const clickDuration = Date.now() - mouseDownTime;
+      const moveDistance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
+      
+      if (clickDuration < 200 && moveDistance < 10 && !isSwiping) {
+        // It's a tap - check if it's on clickable content
+        if (e.target.closest('.clickable-content')) {
+          e.preventDefault();
+          openSummaryModal(item, item.link);
+        }
+      }
+    }
+    
+    // Reset
+    touchStartX = 0;
+    touchStartY = 0;
+    isSwiping = false;
+  });
+  
+  // MOUSE EVENTS (for desktop testing)
   // Mouse down - bắt đầu track
   clickableContent.addEventListener('mousedown', (e) => {
     mouseDownTime = Date.now();
@@ -213,7 +390,7 @@ function attachCardEventListeners(card, item) {
     }
     
     // Nếu click nhanh (< 200ms) và không di chuyển -> mở modal
-    if (clickDuration < 200 && !isSelecting) {
+    if (clickDuration < 200 && !isSelecting && !isSwiping) {
       e.stopPropagation();
       openSummaryModal(item, item.link);
     }
