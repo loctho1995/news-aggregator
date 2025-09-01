@@ -36,9 +36,15 @@ function ensureContextMenu() {
   return ctxMenuEl;
 }
 
-// Enhanced context menu with "View Original" option
+// Enhanced context menu with "View Original" option and translation cache
 function showContextMenuEnhanced(x, y, targetNode, originalTextMap) {
   const menu = ensureContextMenu();
+  
+  // Static cache for translations (persists across menu opens)
+  if (!showContextMenuEnhanced.translationCache) {
+    showContextMenuEnhanced.translationCache = new Map();
+  }
+  const translationCache = showContextMenuEnhanced.translationCache;
   
   // Check if node has been translated
   const isTranslated = targetNode.dataset.translated === 'true';
@@ -98,23 +104,44 @@ function showContextMenuEnhanced(x, y, targetNode, originalTextMap) {
     
     if (act === 'translate') {
       try {
-        if (status) status.textContent = 'Đang dịch…';
-        
         // Store original text before translating
         if (!originalTextMap.has(targetNode)) {
           originalTextMap.set(targetNode, currentText);
         }
         
-        const { translateToVietnamese } = await import('./translator.js');
-        const translated = await translateToVietnamese(currentText);
-        if (translated && translated !== currentText) {
+        const originalText = originalTextMap.get(targetNode) || currentText;
+        
+        // Check if we already have translation cached
+        let translated = translationCache.get(originalText);
+        
+        if (translated) {
+          // Use cached translation
+          if (status) status.textContent = 'Đang dịch (cache)...';
           targetNode.innerText = translated;
           targetNode.dataset.translated = 'true';
+          if (status) status.textContent = 'Đã dịch (từ cache)';
+        } else {
+          // Fetch new translation
+          if (status) status.textContent = 'Đang dịch...';
+          
+          const { translateToVietnamese } = await import('./translator.js');
+          translated = await translateToVietnamese(originalText);
+          
+          if (translated && translated !== originalText) {
+            // Cache the translation
+            translationCache.set(originalText, translated);
+            
+            targetNode.innerText = translated;
+            targetNode.dataset.translated = 'true';
+            if (status) status.textContent = 'Đã dịch';
+          } else {
+            if (status) status.textContent = 'Không thể dịch';
+          }
         }
-        if (status) status.textContent = 'Đã dịch';
       } catch {
         if (status) status.textContent = 'Lỗi dịch';
       }
+      
       setTimeout(() => {
         menu.style.display = 'none';
         if (status) status.textContent = '';
