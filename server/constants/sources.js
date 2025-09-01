@@ -13,8 +13,8 @@ export const SOURCE_GROUPS = {
 };
 
 export const SOURCES = {
-  // NHÓM TIN TỨC VIỆT NAM
-  vnexpress: {
+   // NHÓM TIN TỨC VIỆT NAM
+   vnexpress: {
     id: "vnexpress",
     name: "VnExpress",
     group: "vietnam",
@@ -223,6 +223,129 @@ export const SOURCES = {
     type: "rss",
     url: "https://feeds.content.dowjones.io/public/rss/mw_topstories",
     homepage: "https://www.marketwatch.com",
+  },
+// ==== Internationaleconomics (refreshed to RSS-capable sources) ====
+  bbc_business: {
+    id: "bbc_business",
+    name: "BBC Business",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.bbci.co.uk/news/business/rss.xml",
+    homepage: "https://www.bbc.com/news/business"
+  },
+  guardian_economics: {
+    id: "guardian_economics",
+    name: "The Guardian - Economics",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.theguardian.com/business/economics/rss",
+    homepage: "https://www.theguardian.com/business/economics"
+  },
+  marketwatch_economy: {
+    id: "marketwatch_economy",
+    name: "MarketWatch - Economy & Politics",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.marketwatch.com/rss/economy-politics",
+    homepage: "https://www.marketwatch.com/economy-politics"
+  },
+  investing_economy: {
+    id: "investing_economy",
+    name: "Investing.com - Economy News",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.investing.com/rss/news_14.rss",
+    homepage: "https://www.investing.com/news/economy"
+  },
+  voxeu: {
+    id: "voxeu",
+    name: "CEPR VoxEU Columns",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://cepr.org/rss/vox-content",
+    homepage: "https://cepr.org/voxeu/columns"
+  },
+  imf_news: {
+    id: "imf_news",
+    name: "IMF News",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.imf.org/en/News/rss",
+    homepage: "https://www.imf.org/en/News"
+  },
+  wto_news: {
+    id: "wto_news",
+    name: "WTO News",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.wto.org/english/news_e/news_e.xml",
+    homepage: "https://www.wto.org/english/news_e/news_e.htm"
+  },
+  // # cnbc markets – official section but RSS is not clearly documented; keep legacy RSS endpoint compatible with your current parser
+  cnbc_markets: {
+    id: "cnbc_markets",
+    name: "CNBC Markets",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.cnbc.com/id/100003570/device/rss/rss.html",
+    homepage: "https://www.cnbc.com/markets/"
+  },
+  // # Reuters/AP/Al Jazeera/AsiaTimes/OECD/TradingEconomics – fallback via Google News RSS (official RSS not available or inconsistent)
+  reuters_business: {
+    id: "reuters_business",
+    name: "Reuters Business (via Google News)",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:reuters.com/business",
+    homepage: "https://www.reuters.com/business/"
+  },
+  ap_business: {
+    id: "ap_business",
+    name: "AP News Business (via Google News)",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:apnews.com/business",
+    homepage: "https://apnews.com/business"
+  },
+  aljazeera_economy: {
+    id: "aljazeera_economy",
+    name: "Al Jazeera Economy (via Google News)",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:aljazeera.com/economy",
+    homepage: "https://www.aljazeera.com/economy"
+  },
+  asiatimes_business: {
+    id: "asiatimes_business",
+    name: "Asia Times Business (via Google News)",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:asiatimes.com%20business",
+    homepage: "https://asiatimes.com/category/business-trends/business/"
+  },
+  brookings_econ: {
+    id: "brookings_econ",
+    name: "Brookings Economic Studies (via Google News)",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:brookings.edu%20%22Economic%20Studies%22",
+    homepage: "https://www.brookings.edu/programs/economic-studies/"
+  },
+  oecd_news: {
+    id: "oecd_news",
+    name: "OECD (via Google News)",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:oecd.org",
+    homepage: "https://www.oecd.org"
+  },
+  tradingeconomics_news: {
+    id: "tradingeconomics_news",
+    name: "TradingEconomics (via Google News)",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://news.google.com/rss/search?q=site:tradingeconomics.com",
+    homepage: "https://tradingeconomics.com/"
   }
 };
 

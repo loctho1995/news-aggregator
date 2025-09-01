@@ -1,71 +1,60 @@
-// App initialization
-// File: public/js/modules/initialization.js
+
+// UI init & event handlers (clean replacement)
 
 import { elements } from './elements.js';
-import { state } from './state.js';
-import { closeModal } from './modal.js';
-import { loadSummary } from './summary-loader.js';
-import { handleSpeak, handleStopSpeak, handleRateChange, setRateUI } from './tts.js';
+import { loadNews, cancelCurrentLoad } from './news-loader.js';
 import { updateFiltersAndRender } from './filters.js';
-import { loadNews } from './news-loader.js';
+import { closeModal } from './modal.js';
+import { handleSpeak, handleStopSpeak, handleRateChange } from './tts.js';
 
 export function initializeUI() {
-  // Set initial TTS rate
-  setRateUI(state.ttsRate);
-  
-  // No more CSS injection needed - CSS is loaded from external files
-  console.log('UI initialized');
+  // any initial UI setup can stay here if needed
 }
 
 export function initializeEventHandlers() {
-  // Modal events
-  elements.modalClose?.addEventListener("click", closeModal);
-  elements.modal?.addEventListener("click", (e) => {
-    if (e.target === elements.modal || e.target === elements.modalOverlay) {
-      closeModal();
-    }
-  });
-
-  // Summary controls - AUTO RELOAD ON PERCENT CHANGE
-  elements.summaryPercent?.addEventListener("change", () => {
-    if (state.currentItem && state.currentModalLink) {
-      loadSummary(state.currentItem, state.currentModalLink);
-    }
-  });
-
-  // Hidden regenerate button (kept for compatibility but hidden in UI)
-  elements.regenerateBtn?.addEventListener("click", () => {
-    if (state.currentItem && state.currentModalLink) {
-      loadSummary(state.currentItem, state.currentModalLink);
-    }
-  });
-
-  // TTS events
-  elements.btnSpeak?.addEventListener("click", handleSpeak);
-  elements.btnStopSpeak?.addEventListener("click", handleStopSpeak);
-  elements.rateRange?.addEventListener("input", handleRateChange);
-
-  // Main app events
+  // Search debounce
   let searchTimeout;
   elements.search?.addEventListener("input", () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(updateFiltersAndRender, 300);
   });
 
-  elements.refreshBtn?.addEventListener("click", loadNews);
-  elements.sourceSelect?.addEventListener("change", updateFiltersAndRender);
-  elements.groupSelect?.addEventListener("change", () => {
-    elements.sourceSelect.value = "";
-    loadNews();
-  });
-  elements.hours?.addEventListener("change", loadNews);
+  // Buttons
+  elements.refreshBtn?.addEventListener("click", () => loadNews({ clear: true }));
 
-  // Keyboard shortcuts
+  // Source change -> cancel + clear + reload (server-side filter via &sources=)
+  elements.sourceSelect?.addEventListener("change", () => {
+    try { localStorage.setItem('selectedSource', elements.sourceSelect.value); } catch {}
+    cancelCurrentLoad();
+    loadNews({ clear: true });
+  });
+
+  // Group change -> cancel + clear + reset source + reload
+  elements.groupSelect?.addEventListener("change", () => {
+    try { localStorage.setItem('selectedGroup', elements.groupSelect.value); } catch {}
+    // reset source & search
+    elements.sourceSelect.value = "";
+    elements.search.value = "";
+    try { localStorage.removeItem('selectedSource'); } catch {}
+    // cancel in-flight, clear UI, scroll top, reload
+    cancelCurrentLoad();
+    const grid = document.getElementById("grid");
+    const empty = document.getElementById("empty");
+    if (grid) grid.innerHTML = "";
+    if (empty) empty.classList.add("hidden");
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadNews({ clear: true });
+  });
+
+  // Keyboard ESC to close modal
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !elements.modal.classList.contains("hidden")) {
       closeModal();
     }
   });
-  
-  console.log('Event handlers initialized');
+
+  // TTS
+  elements.btnSpeak?.addEventListener("click", handleSpeak);
+  elements.btnStopSpeak?.addEventListener("click", handleStopSpeak);
+  elements.rateRange?.addEventListener("input", handleRateChange);
 }
