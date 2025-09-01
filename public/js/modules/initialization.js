@@ -603,6 +603,68 @@ function addCustomStyles() {
         -moz-hyphens: auto;
         -ms-hyphens: auto;
       }
+
+      /* ===== MODAL SWIPE STYLES ===== */
+
+    /* Modal swipe indicators */
+    .modal-swipe-indicator {
+    position: absolute;
+    pointer-events: none;
+    z-index: 30;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    }
+
+    /* Left swipe indicator */
+    .modal-swipe-left-indicator {
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
+    }
+
+    .modal-swipe-left-indicator .swipe-indicator-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    font-weight: 600;
+    font-size: 18px;
+    }
+
+    .modal-swipe-left-indicator .swipe-indicator-bg {
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    border-radius: 50px;
+    opacity: 0.9;
+    filter: blur(20px);
+    transition: background-color 0.2s ease;
+    }
+
+    .swipe-indicator-bg.bg-blue-500 {
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+    }
+
+    .swipe-indicator-bg.bg-blue-600 {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    }
+
+    .swipe-indicator-bg.bg-red-600 {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    }
+
+    @keyframes modalSwipeLeft {
+    to {
+        transform: translateX(-110%) rotate(-15deg) scale(0.9);
+        opacity: 0;
+    }
+    }
+
+    #modalPanel.closing-left {
+    animation: modalSwipeLeft 0.3s ease-out forwards;
+    }
     `;
     document.head.appendChild(style);
   }
