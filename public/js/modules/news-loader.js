@@ -15,15 +15,10 @@ export function cancelCurrentLoad() {
   currentLoadToken++; // invalidate any in-flight stream
 }
 
-// Main loader
+// Main loader - OPTIMIZED FOR CACHE
 export async function loadNews(options = {}) {
-  if (state.loadingInProgress) {
-    // if a load is in progress, cancel first
-    cancelCurrentLoad();
-  }
-
-  const shouldClear = options.clear !== false; // default true
-  const hoursValue = elements.hours?.value || "24";
+  const shouldClear = options.clear !== false;
+  const hoursValue = elements.hours?.value || "48"; // Default 48 hours
   const groupValue = elements.groupSelect?.value || "all";
   const sourceValue = elements.sourceSelect?.value || "";
 
@@ -34,22 +29,22 @@ export async function loadNews(options = {}) {
     elements.empty?.classList.add("hidden");
   }
 
-  // Badge feedback (reset count to 0)
-  const groupText = groupValue === "all"
-    ? ""
+  // Update badge to show loading
+  const groupText = groupValue === "all" 
+    ? "" 
     : (elements.groupSelect?.options[elements.groupSelect.selectedIndex]?.text || groupValue);
-  let liveCount = 0;
+  
   if (elements.badge) {
-    elements.badge.textContent = `Đang tải… ${groupText}`.trim();
+    elements.badge.textContent = `Đang tải ${groupText}...`.trim();
     elements.badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-yellow-600 text-white border border-yellow-500";
   }
 
-  // Build URL
+  // Build URL - NO STREAMING for cached mode
   const groupParam = groupValue === 'all' ? '' : `&group=${encodeURIComponent(groupValue)}`;
   const sourceParam = sourceValue ? `&sources=${encodeURIComponent(sourceValue)}` : '';
-  const url = `/api/news?hours=${encodeURIComponent(hoursValue)}${groupParam}${sourceParam}&stream=true`;
+  const url = `/api/news?hours=${encodeURIComponent(hoursValue)}${groupParam}${sourceParam}`;
 
-  // Prepare new stream
+  // Cancel any existing request
   cancelCurrentLoad();
   currentAbortController = new AbortController();
   const myToken = ++currentLoadToken;
@@ -57,38 +52,95 @@ export async function loadNews(options = {}) {
   try {
     updateState({ loadingInProgress: true });
 
-    const response = await fetch(url, { signal: currentAbortController.signal });
-    if (!response.ok || !response.body) {
+    const response = await fetch(url, { 
+      signal: currentAbortController.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache' // Force server to check its cache
+      }
+    });
+    
+    if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    // process stream; on each item -> translate (if needed) -> push -> render incrementally
-    const total = await processStreamResponse(response, myToken, async (rawItem) => {
-      const translated = await translateItemIfNeeded(rawItem);
-      state.items.push(translated);
-      addItemToGrid(translated);
-      liveCount++;
-      if (elements.badge && myToken === currentLoadToken) {
-        elements.badge.textContent = `Đang tải… ${groupText}${liveCount ? ` • ${liveCount} tin` : ""}`.trim();
+    const data = await response.json();
+    
+    // Check if this is cached data
+    if (data.cached) {
+      console.log(`📦 Loaded from cache: ${data.totalItems} items (${data.cacheAge})`);
+      
+      // Update badge to show cache status
+      if (elements.badge) {
+        elements.badge.textContent = `${data.totalItems} tin • Cache ${data.cacheAge}`;
+        elements.badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-blue-600 text-white border border-blue-500";
       }
-    });
-
-    // If nothing received, show empty
-    if (state.items.length === 0 && elements.empty) {
-      elements.empty.classList.remove("hidden");
+    } else if (data.status === 'loading') {
+      // Cache is being populated
+      console.log('⏳ Cache is being populated...');
+      
+      if (elements.badge) {
+        elements.badge.textContent = `Đang cập nhật cache...`;
+        elements.badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-orange-600 text-white border border-orange-500";
+      }
+      
+      // Show empty state with loading message
+      if (data.items.length === 0) {
+        elements.empty.innerHTML = `
+          <div class="text-center py-8">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+            <p class="text-slate-400">${data.message || 'Đang tải tin tức lần đầu...'}</p>
+            <p class="text-xs text-slate-500 mt-2">Vui lòng đợi 10-20 giây</p>
+          </div>
+        `;
+        elements.empty.classList.remove("hidden");
+        
+        // Auto-retry after 5 seconds if cache is loading
+        setTimeout(() => {
+          if (myToken === currentLoadToken) {
+            console.log('🔄 Auto-retrying after cache population...');
+            loadNews({ clear: false });
+          }
+        }, 5000);
+        
+        return;
+      }
     }
 
-    // Rebuild source filter options
-    populateSourceSelect();
+    // Process items
+    const items = data.items || [];
+    
+    // Store in state
+    updateState({ items });
 
-    // Success badge
-    if (elements.badge && myToken === currentLoadToken) {
-      const finalTotal = state.items.length;
-      elements.badge.textContent = `Đã tải xong • ${finalTotal} tin`;
-      elements.badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-emerald-600 text-white border border-emerald-500";
+    // Render all items at once (fast for cached data)
+    if (items.length > 0) {
+      renderItems(items);
+      elements.empty?.classList.add("hidden");
+      
+      // Update source filter
+      populateSourceSelect();
+      
+      // Final badge update
+      if (elements.badge) {
+        const cacheInfo = data.cached ? ` • Cache` : '';
+        elements.badge.textContent = `${items.length} tin${cacheInfo}`;
+        elements.badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-emerald-600 text-white border border-emerald-500";
+      }
+    } else {
+      // Show empty state
+      elements.empty?.classList.remove("hidden");
+      
+      if (elements.badge) {
+        elements.badge.textContent = "Không có tin";
+        elements.badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-gray-600 text-white border border-gray-500";
+      }
     }
+
   } catch (error) {
-    if (error?.name === "AbortError") return; // canceled is expected
+    if (error?.name === "AbortError") return; // Canceled is expected
+    
+    console.error("Error loading news:", error);
     handleLoadError(error);
   } finally {
     if (myToken === currentLoadToken) {
@@ -98,81 +150,45 @@ export async function loadNews(options = {}) {
   }
 }
 
-// Stream processor with token guards
-// Calls onItem(item) for every parsed JSON line
-// Returns number of loaded items
-async function processStreamResponse(response, token, onItem) {
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let itemCount = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (token !== currentLoadToken) { try { reader.cancel(); } catch {} return itemCount; }
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split('\n');
-    buffer = parts.pop(); // keep last partial
-
-    for (const line of parts) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      if (token !== currentLoadToken) { try { reader.cancel(); } catch {} return itemCount; }
-
-      try {
-        const item = JSON.parse(trimmed);
-        if (item.error) {
-          console.warn("Source failed:", item.sourceId, item.message);
-          continue;
-        }
-        await onItem(item);
-        itemCount++;
-      } catch (e) {
-        console.warn("Bad line:", trimmed.slice(0, 160));
-      }
-    }
-  }
-
-  // Flush remaining buffer
-  const last = buffer.trim();
-  if (last && token === currentLoadToken) {
-    try {
-      const item = JSON.parse(last);
-      if (!item.error) {
-        await onItem(item);
-        itemCount++;
-      }
-    } catch {}
-  }
-
-  // After stream complete, render filtered list once
-  if (token === currentLoadToken) {
-    renderItems(state.items);
-  }
-  return itemCount;
-}
-
+// Handle errors - try to use fallback cache if available
 function handleLoadError(error) {
   console.error("Error loading news:", error);
+  
   if (elements.badge) {
     elements.badge.textContent = "Lỗi tải";
     elements.badge.className = "ml-auto text-xs px-2 py-1 rounded-full bg-red-600 text-white border border-red-500";
   }
+  
   if (elements.grid) {
     elements.grid.innerHTML = `
       <div class="col-span-full text-center py-8">
-        <p class="text-slate-400">Không thể tải tin tức. Vui lòng thử lại.</p>
-        <button id="retryLoadBtn" class="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg">
+        <p class="text-slate-400">Không thể tải tin tức.</p>
+        <p class="text-xs text-slate-500 mt-2">Có thể do server đang khởi động hoặc mất kết nối</p>
+        <button id="retryLoadBtn" class="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg">
           Thử lại
         </button>
       </div>
     `;
+    
     setTimeout(() => {
       document.getElementById("retryLoadBtn")?.addEventListener("click", () => {
         loadNews({ clear: true });
       });
     }, 0);
   }
+}
+
+// Check cache status (optional - for debugging)
+export async function checkCacheStatus() {
+  try {
+    const response = await fetch('/api/news/stats');
+    if (response.ok) {
+      const stats = await response.json();
+      console.log('📊 Cache Stats:', stats);
+      return stats;
+    }
+  } catch (error) {
+    console.error('Failed to get cache stats:', error);
+  }
+  return null;
 }
