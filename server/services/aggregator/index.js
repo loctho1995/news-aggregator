@@ -14,11 +14,14 @@ const isLocal = process.env.NODE_ENV !== 'production' ||
 
 console.log(`Running in ${isLocal ? 'LOCAL' : 'PRODUCTION'} mode`);
 
-// Priority sources
+  // Priority sources
 const PRIORITY_SOURCES = {
-  high: ['vnexpress', 'tuoitre', 'dantri', 'vietnamnet', 'cafef'],
-  medium: ['thanhnien', 'laodong', 'cafebiz', 'vietstock'],
-  low: ['baophapluat', 'bnews', 'vnbusiness', 'brandsvietnam']
+  high: ['vnexpress', 'tuoitre', 'dantri', 'vietnamnet', 'cafef', 
+         'hackernews', 'techcrunch', 'smashingmagazine', 'polygon'],
+  medium: ['thanhnien', 'laodong', 'cafebiz', 'vietstock',
+          'infoq', 'gamedeveloper', 'uxdesign', 'ign'],
+  low: ['baophapluat', 'bnews', 'vnbusiness', 'brandsvietnam',
+        'mockplus', 'designshack', 'pocketgamer']
 };
 
 // Fetch with retry (different config for local vs server)

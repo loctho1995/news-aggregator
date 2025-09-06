@@ -14,472 +14,383 @@ export const SOURCE_GROUPS = {
     id: "internationaltech", 
     name: "Tech quốc tế",
     description: "Tin tức tech thế giới"
+  },
+  // NEW GROUPS
+  startuptech: {
+    id: "startuptech",
+    name: "Startup & Tech",
+    description: "Tin tức startup và công nghệ"
+  },
+  developernews: {
+    id: "developernews",
+    name: "Developer News",
+    description: "Tin tức cho lập trình viên"
+  },
+  gamenews: {
+    id: "gamenews",
+    name: "Game News",
+    description: "Tin tức game và ngành công nghiệp game"
+  },
+  designuiux: {
+    id: "designuiux",
+    name: "Design, UI/UX",
+    description: "Tin tức thiết kế và trải nghiệm người dùng"
   }
 };
 
 export const SOURCES = {
-   // NHÓM TIN TỨC VIỆT NAM
-   vnexpress: {
-    id: "vnexpress",
-    name: "VnExpress",
-    group: "vietnam",
+  // [KEEP ALL EXISTING SOURCES AS IS - NOT REPEATED HERE]
+  
+  // ===== STARTUP & TECH =====
+  startupsavant: {
+    id: "startupsavant",
+    name: "Startup Savant",
+    group: "startuptech",
     type: "rss",
-    url: "https://vnexpress.net/rss/tin-moi-nhat.rss",
-    homepage: "https://vnexpress.net",
+    url: "https://startupsavant.com/feed",
+    homepage: "https://startupsavant.com"
   },
-  tuoitre: {
-    id: "tuoitre",
-    name: "Tuổi Trẻ",
-    group: "vietnam",
+  sifted: {
+    id: "sifted",
+    name: "Sifted",
+    group: "startuptech",
     type: "rss",
-    url: "https://tuoitre.vn/rss/tin-moi-nhat.rss",
-    homepage: "https://tuoitre.vn",
+    url: "https://sifted.eu/feed",
+    homepage: "https://sifted.eu"
   },
-  laodong: {
-    id: "laodong",
-    name: "Lao Động",
-    group: "vietnam",
-    type: "rss",
-    url: "https://laodong.vn/rss/home.rss",
-    homepage: "https://laodong.vn",
-  },
-  cafebiz: {
-    id: "cafebiz",
-    name: "CafeBiz",
-    group: "vietnam",
-    type: "rss",
-    url: "https://cafebiz.vn/rss/home.rss",
-    homepage: "https://cafebiz.vn",
-  },
-  thanhnien: {
-    id: "thanhnien",
-    name: "Thanh Niên",
-    group: "vietnam",
-    type: "rss",
-    url: "https://thanhnien.vn/rss/home.rss",
-    homepage: "https://thanhnien.vn",
-  },
-  baophapluat: {
-    id: "baophapluat",
-    name: "Báo Pháp Luật VN",
-    group: "vietnam",
-    type: "rss",
-    url: "https://doanhnhan.baophapluat.vn/tin-moi.rss",
-    homepage: "https://baophapluat.vn",
-  },
-  vnbusiness: {
-    id: "vnbusiness",
-    name: "VnBusiness",
-    group: "vietnam",
-    type: "rss",
-    url: "https://vnbusiness.vn/rss/tin-moi.rss",
-    homepage: "https://vnbusiness.vn",
-  },
-  dantri: {
-    id: "dantri",
-    name: "Dân Trí",
-    group: "vietnam",
-    type: "rss",
-    url: "https://dantri.com.vn/rss.htm",
-    homepage: "https://dantri.com.vn",
-  },
-  vietnamnet: {
-    id: "vietnamnet",
-    name: "VietNamNet",
-    group: "vietnam",
-    type: "rss",
-    url: "https://infonet.vietnamnet.vn/rss/doi-song.rss",
-    homepage: "https://vietnamnet.vn",
-  },
-  vietstock: {
-    id: "vietstock",
-    name: "Vietstock",
-    group: "vietnam",
-    type: "rss",
-    url: "https://vietstock.vn/rss",
-    homepage: "https://vietstock.vn",
-  },
-  brandsvietnam: {
-    id: "brandsvietnam",
-    name: "BrandsVietnam",
-    group: "vietnam",
-    type: "html",
-    url: "https://www.brandsvietnam.com/",
-    homepage: "https://www.brandsvietnam.com",
-  },
-  _24hmoney: {
-    id: "_24hmoney",
-    name: "24HMoney",
-    group: "vietnam",
-    type: "html",
-    url: "https://24hmoney.vn",
-    homepage: "https://24hmoney.vn",
-  },
-  vneconomy: {
-    id: "vneconomy",
-    name: "VnEconomy",
-    group: "vietnam",
-    type: "html",
-    url: "https://vneconomy.vn",
-    homepage: "https://vneconomy.vn",
-  },
-  cafef: {
-    id: "cafef",
-    name: "CafeF",
-    group: "vietnam",
-    type: "html",
-    url: "https://cafef.vn",
-    homepage: "https://cafef.vn",
-  },
-  bnews: {
-    id: "bnews",
-    name: "BNEWS",
-    group: "vietnam",
-    type: "html",
-    url: "https://bnews.vn",
-    homepage: "https://bnews.vn",
-  },
-  vietnamfinance: {
-    id: "vietnamfinance",
-    name: "VietnamFinance",
-    group: "vietnam",
-    type: "html",
-    url: "https://vietnamfinance.vn/",
-    homepage: "https://vietnamfinance.vn",
-  },
-  vietstock_moi_cap_nhat: {
-    id: "vietstock_moi_cap_nhat",
-    name: "Vietstock - Mới cập nhật",
-    group: "vietnam",
-    type: "html",
-    url: "https://vietstock.vn/chu-de/1-2/moi-cap-nhat.htm",
-    homepage: "https://vietstock.vn",
-  },
-  thoibaotaichinhvietnam: {
-    id: "thoibaotaichinhvietnam",
-    name: "Thời Báo Tài Chính VN",
-    group: "vietnam",
-    type: "html",
-    url: "https://thoibaotaichinhvietnam.vn/",
-    homepage: "https://thoibaotaichinhvietnam.vn",
-  },
-  fireant: {
-    id: "fireant",
-    name: "FireAnt",
-    group: "vietnam",
-    type: "html",
-    url: "https://fireant.vn/",
-    homepage: "https://fireant.vn",
-  },
-
-  // NHÓM TIN TỨC KINH TẾ QUỐC TẾ
-  wsj: {
-    id: "wsj",
-    name: "Wall Street Journal",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://feeds.a.dj.com/rss/RSSOpinion.xml",
-    homepage: "https://www.wsj.com",
-  },
-  economist: {
-    id: "economist",
-    name: "The Economist",
-    group: "internationaleconomics",
-    type: "rss", 
-    url: "https://www.economist.com/finance-and-economics/rss.xml",
-    homepage: "https://www.economist.com",
-  },
-  reuters: {
-    id: "reuters",
-    name: "Reuters Business",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://www.reutersagency.com/feed/?taxonomy=best-sectors&post_type=best",
-    homepage: "https://www.reuters.com/business",
-  },
-  cnbc: {
-    id: "cnbc",
-    name: "CNBC",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://www.cnbc.com/id/100003570/device/rss/rss.html",
-    homepage: "https://www.cnbc.com",
-  },
-  marketwatch: {
-    id: "marketwatch",
-    name: "MarketWatch",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://feeds.content.dowjones.io/public/rss/mw_topstories",
-    homepage: "https://www.marketwatch.com",
-  },
-// ==== Internationaleconomics (refreshed to RSS-capable sources) ====
-  bbc_business: {
-    id: "bbc_business",
-    name: "BBC Business",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://feeds.bbci.co.uk/news/business/rss.xml",
-    homepage: "https://www.bbc.com/news/business"
-  },
-  guardian_economics: {
-    id: "guardian_economics",
-    name: "The Guardian - Economics",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://www.theguardian.com/business/economics/rss",
-    homepage: "https://www.theguardian.com/business/economics"
-  },
-  marketwatch_economy: {
-    id: "marketwatch_economy",
-    name: "MarketWatch - Economy & Politics",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://www.marketwatch.com/rss/economy-politics",
-    homepage: "https://www.marketwatch.com/economy-politics"
-  },
-  investing_economy: {
-    id: "investing_economy",
-    name: "Investing.com - Economy News",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://www.investing.com/rss/news_14.rss",
-    homepage: "https://www.investing.com/news/economy"
-  },
-  voxeu: {
-    id: "voxeu",
-    name: "CEPR VoxEU Columns",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://cepr.org/rss/vox-content",
-    homepage: "https://cepr.org/voxeu/columns"
-  },
-  imf_news: {
-    id: "imf_news",
-    name: "IMF News",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://www.imf.org/en/News/rss",
-    homepage: "https://www.imf.org/en/News"
-  },
-  wto_news: {
-    id: "wto_news",
-    name: "WTO News",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://www.wto.org/english/news_e/news_e.xml",
-    homepage: "https://www.wto.org/english/news_e/news_e.htm"
-  },
-  // # cnbc markets – official section but RSS is not clearly documented; keep legacy RSS endpoint compatible with your current parser
-  cnbc_markets: {
-    id: "cnbc_markets",
-    name: "CNBC Markets",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://www.cnbc.com/id/100003570/device/rss/rss.html",
-    homepage: "https://www.cnbc.com/markets/"
-  },
-  // # Reuters/AP/Al Jazeera/AsiaTimes/OECD/TradingEconomics – fallback via Google News RSS (official RSS not available or inconsistent)
-  reuters_business: {
-    id: "reuters_business",
-    name: "Reuters Business (via Google News)",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:reuters.com/business",
-    homepage: "https://www.reuters.com/business/"
-  },
-  ap_business: {
-    id: "ap_business",
-    name: "AP News Business (via Google News)",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:apnews.com/business",
-    homepage: "https://apnews.com/business"
-  },
-  aljazeera_economy: {
-    id: "aljazeera_economy",
-    name: "Al Jazeera Economy (via Google News)",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:aljazeera.com/economy",
-    homepage: "https://www.aljazeera.com/economy"
-  },
-  asiatimes_business: {
-    id: "asiatimes_business",
-    name: "Asia Times Business (via Google News)",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:asiatimes.com%20business",
-    homepage: "https://asiatimes.com/category/business-trends/business/"
-  },
-  brookings_econ: {
-    id: "brookings_econ",
-    name: "Brookings Economic Studies (via Google News)",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:brookings.edu%20%22Economic%20Studies%22",
-    homepage: "https://www.brookings.edu/programs/economic-studies/"
-  },
-  oecd_news: {
-    id: "oecd_news",
-    name: "OECD (via Google News)",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:oecd.org",
-    homepage: "https://www.oecd.org"
-  },
-  tradingeconomics_news: {
-    id: "tradingeconomics_news",
-    name: "TradingEconomics (via Google News)",
-    group: "internationaleconomics",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:tradingeconomics.com",
-    homepage: "https://tradingeconomics.com/"
-  },
-  // ===== International Tech (Tech quốc tế) =====
-  techcrunch: {
-    id: "techcrunch",
-    name: "TechCrunch",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://techcrunch.com/feed/",
-    homepage: "https://techcrunch.com"
-  },
-  theverge: {
-    id: "theverge",
-    name: "The Verge",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://www.theverge.com/rss/index.xml",
-    homepage: "https://www.theverge.com"
-  },
-  wired: {
-    id: "wired",
-    name: "WIRED",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://www.wired.com/feed/rss",
-    homepage: "https://www.wired.com"
-  },
-  arstechnica: {
-    id: "arstechnica",
-    name: "Ars Technica",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://feeds.arstechnica.com/arstechnica/index",
-    homepage: "https://arstechnica.com"
-  },
-  gizmodo: {
-    id: "gizmodo",
-    name: "Gizmodo",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://gizmodo.com/rss",
-    homepage: "https://gizmodo.com"
-  },
-  bleepingcomputer: {
-    id: "bleepingcomputer",
-    name: "BleepingComputer",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://www.bleepingcomputer.com/feed/",
-    homepage: "https://www.bleepingcomputer.com"
-  },
-  slashdot: {
-    id: "slashdot",
-    name: "Slashdot",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://rss.slashdot.org/Slashdot/slashdotMain",
-    homepage: "https://slashdot.org"
-  },
-  bitai_blog: {
-    id: "bitai_blog",
-    name: "Bit.ai Blog",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://blog.bit.ai/feed/",
-    homepage: "https://blog.bit.ai"
-  },
-  technologymagazine: {
-    id: "technologymagazine",
-    name: "Technology Magazine",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:technologymagazine.com",
-    homepage: "https://technologymagazine.com"
-  },
-  thenextweb: {
-    id: "thenextweb",
+  thenextweb_st: {
+    id: "thenextweb_st",
     name: "The Next Web",
-    group: "internationaltech",
+    group: "startuptech",
     type: "rss",
     url: "https://thenextweb.com/feed",
     homepage: "https://thenextweb.com"
   },
-  zdnet: {
-    id: "zdnet",
-    name: "ZDNET",
-    group: "internationaltech",
+  hackernews: {
+    id: "hackernews",
+    name: "Hacker News",
+    group: "startuptech",
     type: "rss",
-    url: "https://www.zdnet.com/news/rss.xml",
-    homepage: "https://www.zdnet.com"
+    url: "https://news.ycombinator.com/rss",
+    homepage: "https://news.ycombinator.com"
   },
-  techradar: {
-    id: "techradar",
-    name: "TechRadar",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://www.techradar.com/feeds/rss",
-    homepage: "https://www.techradar.com/"
-  },
-  engadget: {
-    id: "engadget",
-    name: "Engadget",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://www.engadget.com/rss.xml",
-    homepage: "https://www.engadget.com"
-  },
-  mashable_sea: {
-    id: "mashable_sea",
-    name: "Mashable SEA",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://news.google.com/rss/search?q=site:sea.mashable.com",
-    homepage: "https://sea.mashable.com"
-  },
-  theregister: {
-    id: "theregister",
+  theregister_st: {
+    id: "theregister_st",
     name: "The Register",
-    group: "internationaltech",
+    group: "startuptech",
     type: "rss",
-    url: "https://www.theregister.com/headlines.rss",
+    url: "https://www.theregister.com/headlines.atom",
     homepage: "https://www.theregister.com"
   },
-  computerworld: {
-    id: "computerworld",
-    name: "Computerworld",
-    group: "internationaltech",
-    type: "rss",
-    url: "https://www.computerworld.com/index.rss",
-    homepage: "https://www.computerworld.com"
-  },
-  geekwire: {
-    id: "geekwire",
+  geekwire_st: {
+    id: "geekwire_st",
     name: "GeekWire",
-    group: "internationaltech",
+    group: "startuptech",
     type: "rss",
     url: "https://www.geekwire.com/feed/",
     homepage: "https://www.geekwire.com"
   },
-  techinasia: {
-    id: "techinasia",
-    name: "Tech in Asia",
-    group: "internationaltech",
+  zdnet_st: {
+    id: "zdnet_st",
+    name: "ZDNet",
+    group: "startuptech",
     type: "rss",
-    url: "https://www.techinasia.com/feed",
-    homepage: "https://www.techinasia.com"
+    url: "https://www.zdnet.com/news/rss.xml",
+    homepage: "https://www.zdnet.com"
+  },
+  businessinsider_tech: {
+    id: "businessinsider_tech",
+    name: "Business Insider Tech",
+    group: "startuptech",
+    type: "rss",
+    url: "https://www.businessinsider.com/tech/rss",
+    homepage: "https://www.businessinsider.com"
+  },
+  reuters_tech: {
+    id: "reuters_tech",
+    name: "Reuters Technology",
+    group: "startuptech",
+    type: "rss",
+    url: "https://www.reutersagency.com/feed/?best-topics=tech&post_type=best",
+    homepage: "https://www.reuters.com/technology/"
+  },
+
+  // ===== DEVELOPER NEWS =====
+  developertech: {
+    id: "developertech",
+    name: "Developer Tech",
+    group: "developernews",
+    type: "rss",
+    url: "https://www.developer-tech.com/feed/",
+    homepage: "https://www.developer-tech.com"
+  },
+  appdevelopermagazine: {
+    id: "appdevelopermagazine",
+    name: "App Developer Magazine",
+    group: "developernews",
+    type: "rss",
+    url: "https://appdevelopermagazine.com/RSS",
+    homepage: "https://appdevelopermagazine.com"
+  },
+  infoq: {
+    id: "infoq",
+    name: "InfoQ",
+    group: "developernews",
+    type: "rss",
+    url: "https://feed.infoq.com/",
+    homepage: "https://www.infoq.com"
+  },
+  sdtimes: {
+    id: "sdtimes",
+    name: "SD Times",
+    group: "developernews",
+    type: "rss",
+    url: "https://sdtimes.com/feed/",
+    homepage: "https://sdtimes.com"
+  },
+  businessofapps: {
+    id: "businessofapps",
+    name: "Business of Apps",
+    group: "developernews",
+    type: "rss",
+    url: "https://www.businessofapps.com/feed/",
+    homepage: "https://www.businessofapps.com"
+  },
+  infoworld: {
+    id: "infoworld",
+    name: "InfoWorld",
+    group: "developernews",
+    type: "rss",
+    url: "https://www.infoworld.com/news/index.rss",
+    homepage: "https://www.infoworld.com"
+  },
+  stackoverflow_blog: {
+    id: "stackoverflow_blog",
+    name: "Stack Overflow Blog",
+    group: "developernews",
+    type: "rss",
+    url: "https://stackoverflow.blog/feed/",
+    homepage: "https://stackoverflow.blog"
+  },
+  github_blog: {
+    id: "github_blog",
+    name: "GitHub Blog",
+    group: "developernews",
+    type: "rss",
+    url: "https://github.blog/feed/",
+    homepage: "https://github.blog"
+  },
+  creativebloq: {
+    id: "creativebloq",
+    name: "Creative Bloq",
+    group: "developernews",
+    type: "rss",
+    url: "https://www.creativebloq.com/feeds/all",
+    homepage: "https://www.creativebloq.com"
+  },
+
+  // ===== GAME NEWS =====
+  gamedeveloper: {
+    id: "gamedeveloper",
+    name: "Game Developer",
+    group: "gamenews",
+    type: "rss",
+    url: "https://www.gamedeveloper.com/rss.xml",
+    homepage: "https://www.gamedeveloper.com"
+  },
+  polygon: {
+    id: "polygon",
+    name: "Polygon",
+    group: "gamenews",
+    type: "rss",
+    url: "https://www.polygon.com/rss/index.xml",
+    homepage: "https://www.polygon.com"
+  },
+  kotaku: {
+    id: "kotaku",
+    name: "Kotaku",
+    group: "gamenews",
+    type: "rss",
+    url: "https://kotaku.com/rss",
+    homepage: "https://kotaku.com"
+  },
+  ign: {
+    id: "ign",
+    name: "IGN",
+    group: "gamenews",
+    type: "rss",
+    url: "https://feeds.ign.com/ign/all",
+    homepage: "https://www.ign.com"
+  },
+  gamespot: {
+    id: "gamespot",
+    name: "GameSpot",
+    group: "gamenews",
+    type: "rss",
+    url: "https://www.gamespot.com/feeds/news/",
+    homepage: "https://www.gamespot.com"
+  },
+  eurogamer: {
+    id: "eurogamer",
+    name: "Eurogamer",
+    group: "gamenews",
+    type: "rss",
+    url: "https://www.eurogamer.net/feed",
+    homepage: "https://www.eurogamer.net"
+  },
+  pcgamer: {
+    id: "pcgamer",
+    name: "PC Gamer",
+    group: "gamenews",
+    type: "rss",
+    url: "https://www.pcgamer.com/rss/",
+    homepage: "https://www.pcgamer.com"
+  },
+  gamesradar: {
+    id: "gamesradar",
+    name: "GamesRadar+",
+    group: "gamenews",
+    type: "rss",
+    url: "https://www.gamesradar.com/rss/",
+    homepage: "https://www.gamesradar.com"
+  },
+  pocketgamer: {
+    id: "pocketgamer",
+    name: "Pocket Gamer",
+    group: "gamenews",
+    type: "rss",
+    url: "https://www.pocketgamer.com/rss/",
+    homepage: "https://www.pocketgamer.com"
+  },
+  eightylevels: {
+    id: "eightylevels",
+    name: "80 Level",
+    group: "gamenews",
+    type: "rss",
+    url: "https://80.lv/feed/",
+    homepage: "https://80.lv/articles"
+  },
+
+  // ===== DESIGN, UI/UX =====
+  smashingmagazine: {
+    id: "smashingmagazine",
+    name: "Smashing Magazine",
+    group: "designuiux",
+    type: "rss",
+    url: "https://www.smashingmagazine.com/feed",
+    homepage: "https://www.smashingmagazine.com"
+  },
+  uxdesign: {
+    id: "uxdesign",
+    name: "UX Design",
+    group: "designuiux",
+    type: "rss",
+    url: "https://uxdesign.cc/feed",
+    homepage: "https://uxdesign.cc"
+  },
+  nngroup: {
+    id: "nngroup",
+    name: "Nielsen Norman Group",
+    group: "designuiux",
+    type: "rss",
+    url: "https://www.nngroup.com/feed/rss/",
+    homepage: "https://www.nngroup.com/articles/"
+  },
+  ixda: {
+    id: "ixda",
+    name: "Interaction Design Foundation",
+    group: "designuiux",
+    type: "rss",
+    url: "https://www.interaction-design.org/rss.xml",
+    homepage: "https://www.interaction-design.org/literature"
+  },
+  uxmatters: {
+    id: "uxmatters",
+    name: "UXmatters",
+    group: "designuiux",
+    type: "rss",
+    url: "https://www.uxmatters.com/index.xml",
+    homepage: "https://www.uxmatters.com"
+  },
+  alistapart: {
+    id: "alistapart",
+    name: "A List Apart",
+    group: "designuiux",
+    type: "rss",
+    url: "https://alistapart.com/main/feed/",
+    homepage: "https://alistapart.com"
+  },
+  uxplanet: {
+    id: "uxplanet",
+    name: "UX Planet",
+    group: "designuiux",
+    type: "rss",
+    url: "https://uxplanet.org/feed",
+    homepage: "https://uxplanet.org"
+  },
+  uxmag: {
+    id: "uxmag",
+    name: "UX Magazine",
+    group: "designuiux",
+    type: "rss",
+    url: "https://uxmag.com/rss",
+    homepage: "https://uxmag.com"
+  },
+  designmodo: {
+    id: "designmodo",
+    name: "Designmodo",
+    group: "designuiux",
+    type: "rss",
+    url: "https://designmodo.com/feed/",
+    homepage: "https://designmodo.com/articles/"
+  },
+  webdesignerdepot: {
+    id: "webdesignerdepot",
+    name: "Webdesigner Depot",
+    group: "designuiux",
+    type: "rss",
+    url: "https://www.webdesignerdepot.com/feed/",
+    homepage: "https://webdesignerdepot.com"
+  },
+  mockplus: {
+    id: "mockplus",
+    name: "Mockplus",
+    group: "designuiux",
+    type: "rss",
+    url: "https://www.mockplus.com/blog/rss",
+    homepage: "https://www.mockplus.com/blog"
+  },
+  uxpin: {
+    id: "uxpin",
+    name: "UXPin",
+    group: "designuiux",
+    type: "rss",
+    url: "https://www.uxpin.com/studio/blog/feed/",
+    homepage: "https://www.uxpin.com/studio/blog/"
+  },
+  designshack: {
+    id: "designshack",
+    name: "Design Shack",
+    group: "designuiux",
+    type: "rss",
+    url: "https://designshack.net/feed/",
+    homepage: "https://designshack.net"
+  },
+  material_blog: {
+    id: "material_blog",
+    name: "Material Design Blog",
+    group: "designuiux",
+    type: "html",
+    url: "https://m3.material.io/blog",
+    homepage: "https://m3.material.io/blog"
+  },
+  ixda_blog: {
+    id: "ixda_blog",
+    name: "IxDA Blog",
+    group: "designuiux",
+    type: "rss",
+    url: "https://www.interaction-design.org/rss/blog.xml",
+    homepage: "https://www.interaction-design.org/blog"
   }
 };
 

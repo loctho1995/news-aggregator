@@ -33,8 +33,24 @@ export function createCardElement(item) {
   card.setAttribute('data-title', item.title || '');
   card.setAttribute('data-source', item.sourceName || '');
   
-  const groupBadge = item.group === 'internationaleconomics' ? 
-    '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">Quốc tế</span>' : '';
+  const groupBadge = (() => {
+    switch(item.group) {
+      case 'internationaleconomics':
+        return '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">Kinh tế QT</span>';
+      case 'internationaltech':
+        return '<span class="inline-block px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded">Tech QT</span>';
+      case 'startuptech':
+        return '<span class="inline-block px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded">Startup</span>';
+      case 'developernews':
+        return '<span class="inline-block px-2 py-0.5 text-xs bg-orange-100 text-orange-800 rounded">Dev</span>';
+      case 'gamenews':
+        return '<span class="inline-block px-2 py-0.5 text-xs bg-pink-100 text-pink-800 rounded">Game</span>';
+      case 'designuiux':
+        return '<span class="inline-block px-2 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded">Design</span>';
+      default:
+        return '';
+    }
+  })();
   
   const readStatusButton = readStatus ? 
     '<button class="read-status-btn px-2 py-1 text-xs bg-green-600 hover:bg-green-500 text-white rounded transition-colors">✅ Đã đọc</button>' :

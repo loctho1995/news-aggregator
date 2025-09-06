@@ -61,7 +61,9 @@ export async function fetchRSSWithFullContent(source, signal = null) {
     }
     
     const items = [];
-    const isInternational = source.group === 'internationaleconomics';
+
+    const englishGroups = ['internationaleconomics', 'internationaltech', 'startuptech', 'developernews', 'gamenews', 'designuiux'];
+    const isInternational = englishGroups.includes(source.group);
     const maxItems = isLocal ? 10 : 8;
     
     // Process items
