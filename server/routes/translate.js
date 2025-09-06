@@ -59,20 +59,46 @@ async function tryTranslateOnce(text, target, endpoint) {
 }
 
 async function doTranslate(text, target) {
+  // Validate input
+  if (!text || text.trim().length < 2) {
+    return text;
+  }
+  
   const endpoints = ["google_gtx", "google_clients5"];
   let lastErr = null;
+  
   for (const ep of endpoints) {
     // small retry loop per endpoint
     for (let i = 0; i < 2; i++) {
       try {
         const out = await tryTranslateOnce(text, target, ep);
-        if (typeof out === "string") return out;
+        
+        // Validate output
+        if (typeof out === "string" && out.trim().length > 0) {
+          // Nếu kết quả chỉ có dấu câu, thử endpoint khác
+          if (/^[.,!?;:\-–—\s]+$/.test(out)) {
+            console.warn(`Endpoint ${ep} returned only punctuation`);
+            continue;
+          }
+          
+          // Nếu kết quả quá ngắn, thử endpoint khác
+          if (out.length < text.length * 0.3 && text.length > 10) {
+            console.warn(`Endpoint ${ep} returned too short result`);
+            continue;
+          }
+          
+          return out;
+        }
       } catch (e) {
         lastErr = e;
+        console.warn(`Translation attempt ${i+1} failed for ${ep}:`, e.message);
       }
     }
   }
-  throw lastErr || new Error("All endpoints failed");
+  
+  // Nếu tất cả đều thất bại, trả về text gốc
+  console.error('All translation attempts failed, returning original');
+  return text;
 }
 
 // --- Routes ---
