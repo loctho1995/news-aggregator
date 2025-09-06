@@ -1,4 +1,5 @@
-// src/sources.js - Với nhóm tin tức
+// Source definitions and management
+
 export const SOURCE_GROUPS = {
   vietnam: {
     id: "vietnam",
@@ -15,7 +16,6 @@ export const SOURCE_GROUPS = {
     name: "Tech quốc tế",
     description: "Tin tức tech thế giới"
   },
-  // NEW GROUPS
   startuptech: {
     id: "startuptech",
     name: "Startup & Tech",
@@ -39,8 +39,332 @@ export const SOURCE_GROUPS = {
 };
 
 export const SOURCES = {
-  // [KEEP ALL EXISTING SOURCES AS IS - NOT REPEATED HERE]
-  
+  // ===== VIETNAM NEWS SOURCES =====
+  vnexpress: {
+    id: "vnexpress",
+    name: "VnExpress",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vnexpress.net/rss/tin-moi-nhat.rss",
+    homepage: "https://vnexpress.net"
+  },
+  tuoitre: {
+    id: "tuoitre",
+    name: "Tuổi Trẻ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://tuoitre.vn/rss/tin-moi-nhat.rss",
+    homepage: "https://tuoitre.vn"
+  },
+  thanhnien: {
+    id: "thanhnien",
+    name: "Thanh Niên",
+    group: "vietnam",
+    type: "rss",
+    url: "https://thanhnien.vn/rss/home.rss",
+    homepage: "https://thanhnien.vn"
+  },
+  dantri: {
+    id: "dantri",
+    name: "Dân Trí",
+    group: "vietnam",
+    type: "rss",
+    url: "https://dantri.com.vn/rss/home.rss",
+    homepage: "https://dantri.com.vn"
+  },
+  vietnamnet: {
+    id: "vietnamnet",
+    name: "VietnamNet",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vietnamnet.vn/rss/tin-moi-nhat.rss",
+    homepage: "https://vietnamnet.vn"
+  },
+  laodong: {
+    id: "laodong",
+    name: "Lao Động",
+    group: "vietnam",
+    type: "rss",
+    url: "https://laodong.vn/rss/home.rss",
+    homepage: "https://laodong.vn"
+  },
+  baophapluat: {
+    id: "baophapluat",
+    name: "Báo Pháp Luật",
+    group: "vietnam",
+    type: "rss",
+    url: "https://baophapluat.vn/rss/home.rss",
+    homepage: "https://baophapluat.vn"
+  },
+  cafef: {
+    id: "cafef",
+    name: "CafeF",
+    group: "vietnam",
+    type: "rss",
+    url: "https://cafef.vn/trang-chu.rss",
+    homepage: "https://cafef.vn"
+  },
+  cafebiz: {
+    id: "cafebiz",
+    name: "CafeBiz",
+    group: "vietnam",
+    type: "rss",
+    url: "https://cafebiz.vn/home.rss",
+    homepage: "https://cafebiz.vn"
+  },
+  bnews: {
+    id: "bnews",
+    name: "Bnews",
+    group: "vietnam",
+    type: "html",
+    url: "https://bnews.vn",
+    homepage: "https://bnews.vn"
+  },
+  vietstock: {
+    id: "vietstock",
+    name: "VietStock",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vietstock.vn/rss/home.rss",
+    homepage: "https://vietstock.vn"
+  },
+  vnbusiness: {
+    id: "vnbusiness",
+    name: "Vietnam Business",
+    group: "vietnam",
+    type: "html",
+    url: "https://vnbusiness.vn",
+    homepage: "https://vnbusiness.vn"
+  },
+  brandsvietnam: {
+    id: "brandsvietnam",
+    name: "Brands Vietnam",
+    group: "vietnam",
+    type: "html",
+    url: "https://www.brandsvietnam.com",
+    homepage: "https://www.brandsvietnam.com"
+  },
+  vietnamfinance: {
+    id: "vietnamfinance",
+    name: "Vietnam Finance",
+    group: "vietnam",
+    type: "html",
+    url: "https://vietnamfinance.vn",
+    homepage: "https://vietnamfinance.vn"
+  },
+  fireant: {
+    id: "fireant",
+    name: "FireAnt",
+    group: "vietnam",
+    type: "html",
+    url: "https://fireant.vn",
+    homepage: "https://fireant.vn"
+  },
+
+  // ===== INTERNATIONAL ECONOMICS =====
+  bloomberg: {
+    id: "bloomberg",
+    name: "Bloomberg",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.bloomberg.com/markets/news.rss",
+    homepage: "https://www.bloomberg.com"
+  },
+  wsj: {
+    id: "wsj",
+    name: "WSJ Markets",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
+    homepage: "https://www.wsj.com"
+  },
+  ft: {
+    id: "ft",
+    name: "Financial Times",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.ft.com/?format=rss",
+    homepage: "https://www.ft.com"
+  },
+  economist: {
+    id: "economist",
+    name: "The Economist",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.economist.com/feeds/print-sections/77/business.xml",
+    homepage: "https://www.economist.com"
+  },
+  reuters_business: {
+    id: "reuters_business",
+    name: "Reuters Business",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.reuters.com/reuters/businessNews",
+    homepage: "https://www.reuters.com/business"
+  },
+  cnbc: {
+    id: "cnbc",
+    name: "CNBC",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+    homepage: "https://www.cnbc.com"
+  },
+  marketwatch: {
+    id: "marketwatch",
+    name: "MarketWatch",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.marketwatch.com/marketwatch/topstories",
+    homepage: "https://www.marketwatch.com"
+  },
+  seekingalpha: {
+    id: "seekingalpha",
+    name: "Seeking Alpha",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://seekingalpha.com/feed.xml",
+    homepage: "https://seekingalpha.com"
+  },
+  morningstar: {
+    id: "morningstar",
+    name: "Morningstar",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "http://feeds.morningstar.com/morningstar/markets",
+    homepage: "https://www.morningstar.com"
+  },
+  businessinsider: {
+    id: "businessinsider",
+    name: "Business Insider",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.businessinsider.com/rss",
+    homepage: "https://www.businessinsider.com"
+  },
+
+  // ===== INTERNATIONAL TECH =====
+  techcrunch: {
+    id: "techcrunch",
+    name: "TechCrunch",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://techcrunch.com/feed/",
+    homepage: "https://techcrunch.com"
+  },
+  theverge: {
+    id: "theverge",
+    name: "The Verge",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.theverge.com/rss/index.xml",
+    homepage: "https://www.theverge.com"
+  },
+  wired: {
+    id: "wired",
+    name: "Wired",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.wired.com/feed/rss",
+    homepage: "https://www.wired.com"
+  },
+  arstechnica: {
+    id: "arstechnica",
+    name: "Ars Technica",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://feeds.arstechnica.com/arstechnica/features",
+    homepage: "https://arstechnica.com"
+  },
+  engadget: {
+    id: "engadget",
+    name: "Engadget",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.engadget.com/rss.xml",
+    homepage: "https://www.engadget.com"
+  },
+  venturebeat: {
+    id: "venturebeat",
+    name: "VentureBeat",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://venturebeat.com/feed/",
+    homepage: "https://venturebeat.com"
+  },
+  techradar: {
+    id: "techradar",
+    name: "TechRadar",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.techradar.com/rss",
+    homepage: "https://www.techradar.com"
+  },
+  gizmodo: {
+    id: "gizmodo",
+    name: "Gizmodo",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://gizmodo.com/rss",
+    homepage: "https://gizmodo.com"
+  },
+  mashable: {
+    id: "mashable",
+    name: "Mashable",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://mashable.com/feeds/rss/all",
+    homepage: "https://mashable.com"
+  },
+  thenextweb: {
+    id: "thenextweb",
+    name: "The Next Web",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://thenextweb.com/feed",
+    homepage: "https://thenextweb.com"
+  },
+  appleinsider: {
+    id: "appleinsider",
+    name: "AppleInsider",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://appleinsider.com/rss/news/",
+    homepage: "https://appleinsider.com"
+  },
+  androidpolice: {
+    id: "androidpolice",
+    name: "Android Police",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.androidpolice.com/feed/",
+    homepage: "https://www.androidpolice.com"
+  },
+  xda: {
+    id: "xda",
+    name: "XDA Developers",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.xda-developers.com/feed/",
+    homepage: "https://www.xda-developers.com"
+  },
+  theregister: {
+    id: "theregister",
+    name: "The Register",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.theregister.com/headlines.atom",
+    homepage: "https://www.theregister.com"
+  },
+  zdnet: {
+    id: "zdnet",
+    name: "ZDNet",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.zdnet.com/news/rss.xml",
+    homepage: "https://www.zdnet.com"
+  },
+
   // ===== STARTUP & TECH =====
   startupsavant: {
     id: "startupsavant",
@@ -394,14 +718,63 @@ export const SOURCES = {
   }
 };
 
+// Priority levels for sources
+export const PRIORITY = {
+  high: [
+    'vnexpress', 'tuoitre', 'dantri', 'vietnamnet', 'cafef',
+    'hackernews', 'techcrunch', 'smashingmagazine', 'polygon',
+    'bloomberg', 'wsj', 'ft'
+  ],
+  medium: [
+    'thanhnien', 'laodong', 'cafebiz', 'vietstock',
+    'infoq', 'gamedeveloper', 'uxdesign', 'ign',
+    'theverge', 'wired', 'engadget'
+  ],
+  low: [
+    'baophapluat', 'bnews', 'vnbusiness', 'brandsvietnam',
+    'mockplus', 'designshack', 'pocketgamer',
+    'morningstar', 'seekingalpha'
+  ]
+};
+
 // Helper functions
 export function getSourcesByGroup(groupId) {
   return Object.values(SOURCES).filter(s => s.group === groupId);
 }
 
+export function getSourceById(sourceId) {
+  return SOURCES[sourceId];
+}
+
+export function getSortedSourceIds(group = null) {
+  let ids = group 
+    ? Object.keys(SOURCES).filter(id => SOURCES[id].group === group)
+    : Object.keys(SOURCES);
+    
+  return ids.sort((a, b) => {
+    const getPriority = (id) => {
+      if (PRIORITY.high.includes(id)) return 0;
+      if (PRIORITY.medium.includes(id)) return 1;
+      if (PRIORITY.low.includes(id)) return 2;
+      return 3;
+    };
+    return getPriority(a) - getPriority(b);
+  });
+}
+
 export function listSources(groupId = null) {
   const sources = groupId ? getSourcesByGroup(groupId) : Object.values(SOURCES);
   return sources.map(({ id, name, homepage, url, type, group }) => ({ 
-    id, name, homepage, url, type, group 
+    id, name, homepage, url, type, group: group || 'vietnam'
   }));
 }
+
+export default {
+  SOURCE_GROUPS,
+  SOURCES,
+  PRIORITY,
+  getSourcesByGroup,
+  getSourceById,
+  getSortedSourceIds,
+  listSources
+};
