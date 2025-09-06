@@ -141,17 +141,8 @@ export async function fetchRSSWithFullContent(source, signal = null) {
           finalContent = it.title + ". " + finalContent;
         }
         
-        // Translation for international sources
         if (isInternational && title && !isVietnamese(title)) {
-          if (isLocal) {
-            try {
-              title = await translateToVietnamese(title) || `[EN] ${title}`;
-            } catch (e) {
-              title = `[EN] ${title}`;
-            }
-          } else {
-            title = `[EN] ${title}`;
-          }
+          title = `[EN] ${title}`;
         }
         
         // Create bullet summary with MORE content

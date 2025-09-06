@@ -8,47 +8,59 @@ import { handleSpeak, handleStopSpeak, handleRateChange } from './tts.js';
 export function initializeUI() {}
 
 export function initializeEventHandlers() {
-  // Search debounce
+  // Search debounce với null check
   let searchTimeout;
-  elements.search?.addEventListener("input", () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(updateFiltersAndRender, 300);
-  });
+  if (elements.search) {
+    elements.search.addEventListener("input", () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(updateFiltersAndRender, 300);
+    });
+  }
 
   // Refresh button
   elements.refreshBtn?.addEventListener("click", () => loadNews({ clear: true }));
 
-  // Source change -> cancel + clear + reload
-  elements.sourceSelect?.addEventListener("change", () => {
-    try { localStorage.setItem('selectedSource', elements.sourceSelect.value); } catch {}
-    cancelCurrentLoad();
-    loadNews({ clear: true });
-  });
+  // Source change với null check
+  if (elements.sourceSelect) {
+    elements.sourceSelect.addEventListener("change", () => {
+      try { localStorage.setItem('selectedSource', elements.sourceSelect.value); } catch {}
+      cancelCurrentLoad();
+      loadNews({ clear: true });
+    });
+  }
 
-  // Group change -> cancel + clear + reset source + reload
-  elements.groupSelect?.addEventListener("change", () => {
-    try { localStorage.setItem('selectedGroup', elements.groupSelect.value); } catch {}
-    elements.sourceSelect.value = "";
-    elements.search.value = "";
-    try { localStorage.removeItem('selectedSource'); } catch {}
-    cancelCurrentLoad();
-    const grid = document.getElementById("grid");
-    const empty = document.getElementById("empty");
-    if (grid) grid.innerHTML = "";
-    if (empty) empty.classList.add("hidden");
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    loadNews({ clear: true });
-  });
+  // Group change với null check
+  if (elements.groupSelect) {
+    elements.groupSelect.addEventListener("change", () => {
+      try { localStorage.setItem('selectedGroup', elements.groupSelect.value); } catch {}
+      if (elements.sourceSelect) {
+        elements.sourceSelect.value = "";
+      }
+      if (elements.search) {
+        elements.search.value = "";
+      }
+      try { localStorage.removeItem('selectedSource'); } catch {}
+      cancelCurrentLoad();
+      const grid = document.getElementById("grid");
+      const empty = document.getElementById("empty");
+      if (grid) grid.innerHTML = "";
+      if (empty) empty.classList.add("hidden");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      loadNews({ clear: true });
+    });
+  }
 
-  // Auto reload when hours dropdown changes (replaces manual refresh on mobile)
-  elements.hours?.addEventListener("change", () => {
-    try { localStorage.setItem("hours", elements.hours.value); } catch {}
-    loadNews({ clear: true });
-  });
+  // Auto reload when hours dropdown changes
+  if (elements.hours) {
+    elements.hours.addEventListener("change", () => {
+      try { localStorage.setItem("hours", elements.hours.value); } catch {}
+      loadNews({ clear: true });
+    });
+  }
 
   // Keyboard ESC to close modal
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !elements.modal.classList.contains("hidden")) {
+    if (e.key === "Escape" && elements.modal && !elements.modal.classList.contains("hidden")) {
       closeModal();
     }
   });

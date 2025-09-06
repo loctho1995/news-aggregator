@@ -461,22 +461,5 @@ function attachCardEventListeners(card, item) {
   const articleLink = card.querySelector('.article-link');
   articleLink.addEventListener('click', (e) => {
     e.stopPropagation();
-    
-    // Đánh dấu đã đọc khi click vào link
-    if (!isRead(item.link)) {
-      markRead(item.link);
-      
-      // Update UI ngay lập tức
-      card.classList.add("opacity-60", "read");
-      
-      const statusBtn = card.querySelector('.read-status-btn');
-      if (statusBtn) {
-        statusBtn.innerHTML = '✅ Đã đọc';
-        statusBtn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
-        statusBtn.classList.add('bg-green-600', 'hover:bg-green-500');
-      }
-    }
-    
-    // Link vẫn mở bình thường (không preventDefault)
   });
 }
