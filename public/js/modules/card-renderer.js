@@ -33,23 +33,25 @@ export function createCardElement(item) {
   card.setAttribute('data-title', item.title || '');
   card.setAttribute('data-source', item.sourceName || '');
   
-  const groupBadge = (() => {
-    switch(item.group) {
-      case 'internationaleconomics':
-        return '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">Kinh tế QT</span>';
-      case 'internationaltech':
-        return '<span class="inline-block px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded">Tech QT</span>';
-      case 'startuptech':
-        return '<span class="inline-block px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded">Startup</span>';
-      case 'developernews':
-        return '<span class="inline-block px-2 py-0.5 text-xs bg-orange-100 text-orange-800 rounded">Dev</span>';
-      case 'gamenews':
-        return '<span class="inline-block px-2 py-0.5 text-xs bg-pink-100 text-pink-800 rounded">Game</span>';
-      case 'designuiux':
-        return '<span class="inline-block px-2 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded">Design</span>';
-      default:
-        return '';
-    }
+const groupBadge = (() => {
+  switch(item.group) {
+    case 'vietnameconomic':
+      return '<span class="inline-block px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Kinh tế VN</span>';
+    case 'internationaleconomics':
+      return '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">Kinh tế QT</span>';
+    case 'internationaltech':
+      return '<span class="inline-block px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded">Tech QT</span>';
+    case 'startuptech':
+      return '<span class="inline-block px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded">Startup</span>';
+    case 'developernews':
+      return '<span class="inline-block px-2 py-0.5 text-xs bg-orange-100 text-orange-800 rounded">Dev</span>';
+    case 'gamenews':
+      return '<span class="inline-block px-2 py-0.5 text-xs bg-pink-100 text-pink-800 rounded">Game</span>';
+    case 'designuiux':
+      return '<span class="inline-block px-2 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded">Design</span>';
+    default:
+      return '';
+  }
   })();
   
   const readStatusButton = readStatus ? 

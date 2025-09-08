@@ -5,6 +5,11 @@ export const SOURCE_GROUPS = {
     name: "Tin tức Việt Nam",
     description: "Tổng hợp báo chí trong nước"
   },
+  vietnameconomic: {
+    id: "vietnameconomic",
+    name: "Kinh tế Việt Nam",
+    description: "Tin tức kinh tế, tài chính, chứng khoán VN"
+  },
   internationaleconomics: {
     id: "internationaleconomics", 
     name: "Kinh tế quốc tế",
@@ -38,6 +43,335 @@ export const SOURCE_GROUPS = {
 };
 
 export const SOURCES = {
+  // ===== VIETNAM ECONOMIC NEWS =====
+  
+  // Báo Công Thương
+  congthuong: {
+    id: "congthuong",
+    name: "Báo Công Thương",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://congthuong.vn/rss/trang-chu.rss",
+    homepage: "https://congthuong.vn"
+  },
+  congthuong_finance: {
+    id: "congthuong_finance",
+    name: "Công Thương - Tài chính",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://congthuong.vn/rss/tai-chinh.rss",
+    homepage: "https://congthuong.vn/tai-chinh"
+  },
+  congthuong_business: {
+    id: "congthuong_business",
+    name: "Công Thương - Kinh doanh",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://congthuong.vn/rss/doanh-nghiep.rss",
+    homepage: "https://congthuong.vn/doanh-nghiep"
+  },
+  
+  // Tạp chí Tài chính
+  tapchitaichinh: {
+    id: "tapchitaichinh",
+    name: "Tạp chí Tài chính",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://tapchitaichinh.vn/rss/tai-chinh-kinh-doanh.rss",
+    homepage: "https://tapchitaichinh.vn"
+  },
+  tapchitaichinh_stock: {
+    id: "tapchitaichinh_stock",
+    name: "TCTC - Chứng khoán",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://tapchitaichinh.vn/rss/thi-truong-chung-khoan.rss",
+    homepage: "https://tapchitaichinh.vn/thi-truong-chung-khoan"
+  },
+  
+  // Thời báo Ngân hàng
+  thoibaonganhang: {
+    id: "thoibaonganhang",
+    name: "Thời báo Ngân hàng",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://thoibaonganhang.vn/rss/home.rss",
+    homepage: "https://thoibaonganhang.vn"
+  },
+  thoibaonganhang_banking: {
+    id: "thoibaonganhang_banking",
+    name: "TBNH - Ngân hàng",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://thoibaonganhang.vn/rss/ngan-hang.rss",
+    homepage: "https://thoibaonganhang.vn/ngan-hang"
+  },
+  
+  // Tạp chí Kinh tế Việt Nam
+  tapchikinhte: {
+    id: "tapchikinhte",
+    name: "Tạp chí Kinh tế VN",
+    group: "vietnameconomic",
+    type: "html",
+    url: "https://tapchikinhte.vn",
+    homepage: "https://tapchikinhte.vn"
+  },
+  
+  // Doanh nhân Sài Gòn
+  doanhnhansaigon: {
+    id: "doanhnhansaigon",
+    name: "Doanh nhân Sài Gòn",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://doanhnhansaigon.vn/rss/home.rss",
+    homepage: "https://doanhnhansaigon.vn"
+  },
+  doanhnhansaigon_business: {
+    id: "doanhnhansaigon_business",
+    name: "DNSG - Doanh nghiệp",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://doanhnhansaigon.vn/rss/doanh-nghiep.rss",
+    homepage: "https://doanhnhansaigon.vn/doanh-nghiep"
+  },
+  
+  // EnterNews
+  enternews: {
+    id: "enternews",
+    name: "EnterNews",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://enternews.vn/rss/trang-chu.rss",
+    homepage: "https://enternews.vn"
+  },
+  enternews_startup: {
+    id: "enternews_startup",
+    name: "EnterNews - Startup",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://enternews.vn/rss/startup.rss",
+    homepage: "https://enternews.vn/startup"
+  },
+  
+  // VietnamBiz
+  vietnambiz: {
+    id: "vietnambiz",
+    name: "VietnamBiz",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://vietnambiz.vn/rss/home.rss",
+    homepage: "https://vietnambiz.vn"
+  },
+  vietnambiz_market: {
+    id: "vietnambiz_market",
+    name: "VietnamBiz - Thị trường",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://vietnambiz.vn/rss/thi-truong.rss",
+    homepage: "https://vietnambiz.vn/thi-truong.htm"
+  },
+  vietnambiz_finance: {
+    id: "vietnambiz_finance",
+    name: "VietnamBiz - Tài chính",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://vietnambiz.vn/rss/tai-chinh.rss",
+    homepage: "https://vietnambiz.vn/tai-chinh.htm"
+  },
+  
+  // Kinh tế Chứng khoán
+  kinhtechungkhoan: {
+    id: "kinhtechungkhoan",
+    name: "Kinh tế Chứng khoán",
+    group: "vietnameconomic",
+    type: "html",
+    url: "https://kinhtechungkhoan.vn",
+    homepage: "https://kinhtechungkhoan.vn"
+  },
+  
+  // Tạp chí Kinh tế Quốc tế
+  tapchikinhtequocte: {
+    id: "tapchikinhtequocte",
+    name: "TC Kinh tế Quốc tế",
+    group: "vietnameconomic",
+    type: "html",
+    url: "https://tapchikinhtequocte.vn",
+    homepage: "https://tapchikinhtequocte.vn"
+  },
+  
+  // Index.vn
+  indexvn: {
+    id: "indexvn",
+    name: "Index.vn",
+    group: "vietnameconomic",
+    type: "html",
+    url: "https://index.vn",
+    homepage: "https://index.vn"
+  },
+  
+  // VnEconomy (moved to vietnameconomic group)
+  vneconomy_eco: {
+    id: "vneconomy_eco",
+    name: "VnEconomy",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://vneconomy.vn/rss/home.rss",
+    homepage: "https://vneconomy.vn"
+  },
+  vneconomy_business: {
+    id: "vneconomy_business",
+    name: "VnEconomy - Doanh nghiệp",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://vneconomy.vn/rss/doanh-nghiep.rss",
+    homepage: "https://vneconomy.vn/doanh-nghiep.htm"
+  },
+  vneconomy_stock: {
+    id: "vneconomy_stock",
+    name: "VnEconomy - Chứng khoán",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://vneconomy.vn/rss/chung-khoan.rss",
+    homepage: "https://vneconomy.vn/chung-khoan.htm"
+  },
+  
+  // CafeF (added to vietnameconomic)
+  cafef_eco: {
+    id: "cafef_eco",
+    name: "CafeF",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://cafef.vn/trang-chu.rss",
+    homepage: "https://cafef.vn"
+  },
+  cafef_market: {
+    id: "cafef_market",
+    name: "CafeF - Thị trường CK",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://cafef.vn/thi-truong-chung-khoan.rss",
+    homepage: "https://cafef.vn/thi-truong-chung-khoan.chn"
+  },
+  cafef_realestate: {
+    id: "cafef_realestate",
+    name: "CafeF - Bất động sản",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://cafef.vn/bat-dong-san.rss",
+    homepage: "https://cafef.vn/bat-dong-san.chn"
+  },
+  cafef_banking: {
+    id: "cafef_banking",
+    name: "CafeF - Ngân hàng",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://cafef.vn/tai-chinh-ngan-hang.rss",
+    homepage: "https://cafef.vn/tai-chinh-ngan-hang.chn"
+  },
+  
+  // CafeBiz (added to vietnameconomic)
+  cafebiz_eco: {
+    id: "cafebiz_eco",
+    name: "CafeBiz",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://cafebiz.vn/trang-chu.rss",
+    homepage: "https://cafebiz.vn"
+  },
+  cafebiz_startup: {
+    id: "cafebiz_startup",
+    name: "CafeBiz - Startup",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://cafebiz.vn/startup.rss",
+    homepage: "https://cafebiz.vn/startup.chn"
+  },
+  cafebiz_leader: {
+    id: "cafebiz_leader",
+    name: "CafeBiz - Leadership",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://cafebiz.vn/cau-chuyen-kinh-doanh.rss",
+    homepage: "https://cafebiz.vn/cau-chuyen-kinh-doanh.chn"
+  },
+  
+  // The Saigon Times
+  saigontimes: {
+    id: "saigontimes",
+    name: "The Saigon Times",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://thesaigontimes.vn/rss/home.rss",
+    homepage: "https://thesaigontimes.vn"
+  },
+  saigontimes_business: {
+    id: "saigontimes_business",
+    name: "Saigon Times - Kinh doanh",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://thesaigontimes.vn/rss/kinh-doanh.rss",
+    homepage: "https://thesaigontimes.vn/kinh-doanh"
+  },
+  saigontimes_finance: {
+    id: "saigontimes_finance",
+    name: "Saigon Times - Tài chính",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://thesaigontimes.vn/rss/tai-chinh.rss",
+    homepage: "https://thesaigontimes.vn/tai-chinh"
+  },
+  
+  // Thời báo Tài chính Việt Nam
+  thoibaotaichinh: {
+    id: "thoibaotaichinh",
+    name: "TB Tài chính VN",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://thoibaotaichinhvietnam.vn/rss/home.rss",
+    homepage: "https://thoibaotaichinhvietnam.vn"
+  },
+  thoibaotaichinh_banking: {
+    id: "thoibaotaichinh_banking",
+    name: "TBTC - Ngân hàng",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://thoibaotaichinhvietnam.vn/rss/ngan-hang.rss",
+    homepage: "https://thoibaotaichinhvietnam.vn/pages/tien-te-bao-hiem/ngan-hang.aspx"
+  },
+  thoibaotaichinh_stock: {
+    id: "thoibaotaichinh_stock",
+    name: "TBTC - Chứng khoán",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "https://thoibaotaichinhvietnam.vn/rss/chung-khoan.rss",
+    homepage: "https://thoibaotaichinhvietnam.vn/pages/chung-khoan.aspx"
+  },
+  
+  // Kinh tế và Dự báo
+  kinhtevadubao: {
+    id: "kinhtevadubao",
+    name: "Kinh tế & Dự báo",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "http://kinhtevadubao.vn/rss/home.rss",
+    homepage: "http://kinhtevadubao.vn"
+  },
+  kinhtevadubao_macro: {
+    id: "kinhtevadubao_macro",
+    name: "KT&DB - Kinh tế vĩ mô",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "http://kinhtevadubao.vn/rss/kinh-te-vi-mo.rss",
+    homepage: "http://kinhtevadubao.vn/kinh-te-vi-mo.html"
+  },
+  kinhtevadubao_finance: {
+    id: "kinhtevadubao_finance",
+    name: "KT&DB - Tài chính",
+    group: "vietnameconomic",
+    type: "rss",
+    url: "http://kinhtevadubao.vn/rss/tai-chinh.rss",
+    homepage: "http://kinhtevadubao.vn/tai-chinh.html"
+  },
   // ===== VIETNAM NEWS SOURCES =====
   
   // VnExpress - Báo điện tử số 1 VN

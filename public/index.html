@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="vi">
 <head>
 <meta charset="utf-8"/>
@@ -11,31 +10,40 @@
 <link href="/public/css/main.css" rel="stylesheet"/>
 <link href="/public/css/dynamic.css" rel="stylesheet"/>
 <link href="data:;base64,=" rel="icon">
-</link></head>
+</head>
 <body class="bg-[#343541] text-slate-100">
 <header class="sticky top-0 z-10 bg-[#343541]/80 backdrop-blur border-b border-[#565869]">
 <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
 <h1 class="text-xl sm:text-2xl font-bold">📰 Tổng hợp tin tức</h1>
 <span class="ml-auto text-xs px-2 py-1 rounded-full bg-[#40414f] text-slate-200 border border-[#565869]" id="badge">Đang tải…</span>
 </div>
-<div class="max-w-6xl mx-auto px-4 pb-3 grid grid-cols-1 sm:grid-cols-3 gap-2"><div class="flex items-center gap-2"><input class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring focus:ring-[#565869] flex-1" id="search" placeholder="Tìm theo tiêu đề/tóm tắt… (VD: bão, vàng miếng)"/><select class="flex-1 px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 w-auto" id="hours">
+<div class="max-w-6xl mx-auto px-4 pb-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+<div class="flex items-center gap-2">
+<input class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring focus:ring-[#565869] flex-1" id="search" placeholder="Tìm theo tiêu đề/tóm tắt… (VD: bão, vàng miếng)"/>
+<select class="flex-1 px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 w-auto" id="hours">
 <option value="6">6 giờ</option>
 <option value="12">12 giờ</option>
 <option selected="" value="24">24 giờ</option>
 <option value="48">48 giờ</option>
 <option value="72">72 giờ</option>
-</select></div>
+</select>
+</div>
 
 <select class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100" id="groupSelect">
   <option value="all">Tất cả nhóm tin</option>
   <option value="vietnam">🇻🇳 Tin tức Việt Nam</option>
+  <option value="vietnameconomic">🏦 Kinh tế Việt Nam</option>
   <option value="internationaleconomics">🌐 Kinh tế quốc tế</option>
   <option value="internationaltech">🌐 Tech quốc tế</option>
   <option value="startuptech">🚀 Startup & Tech</option>
   <option value="developernews">💻 Developer News</option>
   <option selected="" value="gamenews">🎮 Game News</option>
   <option value="designuiux">🎨 Design, UI/UX</option>
-  </select>
+</select>
+
+<select class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100" id="sourceSelect">
+  <option value="">Tất cả nguồn</option>
+</select>
 
 </div>
 </header>
@@ -43,6 +51,7 @@
 <div id="grid"></div>
 <div class="hidden text-center text-slate-400 py-16" id="empty">Không có bài phù hợp.</div>
 </main>
+
 <!-- Modal: TÓM TẮT (OPTIMIZED UI) -->
 <div class="fixed inset-0 z-50 hidden overflow-y-auto p-4 sm:p-6 flex items-center justify-center" id="modal">
 <div class="absolute inset-0 bg-black/60" id="modalOverlay"></div>
@@ -103,38 +112,41 @@
 </div>
 </div>
 </div>
+
 <footer class="max-w-6xl mx-auto px-4 py-8 text-xs text-slate-400">
-      Nguồn công khai (RSS &amp; HTML). Dùng cho mục đích cá nhân/phi lợi nhuận. © 2025
-    </footer>
+  Nguồn công khai (RSS &amp; HTML). Dùng cho mục đích cá nhân/phi lợi nhuận. © 2025
+</footer>
+
 <script src="/public/js/app.js" type="module"></script>
+
 <!-- Auto-resize title script (giữ lại vì cần runtime logic) -->
 <script>
-      // Function to auto-resize modal title based on length
-      function autoResizeModalTitle() {
-        const titleEl = document.getElementById('modalTitle');
-        if (!titleEl) return;
-        
-        const titleLength = titleEl.textContent.length;
-        
-        // Remove all size classes
-        titleEl.classList.remove('title-long', 'title-very-long', 'title-extra-long');
-        
-        // Add appropriate class based on length
-        if (titleLength > 150) {
-          titleEl.classList.add('title-extra-long');
-        } else if (titleLength > 100) {
-          titleEl.classList.add('title-very-long');
-        } else if (titleLength > 60) {
-          titleEl.classList.add('title-long');
-        }
-      }
-      
-      // Watch for title changes
-      const titleObserver = new MutationObserver(autoResizeModalTitle);
-      const titleEl = document.getElementById('modalTitle');
-      if (titleEl) {
-        titleObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
-      }
-    </script>
+  // Function to auto-resize modal title based on length
+  function autoResizeModalTitle() {
+    const titleEl = document.getElementById('modalTitle');
+    if (!titleEl) return;
+    
+    const titleLength = titleEl.textContent.length;
+    
+    // Remove all size classes
+    titleEl.classList.remove('title-long', 'title-very-long', 'title-extra-long');
+    
+    // Add appropriate class based on length
+    if (titleLength > 150) {
+      titleEl.classList.add('title-extra-long');
+    } else if (titleLength > 100) {
+      titleEl.classList.add('title-very-long');
+    } else if (titleLength > 60) {
+      titleEl.classList.add('title-long');
+    }
+  }
+  
+  // Watch for title changes
+  const titleObserver = new MutationObserver(autoResizeModalTitle);
+  const titleEl = document.getElementById('modalTitle');
+  if (titleEl) {
+    titleObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
+  }
+</script>
 </body>
 </html>
