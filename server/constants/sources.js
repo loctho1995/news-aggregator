@@ -1,4 +1,4 @@
-// src/sources.js - Với nhóm tin tức
+// server/constants/sources.js - Complete version with ALL sources
 export const SOURCE_GROUPS = {
   vietnam: {
     id: "vietnam",
@@ -15,7 +15,6 @@ export const SOURCE_GROUPS = {
     name: "Tech quốc tế",
     description: "Tin tức tech thế giới"
   },
-  // NEW GROUPS
   startuptech: {
     id: "startuptech",
     name: "Startup & Tech",
@@ -39,7 +38,561 @@ export const SOURCE_GROUPS = {
 };
 
 export const SOURCES = {
-  // [KEEP ALL EXISTING SOURCES AS IS - NOT REPEATED HERE]
+  // ===== VIETNAM NEWS SOURCES =====
+  
+  // VnExpress - Báo điện tử số 1 VN
+  vnexpress: {
+    id: "vnexpress",
+    name: "VnExpress",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vnexpress.net/rss/tin-moi-nhat.rss",
+    homepage: "https://vnexpress.net"
+  },
+  vnexpress_business: {
+    id: "vnexpress_business",
+    name: "VnExpress Kinh Doanh",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vnexpress.net/rss/kinh-doanh.rss",
+    homepage: "https://vnexpress.net/kinh-doanh"
+  },
+  vnexpress_tech: {
+    id: "vnexpress_tech",
+    name: "VnExpress Số Hóa",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vnexpress.net/rss/so-hoa.rss",
+    homepage: "https://vnexpress.net/so-hoa"
+  },
+  
+  // Tuổi Trẻ
+  tuoitre: {
+    id: "tuoitre",
+    name: "Tuổi Trẻ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://tuoitre.vn/rss/tin-moi-nhat.rss",
+    homepage: "https://tuoitre.vn"
+  },
+  tuoitre_business: {
+    id: "tuoitre_business",
+    name: "Tuổi Trẻ Kinh Doanh",
+    group: "vietnam",
+    type: "rss",
+    url: "https://tuoitre.vn/rss/kinh-doanh.rss",
+    homepage: "https://tuoitre.vn/kinh-doanh.htm"
+  },
+  tuoitre_tech: {
+    id: "tuoitre_tech",
+    name: "Tuổi Trẻ Công Nghệ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://tuoitre.vn/rss/nhip-song-so.rss",
+    homepage: "https://tuoitre.vn/nhip-song-so.htm"
+  },
+  
+  // Thanh Niên
+  thanhnien: {
+    id: "thanhnien",
+    name: "Thanh Niên",
+    group: "vietnam",
+    type: "rss",
+    url: "https://thanhnien.vn/rss/home.rss",
+    homepage: "https://thanhnien.vn"
+  },
+  thanhnien_economy: {
+    id: "thanhnien_economy",
+    name: "Thanh Niên Tài Chính",
+    group: "vietnam",
+    type: "rss",
+    url: "https://thanhnien.vn/rss/tai-chinh.rss",
+    homepage: "https://thanhnien.vn/tai-chinh-kinh-doanh.htm"
+  },
+  thanhnien_tech: {
+    id: "thanhnien_tech",
+    name: "Thanh Niên Công Nghệ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://thanhnien.vn/rss/cong-nghe.rss",
+    homepage: "https://thanhnien.vn/cong-nghe-game.htm"
+  },
+  
+  // Dân Trí
+  dantri: {
+    id: "dantri",
+    name: "Dân Trí",
+    group: "vietnam",
+    type: "rss",
+    url: "https://dantri.com.vn/rss/home.rss",
+    homepage: "https://dantri.com.vn"
+  },
+  dantri_business: {
+    id: "dantri_business",
+    name: "Dân Trí Kinh Doanh",
+    group: "vietnam",
+    type: "rss",
+    url: "https://dantri.com.vn/rss/kinh-doanh.rss",
+    homepage: "https://dantri.com.vn/kinh-doanh.htm"
+  },
+  dantri_tech: {
+    id: "dantri_tech",
+    name: "Dân Trí Công Nghệ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://dantri.com.vn/rss/suc-manh-so.rss",
+    homepage: "https://dantri.com.vn/suc-manh-so.htm"
+  },
+  
+  // VietnamNet
+  vietnamnet: {
+    id: "vietnamnet",
+    name: "VietnamNet",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vietnamnet.vn/rss/tin-moi-nhat.rss",
+    homepage: "https://vietnamnet.vn"
+  },
+  vietnamnet_business: {
+    id: "vietnamnet_business",
+    name: "VietnamNet Kinh Doanh",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vietnamnet.vn/rss/kinh-doanh.rss",
+    homepage: "https://vietnamnet.vn/kinh-doanh"
+  },
+  vietnamnet_tech: {
+    id: "vietnamnet_tech",
+    name: "VietnamNet Công Nghệ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vietnamnet.vn/rss/cong-nghe.rss",
+    homepage: "https://vietnamnet.vn/cong-nghe"
+  },
+  
+  // Người Lao Động
+  nld: {
+    id: "nld",
+    name: "Người Lao Động",
+    group: "vietnam",
+    type: "rss",
+    url: "https://nld.com.vn/rss/tin-moi-nhat.rss",
+    homepage: "https://nld.com.vn"
+  },
+  nld_business: {
+    id: "nld_business",
+    name: "NLD Kinh Tế",
+    group: "vietnam",
+    type: "rss",
+    url: "https://nld.com.vn/rss/kinh-te.rss",
+    homepage: "https://nld.com.vn/kinh-te.htm"
+  },
+  nld_tech: {
+    id: "nld_tech",
+    name: "NLD Công Nghệ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://nld.com.vn/rss/cong-nghe.rss",
+    homepage: "https://nld.com.vn/cong-nghe.htm"
+  },
+  
+  // Tiền Phong
+  tienphong: {
+    id: "tienphong",
+    name: "Tiền Phong",
+    group: "vietnam",
+    type: "rss",
+    url: "https://tienphong.vn/rss/home.rss",
+    homepage: "https://tienphong.vn"
+  },
+  tienphong_business: {
+    id: "tienphong_business",
+    name: "Tiền Phong Kinh Tế",
+    group: "vietnam",
+    type: "rss",
+    url: "https://tienphong.vn/rss/kinh-te-3.rss",
+    homepage: "https://tienphong.vn/kinh-te/"
+  },
+  tienphong_tech: {
+    id: "tienphong_tech",
+    name: "Tiền Phong Công Nghệ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://tienphong.vn/rss/cong-nghe-45.rss",
+    homepage: "https://tienphong.vn/cong-nghe/"
+  },
+  
+  // Zing News
+  zingnews: {
+    id: "zingnews",
+    name: "Zing News",
+    group: "vietnam",
+    type: "rss",
+    url: "https://zingnews.vn/rss/tin-moi.rss",
+    homepage: "https://zingnews.vn"
+  },
+  zingnews_business: {
+    id: "zingnews_business",
+    name: "Zing Kinh Doanh",
+    group: "vietnam",
+    type: "rss",
+    url: "https://zingnews.vn/rss/kinh-doanh-tai-chinh.rss",
+    homepage: "https://zingnews.vn/kinh-doanh-tai-chinh.html"
+  },
+  zingnews_tech: {
+    id: "zingnews_tech",
+    name: "Zing Công Nghệ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://zingnews.vn/rss/cong-nghe.rss",
+    homepage: "https://zingnews.vn/cong-nghe.html"
+  },
+  
+  // Báo Mới (Aggregator - HTML parse)
+  baomoi: {
+    id: "baomoi",
+    name: "Báo Mới",
+    group: "vietnam",
+    type: "html",
+    url: "https://baomoi.com",
+    homepage: "https://baomoi.com"
+  },
+  
+  // Thêm các báo khác
+  
+  // Lao Động
+  laodong: {
+    id: "laodong",
+    name: "Báo Lao Động",
+    group: "vietnam",
+    type: "rss",
+    url: "https://laodong.vn/rss/home.rss",
+    homepage: "https://laodong.vn"
+  },
+  laodong_business: {
+    id: "laodong_business",
+    name: "Lao Động Kinh Tế",
+    group: "vietnam",
+    type: "rss",
+    url: "https://laodong.vn/rss/kinh-te.rss",
+    homepage: "https://laodong.vn/kinh-te/"
+  },
+  
+  // VTC News
+  vtcnews: {
+    id: "vtcnews",
+    name: "VTC News",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vtc.vn/rss/feed.rss",
+    homepage: "https://vtc.vn"
+  },
+  
+  // Sài Gòn Giải Phóng
+  sggp: {
+    id: "sggp",
+    name: "Sài Gòn Giải Phóng",
+    group: "vietnam",
+    type: "rss",
+    url: "https://www.sggp.org.vn/rss/chinhtri.rss",
+    homepage: "https://www.sggp.org.vn"
+  },
+  
+  // 24h
+  news24h: {
+    id: "news24h",
+    name: "Báo 24h",
+    group: "vietnam",
+    type: "rss",
+    url: "https://www.24h.com.vn/upload/rss/tintuctrongngay.rss",
+    homepage: "https://www.24h.com.vn"
+  },
+  
+  // Pháp Luật TP.HCM
+  phapluathochiminh: {
+    id: "phapluathochiminh",
+    name: "Pháp Luật TP.HCM",
+    group: "vietnam",
+    type: "rss",
+    url: "https://plo.vn/rss/home.rss",
+    homepage: "https://plo.vn"
+  },
+  
+  // VOV (Đài tiếng nói VN)
+  vov: {
+    id: "vov",
+    name: "VOV",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vov.vn/rss/home.rss",
+    homepage: "https://vov.vn"
+  },
+  
+  // CafeF - Kinh tế tài chính
+  cafef: {
+    id: "cafef",
+    name: "CafeF",
+    group: "vietnam",
+    type: "rss",
+    url: "https://cafef.vn/trang-chu.rss",
+    homepage: "https://cafef.vn"
+  },
+  cafef_stock: {
+    id: "cafef_stock",
+    name: "CafeF Chứng Khoán",
+    group: "vietnam",
+    type: "rss",
+    url: "https://cafef.vn/thi-truong-chung-khoan.rss",
+    homepage: "https://cafef.vn/thi-truong-chung-khoan.chn"
+  },
+  cafef_business: {
+    id: "cafef_business",
+    name: "CafeF Doanh Nghiệp",
+    group: "vietnam",
+    type: "rss",
+    url: "https://cafef.vn/doanh-nghiep.rss",
+    homepage: "https://cafef.vn/doanh-nghiep.chn"
+  },
+  
+  // CafeBiz
+  cafebiz: {
+    id: "cafebiz",
+    name: "CafeBiz",
+    group: "vietnam",
+    type: "rss",
+    url: "https://cafebiz.vn/trang-chu.rss",
+    homepage: "https://cafebiz.vn"
+  },
+  
+  // VnEconomy
+  vneconomy: {
+    id: "vneconomy",
+    name: "VnEconomy",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vneconomy.vn/rss/home.rss",
+    homepage: "https://vneconomy.vn"
+  },
+  
+  // VietStock
+  vietstock: {
+    id: "vietstock",
+    name: "VietStock",
+    group: "vietnam",
+    type: "rss",
+    url: "https://vietstock.vn/RSS/CauChuyenThiTruong.rss",
+    homepage: "https://vietstock.vn"
+  },
+  
+  // GenK - Công nghệ
+  genk: {
+    id: "genk",
+    name: "GenK",
+    group: "vietnam",
+    type: "rss",
+    url: "https://genk.vn/rss/home.rss",
+    homepage: "https://genk.vn"
+  },
+  genk_mobile: {
+    id: "genk_mobile",
+    name: "GenK Mobile",
+    group: "vietnam",
+    type: "rss",
+    url: "https://genk.vn/rss/mobile.rss",
+    homepage: "https://genk.vn/mobile.chn"
+  },
+  genk_internet: {
+    id: "genk_internet",
+    name: "GenK Internet",
+    group: "vietnam",
+    type: "rss",
+    url: "https://genk.vn/rss/internet.rss",
+    homepage: "https://genk.vn/internet.chn"
+  },
+  
+  // TechZ
+  techz: {
+    id: "techz",
+    name: "TechZ",
+    group: "vietnam",
+    type: "rss",
+    url: "https://www.techz.vn/rss.html",
+    homepage: "https://www.techz.vn"
+  },
+  
+  // ICTNews
+  ictnews: {
+    id: "ictnews",
+    name: "ICTNews",
+    group: "vietnam",
+    type: "rss",
+    url: "https://ictnews.vietnamnet.vn/rss/thoi-su.rss",
+    homepage: "https://ictnews.vietnamnet.vn"
+  },
+  
+  // ===== INTERNATIONAL ECONOMICS =====
+  bloomberg: {
+    id: "bloomberg",
+    name: "Bloomberg",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.bloomberg.com/markets/news.rss",
+    homepage: "https://www.bloomberg.com"
+  },
+  reuters_business: {
+    id: "reuters_business",
+    name: "Reuters Business",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.reuters.com/reuters/businessNews",
+    homepage: "https://www.reuters.com/business/"
+  },
+  wsj: {
+    id: "wsj",
+    name: "Wall Street Journal",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml",
+    homepage: "https://www.wsj.com"
+  },
+  ft: {
+    id: "ft",
+    name: "Financial Times",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.ft.com/rss/home",
+    homepage: "https://www.ft.com"
+  },
+  economist: {
+    id: "economist",
+    name: "The Economist",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.economist.com/finance-and-economics/rss.xml",
+    homepage: "https://www.economist.com"
+  },
+  marketwatch: {
+    id: "marketwatch",
+    name: "MarketWatch",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.marketwatch.com/marketwatch/topstories",
+    homepage: "https://www.marketwatch.com"
+  },
+  cnbc: {
+    id: "cnbc",
+    name: "CNBC",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+    homepage: "https://www.cnbc.com"
+  },
+  forbes: {
+    id: "forbes",
+    name: "Forbes",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://www.forbes.com/real-time/feed2/",
+    homepage: "https://www.forbes.com"
+  },
+  businessweek: {
+    id: "businessweek",
+    name: "Bloomberg Businessweek",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://feeds.bloomberg.com/businessweek/news.rss",
+    homepage: "https://www.bloomberg.com/businessweek"
+  },
+  fortune: {
+    id: "fortune",
+    name: "Fortune",
+    group: "internationaleconomics",
+    type: "rss",
+    url: "https://fortune.com/feed/",
+    homepage: "https://fortune.com"
+  },
+  
+  // ===== INTERNATIONAL TECH =====
+  techcrunch: {
+    id: "techcrunch",
+    name: "TechCrunch",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://techcrunch.com/feed/",
+    homepage: "https://techcrunch.com"
+  },
+  verge: {
+    id: "verge",
+    name: "The Verge",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.theverge.com/rss/index.xml",
+    homepage: "https://www.theverge.com"
+  },
+  wired: {
+    id: "wired",
+    name: "Wired",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.wired.com/feed/rss",
+    homepage: "https://www.wired.com"
+  },
+  arstechnica: {
+    id: "arstechnica",
+    name: "Ars Technica",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://feeds.arstechnica.com/arstechnica/index",
+    homepage: "https://arstechnica.com"
+  },
+  engadget: {
+    id: "engadget",
+    name: "Engadget",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.engadget.com/rss.xml",
+    homepage: "https://www.engadget.com"
+  },
+  gizmodo: {
+    id: "gizmodo",
+    name: "Gizmodo",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://gizmodo.com/rss",
+    homepage: "https://gizmodo.com"
+  },
+  mashable: {
+    id: "mashable",
+    name: "Mashable",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://mashable.com/feeds/rss/all",
+    homepage: "https://mashable.com"
+  },
+  theinformation: {
+    id: "theinformation",
+    name: "The Information",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.theinformation.com/feed",
+    homepage: "https://www.theinformation.com"
+  },
+  techmeme: {
+    id: "techmeme",
+    name: "Techmeme",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://www.techmeme.com/feed.xml",
+    homepage: "https://www.techmeme.com"
+  },
+  venturebeat: {
+    id: "venturebeat",
+    name: "VentureBeat",
+    group: "internationaltech",
+    type: "rss",
+    url: "https://venturebeat.com/feed/",
+    homepage: "https://venturebeat.com"
+  },
   
   // ===== STARTUP & TECH =====
   startupsavant: {
@@ -114,7 +667,7 @@ export const SOURCES = {
     url: "https://www.reutersagency.com/feed/?best-topics=tech&post_type=best",
     homepage: "https://www.reuters.com/technology/"
   },
-
+  
   // ===== DEVELOPER NEWS =====
   developertech: {
     id: "developertech",
@@ -188,7 +741,7 @@ export const SOURCES = {
     url: "https://www.creativebloq.com/feeds/all",
     homepage: "https://www.creativebloq.com"
   },
-
+  
   // ===== GAME NEWS =====
   gamedeveloper: {
     id: "gamedeveloper",
@@ -270,7 +823,7 @@ export const SOURCES = {
     url: "https://80.lv/feed/",
     homepage: "https://80.lv/articles"
   },
-
+  
   // ===== DESIGN, UI/UX =====
   smashingmagazine: {
     id: "smashingmagazine",
