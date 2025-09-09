@@ -24,6 +24,41 @@ function getTitleClass(title) {
   }
 }
 
+// Helper function to open AI summary with URL parameter
+function openAISummary(title, link) {
+  // Create a concise prompt for URL
+  const prompt = `Tóm tắt bài viết: ${link}`;
+  
+  // Encode for URL parameter
+  const encodedPrompt = encodeURIComponent(prompt);
+  
+  // Open ChatGPT with the prompt in URL
+  const chatGPTUrl = `https://chat.openai.com/?q=${encodedPrompt}`;
+  
+  // Show notification
+  const notification = document.createElement('div');
+  notification.className = 'fixed top-4 right-4 z-50 px-4 py-2 bg-purple-600 text-white rounded-lg shadow-lg animate-pulse flex items-center gap-2';
+  notification.innerHTML = `
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+    </svg>
+    <span>Đang mở ChatGPT với nội dung...</span>
+  `;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.remove();
+  }, 2000);
+  
+  // Open ChatGPT with prompt
+  window.open(chatGPTUrl, '_blank');
+  
+  // Also copy to clipboard as backup
+  navigator.clipboard.writeText(prompt).catch(() => {
+    console.log('Could not copy to clipboard');
+  });
+}
+
 export function createCardElement(item) {
   const card = document.createElement('div');
   const readStatus = isRead(item.link);
@@ -99,9 +134,15 @@ const groupBadge = (() => {
         <span>${timeAgo(item.publishedAt)}</span>
       </div>
       
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-wrap">
         ${readStatusButton}
         <button class="translate-btn px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg">Dịch</button>
+        <button class="ai-summary-btn px-3 py-2 text-sm bg-purple-600 hover:bg-purple-500 text-white rounded-lg flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+          </svg>
+          <span>AI</span>
+        </button>
         <a href="${item.link}" target="_blank" rel="noopener" 
            class="article-link flex-1 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors text-center">
           Link bài báo
@@ -425,6 +466,16 @@ function attachCardEventListeners(card, item) {
   
   // Click vào nút đọc/chưa đọc
   const readStatusBtn = card.querySelector('.read-status-btn');
+  
+  // Nút AI Summary
+  const aiSummaryBtn = card.querySelector('.ai-summary-btn');
+  if (aiSummaryBtn) {
+    aiSummaryBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAISummary(item.title, item.link);
+    });
+  }
+  
   // Nút Dịch/Bản Gốc (toggle + cache)
   const translateBtn = card.querySelector('.translate-btn');
   if (translateBtn) {
