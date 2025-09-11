@@ -34,5 +34,6 @@ export const elements = {
   sourceSelect: document.getElementById("sourceSelect"),
   groupSelect: document.getElementById("groupSelect"),
   hours: document.getElementById("hours"),
-  refreshBtn: document.getElementById("refreshBtn")
+  refreshBtn: document.getElementById("refreshBtn"),
+  modalAIBtn: document.getElementById("modalAIBtn"),
 };

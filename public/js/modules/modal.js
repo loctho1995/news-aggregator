@@ -6,6 +6,7 @@ import { state, updateState } from './state.js';
 import { markRead } from './read-status.js';
 import { loadSummary } from './summary-loader.js';
 import { resetTTS } from './tts.js';
+import { openAISummary } from './ai.js';
 
 // === Context menu for summary paragraphs (translate / copy) ===
 
@@ -860,6 +861,13 @@ export function openSummaryModal(item, link) {
   
   elements.modalSource.textContent = item?.sourceName ? `Nguồn: ${item.sourceName}` : "";
   elements.modalOpenLink.href = link;
+
+  if (elements.modalAIBtn) {
+    elements.modalAIBtn.onclick = (e) => {
+      e?.stopPropagation?.();
+      openAISummary(item?.title || '', link);
+    };
+  }
 
   resetModalUI();
   loadSummary(item, link);

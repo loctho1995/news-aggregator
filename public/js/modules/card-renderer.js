@@ -4,6 +4,7 @@ import { timeAgo } from './utils.js';
 import { isRead, toggleReadStatus, markRead } from './read-status.js';
 import { openSummaryModal } from './modal.js';
 import { translateCardElement } from './translator.js';
+import { openAISummary } from './ai.js';
 
 // Auto-resize title based on length
 function getTitleClass(title) {
@@ -22,41 +23,6 @@ function getTitleClass(title) {
   } else {
     return 'text-xl leading-snug'; // 20px for short titles (default)
   }
-}
-
-// Helper function to open AI summary with URL parameter
-function openAISummary(title, link) {
-  // Create a concise prompt for URL
-  const prompt = `Tóm tắt bài viết: ${link}`;
-  
-  // Encode for URL parameter
-  const encodedPrompt = encodeURIComponent(prompt);
-  
-  // Open ChatGPT with the prompt in URL
-  const chatGPTUrl = `https://chat.openai.com/?q=${encodedPrompt}`;
-  
-  // Show notification
-  const notification = document.createElement('div');
-  notification.className = 'fixed top-4 right-4 z-50 px-4 py-2 bg-purple-600 text-white rounded-lg shadow-lg animate-pulse flex items-center gap-2';
-  notification.innerHTML = `
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-    </svg>
-    <span>Đang mở ChatGPT với nội dung...</span>
-  `;
-  document.body.appendChild(notification);
-  
-  setTimeout(() => {
-    notification.remove();
-  }, 2000);
-  
-  // Open ChatGPT with prompt
-  window.open(chatGPTUrl, '_blank');
-  
-  // Also copy to clipboard as backup
-  navigator.clipboard.writeText(prompt).catch(() => {
-    console.log('Could not copy to clipboard');
-  });
 }
 
 export function createCardElement(item) {
@@ -154,6 +120,14 @@ const groupBadge = (() => {
   // Add event listeners với logic phân biệt click, select và SWIPE
   attachCardEventListeners(card, item);
   
+  const aiSummaryBtn = card.querySelector('.ai-summary-btn');
+  if (aiSummaryBtn) {
+    aiSummaryBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAISummary(item.title || '', item.link);
+    });
+  }
+
   return card;
 }
 
