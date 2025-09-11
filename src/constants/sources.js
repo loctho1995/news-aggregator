@@ -1,6 +1,13 @@
 // server/constants/sources.js - Complete version with ALL sources
 export const SOURCE_GROUPS = {
-  vietnam: {
+  
+
+  security: {
+    id: "security",
+    name: "Bảo mật",
+    description: "Tin tức an ninh mạng, lỗ hổng, cảnh báo"
+  },
+vietnam: {
     id: "vietnam",
     name: "Tin tức Việt Nam",
     description: "Tổng hợp báo chí trong nước"
@@ -43,7 +50,314 @@ export const SOURCE_GROUPS = {
 };
 
 export const SOURCES = {
-  // ===== VIETNAM ECONOMIC NEWS =====
+  
+
+  krebsonsecurity_com: {
+    id: "krebsonsecurity_com",
+    name: "Krebsonsecurity Com",
+    group: "security",
+    type: "html",
+    url: "https://krebsonsecurity.com/",
+    homepage: "https://krebsonsecurity.com"
+  },
+
+  thehackernews_com: {
+    id: "thehackernews_com",
+    name: "Thehackernews Com",
+    group: "security",
+    type: "html",
+    url: "https://thehackernews.com/",
+    homepage: "https://thehackernews.com"
+  },
+
+  bleepingcomputer_com_news_security: {
+    id: "bleepingcomputer_com_news_security",
+    name: "Bleepingcomputer Com News Security",
+    group: "security",
+    type: "html",
+    url: "https://www.bleepingcomputer.com/news/security/",
+    homepage: "https://www.bleepingcomputer.com/news/security"
+  },
+
+  darkreading_com: {
+    id: "darkreading_com",
+    name: "Darkreading Com",
+    group: "security",
+    type: "html",
+    url: "https://www.darkreading.com/",
+    homepage: "https://www.darkreading.com"
+  },
+
+  securityweek_com: {
+    id: "securityweek_com",
+    name: "Securityweek Com",
+    group: "security",
+    type: "html",
+    url: "https://www.securityweek.com/",
+    homepage: "https://www.securityweek.com"
+  },
+
+  therecord_media: {
+    id: "therecord_media",
+    name: "Therecord Media",
+    group: "security",
+    type: "html",
+    url: "https://therecord.media/",
+    homepage: "https://therecord.media"
+  },
+
+  cyberscoop_com: {
+    id: "cyberscoop_com",
+    name: "Cyberscoop Com",
+    group: "security",
+    type: "html",
+    url: "https://www.cyberscoop.com/",
+    homepage: "https://www.cyberscoop.com"
+  },
+
+  cybersecuritydive_com: {
+    id: "cybersecuritydive_com",
+    name: "Cybersecuritydive Com",
+    group: "security",
+    type: "html",
+    url: "https://www.cybersecuritydive.com/",
+    homepage: "https://www.cybersecuritydive.com"
+  },
+
+  scmagazine_com: {
+    id: "scmagazine_com",
+    name: "Scmagazine Com",
+    group: "security",
+    type: "html",
+    url: "https://www.scmagazine.com/",
+    homepage: "https://www.scmagazine.com"
+  },
+
+  theregister_com_security: {
+    id: "theregister_com_security",
+    name: "Theregister Com Security",
+    group: "security",
+    type: "html",
+    url: "https://www.theregister.com/security/",
+    homepage: "https://www.theregister.com/security"
+  },
+
+  wired_com_category_security: {
+    id: "wired_com_category_security",
+    name: "Wired Com Category Security",
+    group: "security",
+    type: "html",
+    url: "https://www.wired.com/category/security/",
+    homepage: "https://www.wired.com/category/security"
+  },
+
+  arstechnica_com_security: {
+    id: "arstechnica_com_security",
+    name: "Arstechnica Com Security",
+    group: "security",
+    type: "html",
+    url: "https://arstechnica.com/security/",
+    homepage: "https://arstechnica.com/security"
+  },
+
+  databreaches_net: {
+    id: "databreaches_net",
+    name: "Databreaches Net",
+    group: "security",
+    type: "html",
+    url: "https://www.databreaches.net/",
+    homepage: "https://www.databreaches.net"
+  },
+
+  isc_sans_edu_diary_html: {
+    id: "isc_sans_edu_diary_html",
+    name: "Isc Sans Edu Diary Html",
+    group: "security",
+    type: "html",
+    url: "https://isc.sans.edu/diary.html",
+    homepage: "https://isc.sans.edu/diary.html"
+  },
+
+  cisa_gov_news_events_cybersecurity_advisories: {
+    id: "cisa_gov_news_events_cybersecurity_advisories",
+    name: "Cisa Gov News Events Cybersecurity Advisories",
+    group: "security",
+    type: "html",
+    url: "https://www.cisa.gov/news-events/cybersecurity-advisories",
+    homepage: "https://www.cisa.gov/news-events/cybersecurity-advisories"
+  },
+
+  ncsc_gov_uk_news: {
+    id: "ncsc_gov_uk_news",
+    name: "Ncsc Gov Uk News",
+    group: "security",
+    type: "html",
+    url: "https://www.ncsc.gov.uk/news",
+    homepage: "https://www.ncsc.gov.uk/news"
+  },
+
+  enisa_europa_eu_news: {
+    id: "enisa_europa_eu_news",
+    name: "Enisa Europa Eu News",
+    group: "security",
+    type: "html",
+    url: "https://www.enisa.europa.eu/news",
+    homepage: "https://www.enisa.europa.eu/news"
+  },
+
+  kb_cert_org_vuls: {
+    id: "kb_cert_org_vuls",
+    name: "Kb Cert Org Vuls",
+    group: "security",
+    type: "html",
+    url: "https://www.kb.cert.org/vuls/",
+    homepage: "https://www.kb.cert.org/vuls"
+  },
+
+  csa_gov_sg_alerts_advisories: {
+    id: "csa_gov_sg_alerts_advisories",
+    name: "Csa Gov Sg Alerts Advisories",
+    group: "security",
+    type: "html",
+    url: "https://www.csa.gov.sg/alerts-advisories",
+    homepage: "https://www.csa.gov.sg/alerts-advisories"
+  },
+
+  blogs_jpcert_or_jp_en: {
+    id: "blogs_jpcert_or_jp_en",
+    name: "Blogs Jpcert Or Jp En",
+    group: "security",
+    type: "html",
+    url: "https://blogs.jpcert.or.jp/en/",
+    homepage: "https://blogs.jpcert.or.jp/en"
+  },
+
+  blog_google_threat_analysis_group: {
+    id: "blog_google_threat_analysis_group",
+    name: "Blog Google Threat Analysis Group",
+    group: "security",
+    type: "html",
+    url: "https://blog.google/threat-analysis-group/",
+    homepage: "https://blog.google/threat-analysis-group"
+  },
+
+  unit42_paloaltonetworks_com: {
+    id: "unit42_paloaltonetworks_com",
+    name: "Unit42 Paloaltonetworks Com",
+    group: "security",
+    type: "html",
+    url: "https://unit42.paloaltonetworks.com/",
+    homepage: "https://unit42.paloaltonetworks.com"
+  },
+
+  blog_talosintelligence_com: {
+    id: "blog_talosintelligence_com",
+    name: "Blog Talosintelligence Com",
+    group: "security",
+    type: "html",
+    url: "https://blog.talosintelligence.com/",
+    homepage: "https://blog.talosintelligence.com"
+  },
+
+  msrc_microsoft_com_blog: {
+    id: "msrc_microsoft_com_blog",
+    name: "Msrc Microsoft Com Blog",
+    group: "security",
+    type: "html",
+    url: "https://msrc.microsoft.com/blog/",
+    homepage: "https://msrc.microsoft.com/blog"
+  },
+
+  mandiant_com_resources_blog: {
+    id: "mandiant_com_resources_blog",
+    name: "Mandiant Com Resources Blog",
+    group: "security",
+    type: "html",
+    url: "https://www.mandiant.com/resources/blog",
+    homepage: "https://www.mandiant.com/resources/blog"
+  },
+
+  crowdstrike_com_blog: {
+    id: "crowdstrike_com_blog",
+    name: "Crowdstrike Com Blog",
+    group: "security",
+    type: "html",
+    url: "https://www.crowdstrike.com/blog/",
+    homepage: "https://www.crowdstrike.com/blog"
+  },
+
+  news_sophos_com_en_us_category_threat_research: {
+    id: "news_sophos_com_en_us_category_threat_research",
+    name: "News Sophos Com En Us Category Threat Research",
+    group: "security",
+    type: "html",
+    url: "https://news.sophos.com/en-us/category/threat-research/",
+    homepage: "https://news.sophos.com/en-us/category/threat-research"
+  },
+
+  securelist_com: {
+    id: "securelist_com",
+    name: "Securelist Com",
+    group: "security",
+    type: "html",
+    url: "https://securelist.com/",
+    homepage: "https://securelist.com"
+  },
+
+  welivesecurity_com: {
+    id: "welivesecurity_com",
+    name: "Welivesecurity Com",
+    group: "security",
+    type: "html",
+    url: "https://www.welivesecurity.com/",
+    homepage: "https://www.welivesecurity.com"
+  },
+
+  bitdefender_com_blog_labs: {
+    id: "bitdefender_com_blog_labs",
+    name: "Bitdefender Com Blog Labs",
+    group: "security",
+    type: "html",
+    url: "https://www.bitdefender.com/blog/labs/",
+    homepage: "https://www.bitdefender.com/blog/labs"
+  },
+
+  research_checkpoint_com: {
+    id: "research_checkpoint_com",
+    name: "Research Checkpoint Com",
+    group: "security",
+    type: "html",
+    url: "https://research.checkpoint.com/",
+    homepage: "https://research.checkpoint.com"
+  },
+
+  recordedfuture_com_research: {
+    id: "recordedfuture_com_research",
+    name: "Recordedfuture Com Research",
+    group: "security",
+    type: "html",
+    url: "https://www.recordedfuture.com/research",
+    homepage: "https://www.recordedfuture.com/research"
+  },
+
+  rapid7_com_blog: {
+    id: "rapid7_com_blog",
+    name: "Rapid7 Com Blog",
+    group: "security",
+    type: "html",
+    url: "https://www.rapid7.com/blog/",
+    homepage: "https://www.rapid7.com/blog"
+  },
+
+  snyk_io_blog: {
+    id: "snyk_io_blog",
+    name: "Snyk Io Blog",
+    group: "security",
+    type: "html",
+    url: "https://snyk.io/blog/",
+    homepage: "https://snyk.io/blog"
+  },
+// ===== VIETNAM ECONOMIC NEWS =====
   
   // Báo Công Thương
   congthuong: {
