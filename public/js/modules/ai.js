@@ -20,9 +20,6 @@ export function openAISummary(title, link) {
   document.body.appendChild(notification);
   setTimeout(() => notification.remove(), 2000);
 
-  // Mở tab mới tới ChatGPT
   window.open(chatGPTUrl, '_blank');
-
-  // Sao lưu prompt vào clipboard (nếu người dùng chặn pop-up)
   try { navigator.clipboard.writeText(prompt); } catch {}
 }

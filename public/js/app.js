@@ -2,6 +2,7 @@
 import { initializeUI, initializeEventHandlers } from './modules/initialization.js';
 import { loadNews } from './modules/news-loader.js';
 import { loadReadItems } from './modules/storage.js';
+import './modules/enhance-ai-copy.js';
 
 document.addEventListener("DOMContentLoaded", () => {
   // restore saved selection
