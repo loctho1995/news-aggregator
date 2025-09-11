@@ -1,0 +1,1 @@
+const express=require('express');const cors=require('cors');const useRoutes=require('./routes');const err=require('./middlewares/error');const health=require('./routes/health');const app=express();app.use(cors());app.use(express.json());useRoutes(app);app.use(health);app.use(err);const PORT=process.env.PORT||3000;app.listen(PORT,()=>console.log(`[server] listening on ${PORT}`));

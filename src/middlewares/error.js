@@ -1,0 +1,1 @@
+module.exports=(err,req,res,next)=>{const s=err.status||500;const m=err.message||'Internal Server Error';if(process.env.NODE_ENV!=='production'){console.error('[Error]',err);}res.status(s).json({success:false,error:m});};
