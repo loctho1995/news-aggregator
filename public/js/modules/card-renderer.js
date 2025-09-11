@@ -5,6 +5,7 @@ import { isRead, toggleReadStatus, markRead } from './read-status.js';
 import { openSummaryModal } from './modal.js';
 import { translateCardElement } from './translator.js';
 import { openAISummary } from './ai.js';
+import { copyText } from './clipboard.js';
 
 // Auto-resize title based on length
 function getTitleClass(title) {
@@ -100,7 +101,7 @@ const groupBadge = (() => {
         <span>${timeAgo(item.publishedAt)}</span>
       </div>
       
-      <div class="flex gap-2 flex-wrap">
+      <div class="flex gap-2 items-center flex-nowrap">
         ${readStatusButton}
         <button class="translate-btn px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg">Dịch</button>
         <button class="ai-summary-btn px-3 py-2 text-sm bg-purple-600 hover:bg-purple-500 text-white rounded-lg flex items-center gap-1">
@@ -109,9 +110,16 @@ const groupBadge = (() => {
           </svg>
           <span>AI</span>
         </button>
-        <a href="${item.link}" target="_blank" rel="noopener" 
-           class="article-link flex-1 px-3 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors text-center">
-          Link bài báo
+        
+        <button class="copy-link-btn p-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg inline-flex items-center justify-center shrink-0" title="Copy link bài báo" aria-label="Copy link">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+<a data-role="open-link" href="${item.link}" target="_blank" rel="noopener" 
+           class="article-link px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors text-center flex-none shrink truncate whitespace-nowrap min-w-0">
+          Mở Trang
         </a>
       </div>
     </div>
@@ -121,6 +129,15 @@ const groupBadge = (() => {
   attachCardEventListeners(card, item);
   
   const aiSummaryBtn = card.querySelector('.ai-summary-btn');
+  const copyBtn = card.querySelector('.copy-link-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const href = (item && item.link) ? item.link : (card.querySelector('.article-link')?.href || '');
+      if (href) copyText(href);
+    });
+  }
+
   if (aiSummaryBtn) {
     aiSummaryBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -443,6 +460,15 @@ function attachCardEventListeners(card, item) {
   
   // Nút AI Summary
   const aiSummaryBtn = card.querySelector('.ai-summary-btn');
+  const copyBtn = card.querySelector('.copy-link-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const href = (item && item.link) ? item.link : (card.querySelector('.article-link')?.href || '');
+      if (href) copyText(href);
+    });
+  }
+
   if (aiSummaryBtn) {
     aiSummaryBtn.addEventListener('click', (e) => {
       e.stopPropagation();

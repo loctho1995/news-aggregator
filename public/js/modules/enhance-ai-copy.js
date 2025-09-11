@@ -1,3 +1,13 @@
+
+// Ensure any legacy 'Copy' text is hidden (cache-safe)
+(function(){
+  if (document.getElementById('copy-icon-only-style')) return;
+  const st = document.createElement('style');
+  st.id = 'copy-icon-only-style';
+  st.textContent = `button[aria-label="Copy link"] span,button[title="Copy link bài báo"] span{display:none!important}`;
+  document.head.appendChild(st);
+})();
+
 // public/js/modules/enhance-ai-copy.js
 // HOTFIX: tự chèn nút Copy vào popup tóm tắt nếu chưa có (#modalCopyBtn)
 
@@ -5,6 +15,54 @@ import { openAISummary } from './ai.js';
 import { copyText, showToast } from './clipboard.js';
 
 /** Utils **/
+
+function insertCopyIntoCard(card){
+  if (card && card.querySelector && card.querySelector('.copy-link-btn')) return card.querySelector('.copy-link-btn');
+
+  const articleLink = card.querySelector('.article-link');
+  const ai = card.querySelector('.ai-summary-btn, .btn-ai-summary');
+  const row = (articleLink && articleLink.parentElement) || (ai && ai.parentElement) || null;
+  if (!row) return null;
+
+  let copyBtn = card.querySelector('.copy-link-btn');
+  if (!copyBtn) {
+    copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-link-btn p-2 text-sm bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg inline-flex items-center justify-center shrink-0 whitespace-nowrap';
+    copyBtn.title = 'Copy link bài báo';
+    copyBtn.setAttribute('aria-label', 'Copy link');
+    copyBtn.innerHTML = `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+    if (articleLink && articleLink.parentElement === row) {
+      row.insertBefore(copyBtn, articleLink);
+    } else if (ai && ai.parentElement === row) {
+      ai.parentElement.insertBefore(copyBtn, ai.nextSibling);
+    } else {
+      row.appendChild(copyBtn);
+    }
+    row.classList.add('flex','items-center','flex-nowrap','gap-2');
+  }
+  const aHref = (articleLink && articleLink.href) || card.dataset.link || '';
+  if (aHref) copyBtn.onclick = (e)=>{ e.stopPropagation(); copyText(aHref); };
+  ensureCopyInSameRow(card);
+  return copyBtn;
+}
+function ensureCopyInSameRow(card){
+  const articleLink = card.querySelector('.article-link');
+  const ai = card.querySelector('.ai-summary-btn, .btn-ai-summary');
+  const row = (articleLink && articleLink.parentElement) || (ai && ai.parentElement) || null;
+  const copyBtn = card.querySelector('.copy-link-btn');
+  if (!row || !copyBtn) return;
+  if (copyBtn.parentElement !== row) {
+    row.classList.add('flex','items-center','flex-nowrap','gap-2');
+    if (articleLink && articleLink.parentElement === row) {
+      row.insertBefore(copyBtn, articleLink);
+    } else if (ai && ai.parentElement === row) {
+      ai.parentElement.insertBefore(copyBtn, ai.nextSibling);
+    } else {
+      row.appendChild(copyBtn);
+    }
+  }
+}
+
 function q(sel, root=document){ return root.querySelector(sel); }
 function qa(sel, root=document){ return Array.from(root.querySelectorAll(sel)); }
 
@@ -95,16 +153,11 @@ function ensureModalCopyBtn() {
     const ai = q('#modalAIBtn');
     const btn = document.createElement('button');
     btn.id = 'modalCopyBtn';
-    btn.className = 'btn btn-secondary';
+    btn.className = 'copy-link-btn p-2 text-sm bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg inline-flex items-center justify-center shrink-0 whitespace-nowrap';
     btn.title = 'Copy link bài báo';
     btn.setAttribute('aria-label', 'Copy link');
     btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-      </svg>
-      <span>Copy</span>
-    `;
+  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
     if (ai && ai.parentElement) {
       ai.parentElement.insertBefore(btn, ai.nextSibling);
     } else {
