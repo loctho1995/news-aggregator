@@ -348,15 +348,6 @@ export const SOURCES = {
     url: "https://www.rapid7.com/blog/",
     homepage: "https://www.rapid7.com/blog"
   },
-
-  snyk_io_blog: {
-    id: "snyk_io_blog",
-    name: "Snyk Io Blog",
-    group: "security",
-    type: "html",
-    url: "https://snyk.io/blog/",
-    homepage: "https://snyk.io/blog"
-  },
 // ===== VIETNAM ECONOMIC NEWS =====
   
   // Báo Công Thương
