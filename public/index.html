@@ -157,5 +157,180 @@
     titleObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
   }
 </script>
+
+<!-- Add this script to the end of public/index.html, right before </body> -->
+<script>
+// HOTFIX: Prevent AI button from freezing the UI
+(function() {
+  // Override the global openAISummary if it exists
+  if (window.openAISummary) {
+    const originalOpenAISummary = window.openAISummary;
+    window.openAISummary = function(title, link) {
+      // Wrap in try-catch and async execution
+      setTimeout(() => {
+        try {
+          originalOpenAISummary.call(this, title, link);
+        } catch (error) {
+          console.error('AI Summary error caught:', error);
+          // Show error notification
+          const notification = document.createElement('div');
+          notification.className = 'fixed top-4 right-4 z-50 px-4 py-2 bg-red-600 text-white rounded-lg shadow-lg';
+          notification.style.zIndex = '10000';
+          notification.textContent = 'Không thể mở AI. Vui lòng thử lại.';
+          document.body.appendChild(notification);
+          setTimeout(() => notification.remove(), 2000);
+        }
+      }, 0);
+    };
+  }
+  
+  // Debounce wrapper for click handlers
+  function safeClickHandler(handler, delay = 300) {
+    let timeout = null;
+    let processing = false;
+    
+    return function(e) {
+      // Prevent default immediately
+      if (e && e.preventDefault) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      // If already processing, ignore
+      if (processing) {
+        console.log('Click ignored - still processing');
+        return;
+      }
+      
+      // Clear any pending timeout
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      
+      // Mark as processing
+      processing = true;
+      
+      // Execute handler in next tick
+      timeout = setTimeout(() => {
+        try {
+          handler.call(this, e);
+        } catch (error) {
+          console.error('Handler error:', error);
+        } finally {
+          processing = false;
+        }
+      }, delay);
+    };
+  }
+  
+  // Monitor and fix AI buttons periodically
+  function fixAIButtons() {
+    const aiButtons = document.querySelectorAll('.ai-summary-btn');
+    
+    aiButtons.forEach(btn => {
+      // Skip if already fixed
+      if (btn.dataset.safeFixed === 'true') return;
+      
+      // Remove all existing click listeners by cloning
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+      
+      // Mark as fixed
+      newBtn.dataset.safeFixed = 'true';
+      
+      // Add safe click handler
+      newBtn.addEventListener('click', safeClickHandler(function(e) {
+        console.log('AI button clicked safely');
+        
+        // Get card data
+        const card = newBtn.closest('.news-card');
+        if (!card) {
+          console.error('No card found');
+          return;
+        }
+        
+        const link = card.dataset.url || card.querySelector('a[href]')?.href;
+        const title = card.dataset.title || card.querySelector('h3')?.textContent || '';
+        
+        if (!link) {
+          console.error('No link found');
+          return;
+        }
+        
+        // Try to call AI function if available
+        if (typeof openAISummary === 'function') {
+          openAISummary(title, link);
+        } else {
+          // Fallback: Direct open
+          const prompt = encodeURIComponent(`Tóm tắt bài viết: ${link}`);
+          const chatGPTUrl = `https://chat.openai.com/?q=${prompt}`;
+          
+          try {
+            const win = window.open(chatGPTUrl, '_blank');
+            if (!win || win.closed) {
+              // Copy to clipboard as fallback
+              navigator.clipboard.writeText(`Tóm tắt bài viết: ${link}`).then(() => {
+                alert('Link đã được copy! Paste vào ChatGPT.');
+              });
+            }
+          } catch (err) {
+            console.error('Failed to open ChatGPT:', err);
+          }
+        }
+      }, 100), { capture: true });
+    });
+  }
+  
+  // Fix buttons on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fixAIButtons);
+  } else {
+    fixAIButtons();
+  }
+  
+  // Monitor for new buttons added dynamically
+  const observer = new MutationObserver((mutations) => {
+    let hasNewButtons = false;
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        if (node.nodeType === 1) { // Element node
+          if (node.classList?.contains('ai-summary-btn') || 
+              node.querySelector?.('.ai-summary-btn')) {
+            hasNewButtons = true;
+          }
+        }
+      });
+    });
+    
+    if (hasNewButtons) {
+      setTimeout(fixAIButtons, 100);
+    }
+  });
+  
+  // Start observing
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  // Additional safety: Prevent unhandled promise rejections from freezing UI
+  window.addEventListener('unhandledrejection', function(event) {
+    console.error('Unhandled promise rejection:', event.reason);
+    event.preventDefault();
+  });
+  
+  // Prevent errors from propagating and freezing UI
+  window.addEventListener('error', function(event) {
+    if (event.message && event.message.includes('AI')) {
+      console.error('AI-related error caught:', event.message);
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+  }, true);
+  
+  console.log('AI Button safety hotfix loaded');
+})();
+</script>
 </body>
 </html>

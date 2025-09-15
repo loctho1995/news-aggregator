@@ -234,7 +234,7 @@ function formatFallbackSummary(summary, maxLength) {
 function attachCardEventListeners(card, item) {
   const clickableContent = card.querySelector('.clickable-content');
   
-  // Biến để track text selection và swipe
+  // Variables for text selection and swipe tracking
   let isSelecting = false;
   let mouseDownTime = 0;
   let startX = 0;
@@ -244,24 +244,19 @@ function attachCardEventListeners(card, item) {
   let touchStartX = 0;
   let touchStartY = 0;
   let isSwiping = false;
-  let swipeThreshold = 80; // pixels needed to trigger swipe
-  let swipeAngleThreshold = 30; // degrees - max angle for horizontal swipe
+  let swipeThreshold = 80;
+  let swipeAngleThreshold = 30;
   
-  // Helper to calculate swipe angle
+  // Helper functions (keep existing helpers)
   function getSwipeAngle(deltaX, deltaY) {
     return Math.abs(Math.atan2(deltaY, deltaX) * 180 / Math.PI);
   }
   
-  // Helper to show swipe indicator
   function showSwipeIndicator(progress) {
     const indicator = card.querySelector('.swipe-indicator');
     if (!indicator) return;
-    
-    // Calculate opacity based on progress (0 to 1)
     const opacity = Math.min(1, progress);
     indicator.style.opacity = opacity;
-    
-    // Change background color based on progress
     const bg = indicator.querySelector('.swipe-indicator-bg');
     if (bg) {
       if (progress < 0.5) {
@@ -274,7 +269,6 @@ function attachCardEventListeners(card, item) {
     }
   }
   
-  // Helper to hide swipe indicator
   function hideSwipeIndicator() {
     const indicator = card.querySelector('.swipe-indicator');
     if (indicator) {
@@ -282,18 +276,14 @@ function attachCardEventListeners(card, item) {
     }
   }
   
-  // Helper to animate card swipe
   function animateCardSwipe(deltaX) {
-    // Limit the translation to prevent card from moving too far
     const maxTranslate = 100;
     const translateX = Math.min(Math.abs(deltaX), maxTranslate) * (deltaX < 0 ? -1 : 1);
-    
     card.style.transition = 'none';
     card.style.transform = `translateX(${translateX}px) rotate(${translateX * 0.02}deg)`;
     card.style.opacity = `${1 - Math.abs(translateX) / 200}`;
   }
   
-  // Helper to reset card position
   function resetCardPosition(animated = true) {
     if (animated) {
       card.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
@@ -307,17 +297,15 @@ function attachCardEventListeners(card, item) {
   
   // TOUCH EVENTS FOR SWIPE
   card.addEventListener('touchstart', (e) => {
-    // Don't interfere with buttons or links
     if (e.target.closest('button') || e.target.closest('a')) {
       return;
     }
-    
     const touch = e.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
+    touchEndX = touch.clientX;
+    touchEndY = touch.clientY;
     isSwiping = false;
-    
-    // Also track for click detection
     mouseDownTime = Date.now();
     startX = touch.clientX;
     startY = touch.clientY;
@@ -325,71 +313,54 @@ function attachCardEventListeners(card, item) {
   }, { passive: true });
   
   card.addEventListener('touchmove', (e) => {
-    if (!touchStartX) return;
+    if (!touchStartX || !touchStartY) return;
+    if (e.target.closest('#summaryArea') || 
+        e.target.closest('button') || 
+        e.target.closest('a')) {
+      return;
+    }
     
     const touch = e.touches[0];
-    const deltaX = touchStartX - touch.clientX;
-    const deltaY = touchStartY - touch.clientY;
-    
-    // Calculate swipe angle
+    touchEndX = touch.clientX;
+    touchEndY = touch.clientY;
+    const deltaX = touchStartX - touchEndX;
+    const deltaY = touchStartY - touchEndY;
     const angle = getSwipeAngle(deltaX, deltaY);
     
-    // Check if this is a horizontal swipe (within angle threshold)
     if (Math.abs(deltaX) > 10 && angle < swipeAngleThreshold) {
       isSwiping = true;
-      
-      // Only handle left swipes
       if (deltaX > 0) {
-        e.preventDefault(); // Prevent scrolling
-        
-        // Calculate progress (0 to 1)
+        e.preventDefault();
         const progress = Math.min(1, deltaX / swipeThreshold);
-        
-        // Show visual feedback
         animateCardSwipe(-deltaX);
         showSwipeIndicator(progress);
       }
     } else if (Math.abs(deltaY) > 10) {
-      // Vertical movement - likely scrolling
       isSwiping = false;
       resetCardPosition(false);
     }
   }, { passive: false });
   
   card.addEventListener('touchend', (e) => {
-    if (!touchStartX) return;
-    
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
+    if (!touchStartX || !touchStartY) return;
     const deltaX = touchStartX - touchEndX;
     const deltaY = touchStartY - touchEndY;
     
-    // Check if this was a swipe
     if (isSwiping && deltaX > swipeThreshold) {
-      // Left swipe detected - toggle read status
       e.preventDefault();
       e.stopPropagation();
-      
-      // Animate completion
       card.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
       card.style.transform = 'translateX(-100%) rotate(-5deg)';
       card.style.opacity = '0';
-      
-      // Toggle read status after animation
       setTimeout(() => {
         toggleReadStatus(item.link);
         resetCardPosition(false);
       }, 300);
     } else {
-      // Not a valid swipe - reset position
       resetCardPosition(true);
-      
-      // Check if it was a tap (not swipe, not text selection)
       const clickDuration = Date.now() - mouseDownTime;
       const moveDistance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
-      
       if (clickDuration < 200 && moveDistance < 10 && !isSwiping) {
-        // It's a tap - check if it's on clickable content
         if (e.target.closest('.clickable-content')) {
           e.preventDefault();
           openSummaryModal(item, item.link);
@@ -397,14 +368,14 @@ function attachCardEventListeners(card, item) {
       }
     }
     
-    // Reset
     touchStartX = 0;
     touchStartY = 0;
+    touchEndX = 0;
+    touchEndY = 0;
     isSwiping = false;
   });
   
-  // MOUSE EVENTS (for desktop testing)
-  // Mouse down - bắt đầu track
+  // MOUSE EVENTS for desktop
   clickableContent.addEventListener('mousedown', (e) => {
     mouseDownTime = Date.now();
     startX = e.clientX;
@@ -412,36 +383,28 @@ function attachCardEventListeners(card, item) {
     isSelecting = false;
   });
   
-  // Mouse move - detect nếu đang select text
   clickableContent.addEventListener('mousemove', (e) => {
     if (mouseDownTime > 0) {
-      // Nếu di chuyển chuột > 5px thì coi như đang select
       const moveDistance = Math.sqrt(
         Math.pow(e.clientX - startX, 2) + 
         Math.pow(e.clientY - startY, 2)
       );
-      
       if (moveDistance > 5) {
         isSelecting = true;
       }
     }
   });
   
-  // Mouse up - quyết định action
   clickableContent.addEventListener('mouseup', (e) => {
     const clickDuration = Date.now() - mouseDownTime;
     const selection = window.getSelection();
     const hasSelection = selection && selection.toString().trim().length > 0;
-    
-    // Reset tracking
     mouseDownTime = 0;
     
-    // Nếu có text được select hoặc đang trong quá trình select -> không mở modal
     if (hasSelection || isSelecting) {
       return;
     }
     
-    // Nếu click nhanh (< 200ms) và không di chuyển -> mở modal
     if (clickDuration < 200 && !isSelecting && !isSwiping) {
       e.stopPropagation();
       openSummaryModal(item, item.link);
@@ -450,38 +413,64 @@ function attachCardEventListeners(card, item) {
     isSelecting = false;
   });
   
-  // Double click để select word
   clickableContent.addEventListener('dblclick', (e) => {
-    e.stopPropagation(); // Không mở modal khi double click
+    e.stopPropagation();
   });
   
-  // Click vào nút đọc/chưa đọc
+  // BUTTON EVENT HANDLERS - ATTACH ONLY ONCE
+  
+  // Read status button
   const readStatusBtn = card.querySelector('.read-status-btn');
+  if (readStatusBtn && !readStatusBtn.dataset.listenerAttached) {
+    readStatusBtn.dataset.listenerAttached = 'true';
+    readStatusBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleReadStatus(item.link);
+    });
+  }
   
-  // Nút AI Summary
+  // AI Summary button - ATTACH ONLY ONCE
   const aiSummaryBtn = card.querySelector('.ai-summary-btn');
-  const copyBtn = card.querySelector('.copy-link-btn');
-  if (copyBtn) {
-    copyBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const href = (item && item.link) ? item.link : (card.querySelector('.article-link')?.href || '');
-      if (href) copyText(href);
-    });
-  }
-
-  if (aiSummaryBtn) {
+  if (aiSummaryBtn && !aiSummaryBtn.dataset.listenerAttached) {
+    aiSummaryBtn.dataset.listenerAttached = 'true';
     aiSummaryBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      openAISummary(item.title, item.link);
+      e.stopImmediatePropagation(); // Stop all other handlers
+      
+      // Add safety timeout to prevent UI freezing
+      setTimeout(() => {
+        try {
+          openAISummary(item.title || '', item.link);
+        } catch (error) {
+          console.error('Error opening AI summary:', error);
+        }
+      }, 0);
     });
   }
   
-  // Nút Dịch/Bản Gốc (toggle + cache)
+  // Copy button - ATTACH ONLY ONCE
+  const copyBtn = card.querySelector('.copy-link-btn');
+  if (copyBtn && !copyBtn.dataset.listenerAttached) {
+    copyBtn.dataset.listenerAttached = 'true';
+    copyBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const href = item.link || card.querySelector('.article-link')?.href || '';
+      if (href) {
+        copyText(href);
+      }
+    });
+  }
+  
+  // Translate button - ATTACH ONLY ONCE
   const translateBtn = card.querySelector('.translate-btn');
-  if (translateBtn) {
-    // Set initial label
+  if (translateBtn && !translateBtn.dataset.listenerAttached) {
+    translateBtn.dataset.listenerAttached = 'true';
     translateBtn.textContent = card.dataset.translated === "true" ? "Bản Gốc" : "Dịch";
     translateBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const translated = card.dataset.translated === "true";
       translateBtn.disabled = true;
@@ -489,7 +478,6 @@ function attachCardEventListeners(card, item) {
       translateBtn.textContent = translated ? 'Đang hoàn nguyên...' : 'Đang dịch...';
       try {
         if (translated) {
-          // restore
           await translateCardElement(card, { toggleOnly: true });
           translateBtn.textContent = 'Dịch';
         } else {
@@ -504,15 +492,15 @@ function attachCardEventListeners(card, item) {
       }
     });
   }
-
-  readStatusBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleReadStatus(item.link);
-  });
   
-  // Click vào link bài báo - ĐÁNH DẤU ĐÃ ĐỌC
+  // Article link - mark as read when clicked
   const articleLink = card.querySelector('.article-link');
-  articleLink.addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
+  if (articleLink && !articleLink.dataset.listenerAttached) {
+    articleLink.dataset.listenerAttached = 'true';
+    articleLink.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Mark as read when opening article
+      // markRead(item.link);
+    });
+  }
 }
