@@ -10,16 +10,30 @@
 <link href="/public/css/main.css" rel="stylesheet"/>
 <link href="/public/css/dynamic.css" rel="stylesheet"/>
 <link href="data:;base64,=" rel="icon">
+  <link rel="stylesheet" href="/public/css/chatgpt-buttons.css">
+  <link rel="stylesheet" href="/public/css/chatgpt-dropdown.css">
 </head>
 <body class="bg-[#343541] text-slate-100">
 <header class="sticky top-0 z-10 bg-[#343541]/80 backdrop-blur border-b border-[#565869]">
+      
+
 <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
 <h1 class="text-xl sm:text-2xl font-bold">📰 Tổng hợp tin tức</h1>
 <span class="ml-auto text-xs px-2 py-1 rounded-full bg-[#40414f] text-slate-200 border border-[#565869]" id="badge">Đang tải…</span>
 </div>
 <div class="max-w-6xl mx-auto px-4 pb-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
 <div class="flex items-center gap-2">
-<input class="w-full px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring focus:ring-[#565869] flex-1" id="search" placeholder="Tìm theo tiêu đề/tóm tắt… (VD: bão, vàng miếng)"/>
+<div class="chatgpt-dropdown-wrap">
+  <div id="chatgpt-dropdown">
+    <button class="dd-toggle" type="button">AI Tóm Tắt▾</button>
+    <div class="dd-menu">
+      <button type="button" data-prompt="security">Bảo mật News</button>
+      <button type="button" data-prompt="engineering">Dev, Lập trình News</button>
+      <button type="button" data-prompt="game">Game/Engine News</button>
+    </div>
+  </div>
+</div>
+
 <select class="flex-1 px-3 py-2 rounded-xl border border-[#565869] bg-[#40414f] text-slate-100 w-auto" id="hours">
 <option value="6">6 giờ</option>
 <option value="12">12 giờ</option>
@@ -158,7 +172,9 @@
   }
 </script>
 
-<!-- Add this script to the end of public/index.html, right before </body> -->
+<!-- Add this script to the end of public/index.html, right before   <script src="/public/js/chatgpt-buttons.js"></script>
+  <script src="/public/js/chatgpt-dropdown.js"></script>
+</body> -->
 <script>
 // HOTFIX: Prevent AI button from freezing the UI
 (function() {
@@ -332,5 +348,7 @@
   console.log('AI Button safety hotfix loaded');
 })();
 </script>
+  <script src="/public/js/chatgpt-buttons.js"></script>
+  <script src="/public/js/chatgpt-dropdown.js"></script>
 </body>
 </html>
