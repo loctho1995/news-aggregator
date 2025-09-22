@@ -28,9 +28,9 @@
   }
 
   const prompts = {
-    security: "tổng hợp và tóm tắt đầy đủ các ý chính về các tin tức từ tất cả các bài báo, blog liên quan tới bảo mật trên thế giới tuần này, có đính kèm link bài báo và ngày tháng của tin tức",
-    engineering: "tổng hợp và tóm tắt đầy đủ các ý chính về các tin tức từ tất cả các bài báo, blog liên quan tới engine lập trình, phần mềm mới, framework, open source, tool kit, ngôn ngữ lập trình, kĩ thuật lập trình mới trên thế giới tuần này, có đính kèm link bài báo và ngày tháng của tin tức",
-    game: "tổng hợp và tóm tắt đầy đủ các ý chính về các tin tức từ tất cả các bài báo, blog liên quan tới ngành công nghiệp game, engine lập trình game, kĩ thuật lập trình game"
+    security: "tổng hợp và tóm tắt đầy đủ các ý chính về các tin tức trong 7 ngày gần đây từ tất cả các bài báo, blog liên quan tới bảo mật trên thế giới. có đính kèm link bài báo và ngày tháng của tin tức",
+    engineering: "tổng hợp và tóm tắt đầy đủ các ý chính về các tin tức trong 7 ngày gần đây từ tất cả các bài báo, blog liên quan tới engine lập trình, phần mềm mới, framework, open source, tool kit, ngôn ngữ lập trình, kĩ thuật lập trình mới trên thế giới. Có đính kèm link bài báo và ngày tháng của tin tức",
+    game: "tổng hợp và tóm tắt đầy đủ các ý chính về các tin tức trong 7 ngày gần đây từ tất cả các bài báo, blog liên quan tới ngành công nghiệp game, engine lập trình game, kĩ thuật lập trình game. Có đính kèm link bài báo và ngày tháng của tin tức"
   };
 
   function bind(id, promptKey) {
