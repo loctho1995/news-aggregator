@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>News</title>
+  <style>
+    :root{
+      --bg: #0b1220; --card:#111a2b; --muted:#9fb0c5; --text:#e6edf3; --accent:#4da3ff; --accent-2:#7bd8a6;
+      --ok:#2ecc71; --bad:#ff7675;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";background:radial-gradient(1200px 800px at 80% -10%,#183259 0%,var(--bg) 50%),var(--bg);color:var(--text)}
+    .container{max-width:960px;margin:0 auto;padding:32px 16px 56px}
+    header{display:flex;gap:12px;align-items:center;margin-bottom:24px}
+    .logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 6px 20px rgba(77,163,255,.35);font-weight:800;color:#0a1220}
+    h1{font-size:20px;margin:0}
+    p.sub{color:var(--muted);margin:6px 0 0}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}
+    @media (min-width:720px){.grid{grid-template-columns:2fr 1fr auto}}
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:8px}
+    select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0e1626;color:var(--text);outline:none;transition:border .2s ease}
+    select:focus{border-color:var(--accent)}
+    button{padding:12px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#0b1220;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 8px 18px rgba(77,163,255,.35);transition:transform .06s ease}
+    button:active{transform:translateY(1px)}
+    .preview{margin-top:18px}
+    .preview textarea{width:100%;min-height:130px;resize:vertical;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:#0e1626;color:var(--text)}
+    .row{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width:720px){.row{grid-template-columns:1fr auto;align-items:end}}
+    .hint{font-size:12px;color:var(--muted);margin-top:8px}
+    .inline{display:flex;gap:8px;align-items:center}
+    .pill{font-size:11px;padding:6px 10px;border-radius:999px;background:#0e1626;border:1px solid rgba(255,255,255,.08);color:var(--muted)}
+    a.btn-link{color:var(--accent)}
+    .tests{margin-top:18px}
+    .test-item{display:flex;justify-content:space-between;gap:12px;padding:8px 12px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:#0f1828}
+    .test-ok{color:var(--ok);font-weight:700}
+    .test-bad{color:var(--bad);font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>News Summarizer</div>
+      <div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label for="category">Danh mục</label>
+          <select id="category" data-testid="category">
+            <option>Bảo Mật</option>
+            <option>Dev - Lập trình</option>
+            <option>Game/Engine</option>
+            <option>Vietnam</option>
+            <option>Kinh Tế VN</option>
+            <option>Kinh Tế Thế Giới</option>
+          </select>
+        </div>
+        <div>
+          <label for="time">Thời gian</label>
+          <select id="time" data-testid="time">
+            <option>24 giờ</option>
+            <option>48 giờ</option>
+            <option>5 ngày</option>
+            <option>7 ngày</option>
+            <option>10 ngày</option>
+          </select>
+        </div>
+        <div class="inline" style="margin-top:26px">
+          <button id="openBtn" title="Mở ChatGPT với prompt đã tạo" data-testid="open">Mở ChatGPT</button>
+        </div>
+      </div>
+
+      <div class="preview">
+        <label for="preview">Xem trước prompt</label>
+        <textarea id="preview" readonly data-testid="preview"></textarea>
+        <div class="hint">Nếu trình duyệt chặn cửa sổ mới, hãy bấm lại hoặc dùng liên kết dự phòng 
+          <a id="fallbackLink" class="btn-link" href="#" target="_blank" rel="noopener noreferrer" data-testid="fallback">Mở ở tab mới</a>.
+        </div>
+      </div>
+
+      <div class="hint" style="margin-top:12px">
+        <span class="pill">Mẹo</span> Bạn có thể chỉnh sửa nhẹ trong ô xem trước trước khi mở ChatGPT.
+      </div>
+
+      <div class="tests" id="tests" aria-live="polite">
+        <div class="hint" style="margin-bottom:8px">Kết quả kiểm thử nhanh (tự chạy khi tải trang):</div>
+        <div id="testList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+  (function(){
+    // ===== Config =====
+    const basePrompts = {
+      "Bảo Mật": (time) => `Tổng hợp và tóm tắt đầy đủ các ý chính về tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} liên quan tới bảo mật/cybersecurity trên thế giới. Gộp những mục trùng nhau, chỉ giữ nguồn gốc. Với mỗi tin: ghi tiêu đề ngắn gọn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link nguồn và ngày đăng (DD-MM-YYYY). Sắp xếp theo thời gian mới → cũ. Trả lời bằng tiếng Việt.`,
+      "Dev - Lập trình": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về lập trình/Dev: engine lập trình, phần mềm mới, framework, open source, tool kit, ngôn ngữ lập trình, kỹ thuật lập trình mới. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, kèm link và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
+      "Game/Engine": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về ngành công nghiệp game, engine lập trình game, kỹ thuật lập trình game. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, kèm link và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
+      "Vietnam": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về tin tức trong nước Việt Name. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, kèm link và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
+      "Kinh Tế VN": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về tin tức Kinh Tế VN. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, kèm link và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
+      "Kinh Tế Thế Giới": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về tin tức Kinh Tế Thế Giới. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, kèm link và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
+    };
+
+    // ===== Helpers =====
+    function timePhrase(value){
+      switch(value){
+        case '24 giờ': return 'trong 24 giờ qua';
+        case '48 giờ': return 'trong 48 giờ qua';
+        case '5 ngày': return 'trong 5 ngày gần đây';
+        case '7 ngày': return 'trong 7 ngày gần đây';
+        case '10 ngày': return 'trong 10 ngày gần đây';
+        default: return `trong khoảng thời gian ${value}`;
+      }
+    }
+
+    // ===== DOM =====
+    const $category = document.getElementById('category');
+    const $time = document.getElementById('time');
+    const $preview = document.getElementById('preview');
+    const $openBtn = document.getElementById('openBtn');
+    const $fallbackLink = document.getElementById('fallbackLink');
+    const $testList = document.getElementById('testList');
+
+    function buildPrompt(){
+      const cat = $category.value; const t = $time.value; const phrase = timePhrase(t);
+      return basePrompts[cat](phrase);
+    }
+
+    function buildUrl(prompt){
+      // Thử cả hai miền để tương thích
+      const encoded = encodeURIComponent(prompt);
+      const primary = `https://chat.openai.com/?q=${encoded}`;
+      const fallback = `https://chatgpt.com/?q=${encoded}`;
+      return { primary, fallback };
+    }
+
+    function refresh(){
+      const prompt = buildPrompt();
+      $preview.value = prompt;
+      const { primary } = buildUrl(prompt);
+      $fallbackLink.href = primary;
+    }
+
+    // Không dùng await / top-level await ở bất cứ đâu để tránh lỗi môi trường nhúng
+    function openChat(){
+      const prompt = ($preview.value || '').trim() || buildPrompt();
+      const urls = buildUrl(prompt);
+      let win = null;
+      try{ win = window.open(urls.primary, '_blank', 'noopener'); }catch(e){ /* ignore */ }
+      if(!win){
+        try{ win = window.open(urls.fallback, '_blank', 'noopener'); }catch(e){ /* ignore */ }
+      }
+    }
+
+    // ===== Events =====
+    $category.addEventListener('change', refresh);
+    $time.addEventListener('change', refresh);
+    $openBtn.addEventListener('click', openChat);
+
+    // ===== Lightweight tests (no external libs) =====
+    function addTest(name, pass, info){
+      const row = document.createElement('div');
+      row.className = 'test-item';
+      row.innerHTML = `<span>${name}${info?` — <span class="hint">${info}</span>`:''}</span>` +
+                      `<span class="${pass?'test-ok':'test-bad'}">${pass?'PASS':'FAIL'}</span>`;
+      $testList.appendChild(row);
+    }
+
+    function runTests(){
+      // Test 1: timePhrase mapping
+      const mapInputs = ['24 giờ','48 giờ','5 ngày','7 ngày','10 ngày'];
+      const mapExpected = ['24 giờ','48 giờ','5 ngày','7 ngày','10 ngày'];
+      let ok1 = true;
+      for(let i=0;i<mapInputs.length;i++){
+        const out = timePhrase(mapInputs[i]);
+        if(!out.includes(mapExpected[i].split(' ')[0])) ok1=false;
+      }
+      addTest('timePhrase trả về cụm từ hợp lệ cho 5 lựa chọn', ok1);
+
+      // Test 2: buildPrompt chứa cụm thời gian
+      $category.value = 'Bảo Mật'; $time.value = '24 giờ';
+      const p1 = buildPrompt();
+      addTest('buildPrompt chứa thời gian (24 giờ)', p1.includes('24 giờ'));
+
+      // Test 3: buildUrl tạo đúng tham số q
+      const sample = 'abc XYZ 123';
+      const urls = buildUrl(sample);
+      const ok3 = urls.primary.includes(encodeURIComponent(sample));
+      addTest('buildUrl mã hoá tham số q', ok3);
+
+      // Test 4: refresh cập nhật preview & link
+      $category.value = 'Game/Engine'; $time.value = '7 ngày';
+      refresh();
+      const ok4 = ($preview.value || '').length > 0 && ($fallbackLink.href || '').length > 0;
+      addTest('refresh cập nhật preview & fallbackLink', ok4);
+
+      // Khôi phục tuỳ chọn ban đầu
+      $category.value = 'Bảo Mật'; $time.value = '24 giờ'; refresh();
+    }
+
+    // Init
+    refresh();
+    // runTests();
+  })();
+  </script>
+</body>
+</html>
