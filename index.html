@@ -52,6 +52,7 @@
         <div>
           <label for="category">Danh mục</label>
           <select id="category" data-testid="category">
+            <option>Tin Nóng Chung</option>
             <option>Tin Nóng</option>
             <option>Bảo Mật</option>
             <option>Dev - Lập trình</option>
@@ -67,7 +68,7 @@
           <label for="time">Thời gian</label>
           <select id="time" data-testid="time">
             <option>24 giờ</option>
-            <option>48 giờ</option>
+            <option selected>48 giờ</option>
             <option>5 ngày</option>
             <option>7 ngày</option>
             <option>10 ngày</option>
@@ -101,15 +102,19 @@
   'use strict';
   (function(){
     // ===== Config =====
+    const beginText1 = "Tổng hợp và tóm tắt đầy đủ các ý chính về tất cả các tin tức bạn có thể thu thập được từ tất cả trang báo, blog";
+    const middleText = "Gộp những mục trùng nhau. Với mỗi tin: ghi tiêu đề đầy đủ, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). Sắp xếp theo thời gian mới → cũ. Trả lời bằng tiếng Việt.";
+
     const basePrompts = {
-      "Tin Nóng": (time) => `Tổng hợp và tóm tắt đầy đủ các ý chính về tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} liên quan tới các tin nóng về Việt Nam, kinh tế thế giới, bảo mật/cybersecurity, công nghệ thông tin, startup trên thế giới. Gộp những mục trùng nhau. Với mỗi tin: ghi tiêu đề ngắn gọn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). Sắp xếp theo thời gian mới → cũ. Trả lời bằng tiếng Việt.`,
-      "Bảo Mật": (time) => `Tổng hợp và tóm tắt đầy đủ các ý chính về tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} liên quan tới bảo mật/cybersecurity trên thế giới. Gộp những mục trùng nhau. Với mỗi tin: ghi tiêu đề đầy đủ, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). Sắp xếp theo thời gian mới → cũ. Trả lời bằng tiếng Việt.`,
-      "Dev - Lập trình": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về lập trình/Dev: engine lập trình, phần mềm mới, framework, open source, tool kit, ngôn ngữ lập trình, kỹ thuật lập trình mới. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
-      "Game/Engine": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về ngành công nghiệp game, engine lập trình game, kỹ thuật lập trình game. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
-      "Vietnam": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về tin tức trong nước Việt Name. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
-      "Kinh Tế VN": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về tin tức Kinh Tế VN. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
-      "Kinh Tế Thế Giới": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về tin tức Kinh Tế Thế Giới. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
-       "Startup": (time) => `Tổng hợp và tóm tắt tất cả các tin tức bạn có thể thu thập được, không giới hạn ${time} về tin tức Startup liên quan tới công nghệ, khoa học kĩ thuật, y tế, đời sống, nông nghiệp, công nghiệp. Với mỗi tin: tiêu đề ngắn, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). gom nhóm các trùng lặp. Trả lời bằng tiếng Việt.`,
+      "Tin Nóng Chung": (time) => `${beginText1}, ${time} liên quan tới các tin nóng, tin sốc trên thế giới. ${middleText}`,      
+      "Tin Nóng": (time) => `${beginText1}, ${time} liên quan tới các tin nóng về Việt Nam, kinh tế thế giới, bảo mật/cybersecurity, công nghệ thông tin, startup trên thế giới. ${middleText}`,
+      "Bảo Mật": (time) => `${beginText1}, ${time} liên quan tới bảo mật/cybersecurity trên thế giới. ${middleText}`,
+      "Dev - Lập trình": (time) => `${beginText1}, ${time} về lập trình/Dev: engine lập trình, phần mềm mới, framework, open source, tool kit, ngôn ngữ lập trình, kỹ thuật lập trình mới. ${middleText}`,
+      "Game/Engine": (time) => `${beginText1}, ${time} về ngành công nghiệp game, engine lập trình game, kỹ thuật lập trình game. ${middleText}`,
+      "Vietnam": (time) => `${beginText1}, ${time} về tin tức trong nước Việt Nam. ${middleText}`,
+      "Kinh Tế VN": (time) => `${beginText1}, ${time} về tin tức Kinh Tế VN. ${middleText}`,
+      "Kinh Tế Thế Giới": (time) => `${beginText1}, ${time} về tin tức Kinh Tế Thế Giới. ${middleText}`,
+       "Startup": (time) => `${beginText1}, ${time} về tin tức Startup liên quan tới công nghệ, khoa học kĩ thuật, y tế, đời sống, nông nghiệp, công nghiệp. ${middleText}`,
     };
 
     // ===== Helpers =====
