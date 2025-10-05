@@ -54,6 +54,7 @@
           <select id="category" data-testid="category">
             <option>Tin Nóng Chung</option>
             <option>Tin Nóng</option>
+            <option>Khoa học, phát minh</option>            
             <option>Bảo Mật</option>
             <option>Dev - Lập trình</option>
             <option>Game/Engine</option>
@@ -108,6 +109,7 @@
     const basePrompts = {
       "Tin Nóng Chung": (time) => `${beginText1}, ${time} liên quan tới các tin nóng, tin sốc trên thế giới. ${middleText}`,      
       "Tin Nóng": (time) => `${beginText1}, ${time} liên quan tới các tin nóng về Việt Nam, kinh tế thế giới, bảo mật/cybersecurity, công nghệ thông tin, startup trên thế giới. ${middleText}`,
+      "Khoa học, phát minh": (time) => `${beginText1}, ${time} liên quan tới các tin về khoa học, phát minh, sáng chế trên thế giới. ${middleText}`,
       "Bảo Mật": (time) => `${beginText1}, ${time} liên quan tới bảo mật/cybersecurity trên thế giới. ${middleText}`,
       "Dev - Lập trình": (time) => `${beginText1}, ${time} về lập trình/Dev: engine lập trình, phần mềm mới, framework, open source, tool kit, ngôn ngữ lập trình, kỹ thuật lập trình mới. ${middleText}`,
       "Game/Engine": (time) => `${beginText1}, ${time} về ngành công nghiệp game, engine lập trình game, kỹ thuật lập trình game. ${middleText}`,
