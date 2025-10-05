@@ -105,11 +105,13 @@
     // ===== Config =====
     const beginText1 = "Tổng hợp và tóm tắt đầy đủ các ý chính về tất cả các tin tức bạn có thể thu thập được từ tất cả trang báo, blog";
     const middleText = "Gộp những mục trùng nhau. Với mỗi tin: ghi tiêu đề đầy đủ, đầy đủ ý chính, có ngăn cách giữa các hạng mục, đính kèm link của bài báo và ngày đăng (DD-MM-YYYY). Sắp xếp theo thời gian mới → cũ. Trả lời bằng tiếng Việt.";
-
+    const listLinks = "https://vnexpress.net, https://tuoitre.vn, https://thanhnien.vn, https://vietnamnet.vn, https://dantri.com.vn, https://nld.com.vn, https://cafef.vn, https://cafebiz.vn, https://baodautu.vn, https://vietnamplus.vn, https://zingnews.vn, https://vtv.vn, https://vov.vn, https://laodong.vn, https://plo.vn, https://baochinhphu.vn, https://vietstock.vn, https://ictnews.vietnamnet.vn, https://genk.vn, https://tinhte.vn, https://vnreview.vn, https://whitehat.vn, https://reuters.com, https://bloomberg.com, https://bbc.com, https://cnn.com, https://theguardian.com, https://nytimes.com, https://washingtonpost.com, https://ft.com, https://wsj.com, https://aljazeera.com, https://apnews.com, https://techcrunch.com, https://wired.com, https://theverge.com, https://arstechnica.com, https://infoq.com, https://news.ycombinator.com, https://venturebeat.com, https://gizmodo.com, https://krebsonsecurity.com, https://thehackernews.com, https://darkreading.com, https://bleepingcomputer.com, https://securityweek.com";
+    
     const basePrompts = {
+      "Tin Chung": (time) => `${beginText1}, ${time} của các trang báo sau ${listLinks}. ${middleText}`,      
       "Tin Nóng Chung": (time) => `${beginText1}, ${time} liên quan tới các tin nóng, tin sốc trên thế giới. ${middleText}`,      
       "Tin Nóng": (time) => `${beginText1}, ${time} liên quan tới các tin nóng về Việt Nam, kinh tế thế giới, bảo mật/cybersecurity, công nghệ thông tin, startup trên thế giới. ${middleText}`,
-      "Khoa học, phát minh": (time) => `${beginText1}, ${time} liên quan tới các tin về khoa học, phát minh, sáng chế trên thế giới. ${middleText}`,
+      "Khoa học, phát minh": (time) => `${beginText1}, ${time} liên quan tới các tin về khoa học, phát minh, sáng chế, sáng tạo trên thế giới. ${middleText}`,
       "Bảo Mật": (time) => `${beginText1}, ${time} liên quan tới bảo mật/cybersecurity trên thế giới. ${middleText}`,
       "Dev - Lập trình": (time) => `${beginText1}, ${time} về lập trình/Dev: engine lập trình, phần mềm mới, framework, open source, tool kit, ngôn ngữ lập trình, kỹ thuật lập trình mới. ${middleText}`,
       "Game/Engine": (time) => `${beginText1}, ${time} về ngành công nghiệp game, engine lập trình game, kỹ thuật lập trình game. ${middleText}`,
